@@ -115,4 +115,15 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Support Email
+    |--------------------------------------------------------------------------
+    |
+    | Email address where support messages will be sent
+    |
+    */
+
+    'support_email' => env('MAIL_SUPPORT_EMAIL', 'luanacarvalhomesquita@gmail.com'),
+
 ];

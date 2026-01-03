@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import logoUrl from '@/../../resources/img/icon-logo.svg';
 
@@ -9,6 +9,17 @@ const props = defineProps<{
 
 const auth = useAuth();
 const isOpen = ref(true);
+
+onMounted(() => {
+    // Restaurar estado do sidebar do localStorage
+    const savedState = localStorage.getItem('sidebarOpen');
+    if (savedState !== null) {
+        isOpen.value = savedState === 'true';
+    } else {
+        // No mobile, começar fechado; no desktop, começar aberto
+        isOpen.value = window.innerWidth >= 1024;
+    }
+});
 
 const userName = computed(() => auth.getUserName.value || 'Usuário');
 const companyName = computed(() => auth.getCompanyName.value || 'Empresa');
@@ -20,7 +31,7 @@ const menuItems = [
     { name: 'Colaboradores', icon: 'people', route: '/colaboradores', key: 'colaboradores' },
     { name: 'Histórico', icon: 'history', route: '/historico', key: 'historico' },
     { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },
-    { name: 'Ajuda e Suporte', icon: 'help', route: '/ajuda', key: 'ajuda' },
+    { name: 'Ajuda e Suporte', icon: 'help', route: '/suporte', key: 'suporte' },
 ];
 
 const handleLogout = async () => {
@@ -42,6 +53,8 @@ const handleLogout = async () => {
 
 const toggleSidebar = () => {
     isOpen.value = !isOpen.value;
+    // Salvar estado no localStorage
+    localStorage.setItem('sidebarOpen', isOpen.value ? 'true' : 'false');
 };
 </script>
 

@@ -21,8 +21,14 @@ createInertiaApp({
             import.meta.glob<DefineComponent>('./pages/**/*.vue'),
         ),
     setup({ el, App, props, plugin }) {
-        createApp({ render: () => h(App, props) })
-            .use(plugin)
+        const app = createApp({ 
+            render: () => h('div', [
+                h(Toaster, { position: 'top-right' }),
+                h(App, props)
+            ])
+        });
+        
+        app.use(plugin)
             .component('Toaster', Toaster)
             .mount(el);
     },

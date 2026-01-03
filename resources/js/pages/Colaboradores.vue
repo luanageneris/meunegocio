@@ -5,6 +5,7 @@ import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import CollaboratorModal from '@/components/modals/CollaboratorModal.vue';
+import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
 
@@ -25,11 +26,17 @@ const errorMessage = ref('');
 const search = ref('');
 const showRemoved = ref(false);
 const showModal = ref(false);
+const showDeleteModal = ref(false);
+const showRestoreModal = ref(false);
 const isModalLoading = ref(false);
+const isDeleteLoading = ref(false);
+const isRestoreLoading = ref(false);
 const modalMode = ref<'create' | 'edit'>('create');
 const currentPage = ref(1);
 const itemsPerPage = 8;
 const editing = ref<Collaborator | null>(null);
+const deletingCollaborator = ref<Collaborator | null>(null);
+const restoringCollaborator = ref<Collaborator | null>(null);
 
 const filtered = computed(() => {
     if (!search.value) return collaborators.value;
@@ -112,29 +119,47 @@ const handleSave = async (payload: Partial<Collaborator>) => {
 
 const handleDelete = async (collab: Collaborator) => {
     if (collab.deleted_at) return;
-    const confirmed = window.confirm(`Remover colaborador ${collab.name}?`);
-    if (!confirmed) return;
+    deletingCollaborator.value = collab;
+    showDeleteModal.value = true;
+};
+
+const confirmDelete = async () => {
+    if (!deletingCollaborator.value) return;
+    isDeleteLoading.value = true;
     try {
-        await axios.delete(`/api/personalizar/collaborators/${collab.id}`);
+        await axios.delete(`/api/personalizar/collaborators/${deletingCollaborator.value.id}`);
         await fetchCollaborators();
+        showDeleteModal.value = false;
+        deletingCollaborator.value = null;
         toast.success('Removido com sucesso!', { description: 'O colaborador foi movido para removidos.' });
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao remover colaborador';
         toast.error('Erro ao remover', { description: message });
+    } finally {
+        isDeleteLoading.value = false;
     }
 };
 
 const handleRestore = async (collab: Collaborator) => {
     if (!collab.deleted_at) return;
-    const confirmed = window.confirm(`Restaurar colaborador ${collab.name}?`);
-    if (!confirmed) return;
+    restoringCollaborator.value = collab;
+    showRestoreModal.value = true;
+};
+
+const confirmRestore = async () => {
+    if (!restoringCollaborator.value) return;
+    isRestoreLoading.value = true;
     try {
-        await axios.post(`/api/personalizar/collaborators/${collab.id}/restore`);
+        await axios.post(`/api/personalizar/collaborators/${restoringCollaborator.value.id}/restore`);
         await fetchCollaborators();
-        toast.success('Restaurado com sucesso!', { description: `${collab.name} foi restaurado e ativado.` });
+        showRestoreModal.value = false;
+        restoringCollaborator.value = null;
+        toast.success('Restaurado com sucesso!', { description: `${restoringCollaborator.value.name} foi restaurado e ativado.` });
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao restaurar colaborador';
         toast.error('Erro ao restaurar', { description: message });
+    } finally {
+        isRestoreLoading.value = false;
     }
 };
 
@@ -304,6 +329,24 @@ onMounted(fetchCollaborators);
             :is-loading="isModalLoading"
             @close="showModal = false; editing = null"
             @save="handleSave"
+        />
+
+        <DeleteConfirmModal
+            :show="showDeleteModal"
+            :record="deletingCollaborator"
+            :is-loading="isDeleteLoading"
+            item-type="collaborator"
+            @close="showDeleteModal = false; deletingCollaborator = null"
+            @confirm="confirmDelete"
+        />
+
+        <DeleteConfirmModal
+            :show="showRestoreModal"
+            :record="restoringCollaborator"
+            :is-loading="isRestoreLoading"
+            item-type="restore"
+            @close="showRestoreModal = false; restoringCollaborator = null"
+            @confirm="confirmRestore"
         />
     </div>
 </template>

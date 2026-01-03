@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\BalanceController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\SupportController;
 
 Route::get('/health', function () {
     return response()->json(['status' => 'ok']);
@@ -93,4 +94,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Importação
     Route::post('/import', [ImportController::class, 'import'])->middleware('root');
     Route::get('/import-logs', [ImportController::class, 'logs'])->middleware('root');
+
+    // Suporte
+    Route::post('/support', [SupportController::class, 'send']);
 });

@@ -47,6 +47,11 @@ Route::get('/colaboradores', function () {
     return Inertia::render('Colaboradores');
 })->name('colaboradores');
 
+// Ajuda e Suporte
+Route::get('/suporte', function () {
+    return Inertia::render('Suporte');
+})->name('suporte');
+
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth:sanctum', 'verified'])->name('dashboard');
