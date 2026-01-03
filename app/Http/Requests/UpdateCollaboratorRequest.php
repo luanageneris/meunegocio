@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateCollaboratorRequest extends FormRequest
 {
@@ -17,7 +18,7 @@ class UpdateCollaboratorRequest extends FormRequest
         
         return [
             'name' => 'required|string|max:255',
-            'cpf' => "required|regex:/^\d{3}\.\d{3}\.\d{3}-\d{2}$/|unique:collaborators,cpf,{$collaboratorId}",
+            'cpf' => ['required', 'regex:/^\d{3}\.\d{3}\.\d{3}-\d{2}$/', Rule::unique('collaborators', 'cpf')->ignore($collaboratorId)->where('company_id', $this->user()->company_id)],
             'active' => 'boolean',
         ];
     }

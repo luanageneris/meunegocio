@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateServiceTypeRequest extends FormRequest
 {
@@ -16,7 +17,7 @@ class UpdateServiceTypeRequest extends FormRequest
         $serviceTypeId = $this->route('service_type');
         
         return [
-            'name' => "required|string|max:255|unique:service_types,name,{$serviceTypeId}",
+            'name' => ['required', 'string', 'max:255', Rule::unique('service_types', 'name')->ignore($serviceTypeId)->where('company_id', $this->user()->company_id)],
             'commission_percentage' => 'required|numeric|min:0|max:100',
         ];
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateEntryTypeRequest extends FormRequest
 {
@@ -16,7 +17,7 @@ class UpdateEntryTypeRequest extends FormRequest
         $entryTypeId = $this->route('entry_type');
         
         return [
-            'name' => "required|string|max:255|unique:entry_types,name,{$entryTypeId}",
+            'name' => ['required', 'string', 'max:255', Rule::unique('entry_types', 'name')->ignore($entryTypeId)->where('company_id', $this->user()->company_id)],
             'requires_collaborator' => 'boolean',
         ];
     }

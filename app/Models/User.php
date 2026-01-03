@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, Notifiable, TwoFactorAuthenticatable, HasApiTokens;
 
     /**
      * The attributes that are mass assignable.
@@ -24,6 +25,7 @@ class User extends Authenticatable
         'password',
         'google_id',
         'role',
+        'company_id',
     ];
 
     /**
@@ -54,6 +56,11 @@ class User extends Authenticatable
     }
 
     // Relacionamentos
+    public function company(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
     public function importLogs(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(ImportLog::class, 'imported_by');
@@ -63,6 +70,5 @@ class User extends Authenticatable
     public function isRoot(): bool
     {
         return $this->role === 'root';
-    }
     }
 }

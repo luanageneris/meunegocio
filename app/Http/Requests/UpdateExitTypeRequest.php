@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateExitTypeRequest extends FormRequest
 {
@@ -16,7 +17,7 @@ class UpdateExitTypeRequest extends FormRequest
         $exitTypeId = $this->route('exit_type');
         
         return [
-            'name' => "required|string|max:255|unique:exit_types,name,{$exitTypeId}",
+            'name' => ['required', 'string', 'max:255', Rule::unique('exit_types', 'name')->ignore($exitTypeId)->where('company_id', $this->user()->company_id)],
         ];
     }
 

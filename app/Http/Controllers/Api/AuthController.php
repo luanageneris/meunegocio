@@ -89,7 +89,14 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        
+        // Se há um token atual, deleta ele. Senão, deleta todos os tokens
+        if ($user->currentAccessToken()) {
+            $user->currentAccessToken()->delete();
+        } else {
+            $user->tokens()->delete();
+        }
 
         return response()->json([
             'message' => 'Desconectado com sucesso',

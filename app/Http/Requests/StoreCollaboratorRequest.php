@@ -15,7 +15,7 @@ class StoreCollaboratorRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'cpf' => 'required|regex:/^\d{3}\.\d{3}\.\d{3}-\d{2}$|unique:collaborators,cpf',
+            'cpf' => ['required', 'regex:/^\d{3}\.\d{3}\.\d{3}-\d{2}$/', 'unique:collaborators,cpf,NULL,id,company_id,' . $this->user()->company_id],
             'active' => 'boolean',
         ];
     }
