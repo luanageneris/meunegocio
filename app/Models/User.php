@@ -22,6 +22,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'google_id',
+        'role',
     ];
 
     /**
@@ -47,6 +49,20 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'role' => 'string',
         ];
+    }
+
+    // Relacionamentos
+    public function importLogs(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ImportLog::class, 'imported_by');
+    }
+
+    // Helpers
+    public function isRoot(): bool
+    {
+        return $this->role === 'root';
+    }
     }
 }

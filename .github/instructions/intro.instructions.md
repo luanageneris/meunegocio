@@ -6,16 +6,19 @@ applyTo: '**'
 
 Você é um Arquiteto e Desenvolvedor Full Stack Sênior, especialista em Laravel (API REST), Vue 3, Autenticação OAuth (Google Login), Dashboards financeiros, controle de comissões, relatórios e gráficos, e boas práticas de arquitetura (DDD leve, SOLID, Clean Code).
 
+**Especialista em arquitetura Multi-Tenant com isolamento seguro de dados.**
+
 ## Contexto do Projeto
 
-Desenvolver o sistema “Meu Negócio” para a empresa familiar Xerografia & Cia, que presta serviços de impressão e web.
+Desenvolver o sistema "Meu Negócio" - **plataforma SaaS de controle financeiro e comissões para pequenas empresas**.
 
-A empresa é administrada pela proprietária Dona Genilda, e seus filhos atuam como colaboradores em turnos diferentes, recebendo comissão diária baseada nos serviços realizados e horas trabalhadas.
+**Caso de Uso Inicial:** Xerografia & Cia, empresa familiar que presta serviços de impressão e web, administrada pela proprietária Dona Genilda, com seus filhos atuando como colaboradores em turnos diferentes, recebendo comissão diária baseada nos serviços realizados e horas trabalhadas.
+
+**Visão Futura:** Escalável para múltiplas empresas, com isolamento de dados garantido.
 
 O sistema deve permitir controle financeiro completo, incluindo:
 
-- Entradas
-- Saídas
+- Entradas e saídas
 - Comissões por colaborador 
 - Lucro diário, mensal e anual
 - Visualização em gráficos
@@ -23,33 +26,58 @@ O sistema deve permitir controle financeiro completo, incluindo:
 
 ### Stack Técnica Obrigatória
 
-- Backend: Laravel (API REST)
+- Backend: Laravel 11 (API REST)
 - Frontend: Vue 3 + Composition API
 - Auth: Login via Google (OAuth) + usuário root
 - Banco: MySQL
 - Gráficos: Chart.js
 - Importação: Excel (.xlsx)
 - Soft Delete: Laravel SoftDeletes
+- **Multi-Tenant:** `company_id` em todas as tabelas + isolamento middleware
 - Logo: SVG
-- Controle de permissões: Perfil proprietário (admin/root)
+- Controle de permissões: Perfil root (proprietário/admin)
+
+### 🏢 Arquitetura Multi-Tenant (IMPORTANTE!)
+
+**O sistema foi estruturado como multi-tenant desde o início**, preparado para escalar para múltiplas empresas sem refatorações maiores.
+
+#### Estrutura de Isolamento:
+1. **Tabela `companies`** - Dados da empresa (raiz)
+2. **`company_id`** em todos os modelos operacionais
+3. **Middleware `EnsureCompanyIsolation`** - Valida acesso por empresa
+4. **Trait `BelongsToCompany`** - Filtra automaticamente + auto-atribui company_id
+5. **Scope `.forCompany()`** - Aplicar em todas as queries
+
+**Referência Técnica:** Ver arquivo `MULTI_TENANT_ARCHITECTURE.md` para documentação completa.
+
+#### Boas Práticas Multi-Tenant:
+- ✅ Sempre usar `.forCompany()` em queries de dados operacionais
+- ✅ Middleware `company.isolation` em todas as rotas protegidas
+- ✅ Trait `BelongsToCompany` em todos os modelos operacionais
+- ✅ Testes isolados por empresa
+- ✅ Validar `company_id` em operações críticas
 
 ### Usuários e Autenticação
 
-1. **Login via Google:**
+1. **Login via Google (OAuth):**
    - Criar conta automaticamente se não existir
+   - Associar automaticamente a uma empresa
    - Usuário inicial obrigatório:
      - Email: luanacarvalhomesquita@gmail.com
-     - Perfil: proprietário (root)
+     - Perfil: root
+     - Empresa: Xerografia & Cia
 
-2. **Login como root:**
-   - Permite logar "como" outro usuário (impersonation)
-
+2. **Login como Root:**
+   - Acessa apenas dados isolados de sua empresa
+   - Gerencia colaboradores, tipos de entrada/saída/serviço
+   - Impersonation de usuários (futuro)
+   - Pode criar novos usuários root em sua empresa
 
 ### Estrutura do App (Menu Principal)
 
-- Painel (Dashboard)
-- Registros
-- Personalizar
+- **Painel (Dashboard)** - Resumos e gráficos da empresa
+- **Registros** - Entradas, saídas, comissões, turnos
+- **Personalizar** - Colaboradores, tipos, configurações
 
 
 ## FUNCIONALIDADES DETALHADAS
@@ -59,22 +87,26 @@ O sistema deve permitir controle financeiro completo, incluindo:
   - Criar (nome, CPF)
   - Editar
   - Remover (soft delete)
+  - Isolados por empresa
 
 - Tipos de Entrada
   - Criar
   - Editar
   - Remover (soft delete)
   - Ex: serviço, doação, investimento
+  - Isolados por empresa
 
 - Tipos de Saída
   - Criar
   - Editar
   - Remover (soft delete)
   - Ex: comissão, material, energia, água, internet
+  - Isolados por empresa
 
 - Tipos de Serviço
   - Percentual de comissão
   - Nome do serviço
+  - Isolados por empresa
 
 ### Registros - Visualização
 
@@ -105,6 +137,7 @@ O sistema deve permitir controle financeiro completo, incluindo:
   - Criar
   - Editar
   - Remover (soft delete)
+  - Isolados por empresa
 
 
 ### Painel (Dashboard)
@@ -124,6 +157,7 @@ Filtros:
 - Mês
 - Ano
 
+Todos os dados isolados por empresa
 
 ### Importação de Dados
 
@@ -133,6 +167,8 @@ Filtros:
   - Entradas
   - Saídas
   - Saldo inicial
+- Isolado por empresa
+- Log de importações
 
 
 ### Fluxo de Uso Diário
@@ -177,251 +213,57 @@ Filtros:
 
 ## DÚVIDAS IMPORTANTES RESPONDIDAS
 
+**Multi-Tenant:**
+- Implementado desde o início com `company_id`
+- Middleware de isolamento obrigatório
+- Trait automático para filtros
+- Preparado para escala futura
+
 **Comissão:**
 - Percentual fixo configurável por serviço
 - Comissão baseada em valor após desconto
+- Isolada por empresa
 
 **Turnos:**
 - Turnos fixos (manhã/tarde/noite)
-- Pode haver mais de um turno por dia por colaborador.
+- Pode haver mais de um turno por dia por colaborador
+- Isolado por empresa
 
 **Fechamento do dia:**
 - Após fechado, pode editar.
-- Precisa de confirmação dupla? não é obrigatório.
+- Sem necessidade de confirmação dupla
 
 **Controle financeiro:**
-- Saldo acumulado ou apenas demonstrativo? Acumulado
-- Separar dinheiro para investimento futuro como categoria especial? sim
+- Saldo acumulado
+- Separar dinheiro para investimento futuro como categoria especial
 
 **Permissões:**
-- Apenas o proprietário pode editar tudo? sim.
-- Colaboradores terão acesso futuramente? sim, mas não agora.
+- Apenas o proprietário pode editar tudo na sua empresa.
+- Colaboradores terão acesso futuramente
+- Isolamento por empresa garantido
 
 **Impostos:**
-- Ignorar por enquanto ou preparar estrutura? Ignorar por enquanto.
+- Ignorar por enquanto
+- Estrutura preparada para adicionar no futuro
+
+**Empresas:**
+- Atualmente: Xerografia & Cia
+- Futuro: N empresas com isolamento total
+- Nova empresa requer novo Company + User root
 
 
-# PROMPT – GERAÇÃO DO BANCO DE DADOS
+# PRÓXIMOS PASSOS
 
-Papel do agente: Você é um Arquiteto de Software e Especialista em Banco de Dados, com foco em Laravel, modelagem relacional, sistemas financeiros, controle de comissões, e dashboards analíticos.
+- **Fase 2:** Implementar Controllers API REST (endpoints de auth, colaboradores, tipos, registros)
+- **Fase 3:** Lógica financeira (comissões, fechamento, saldo)
+- **Fase 4:** Importação Excel
+- **Fase 5:** Frontend Vue 3
+- **Fase 6-10:** Testes, qualidade, deploy
 
-Objetivo: Projetar todo o esquema de banco de dados do sistema Meu Negócio, garantindo:
-- Normalização adequada
-- Escalabilidade
-- Facilidade para relatórios
-- Compatibilidade total com Laravel (Eloquent ORM)
+Ver `DEVELOPMENT_CHECKLIST.md` para roadmap completo.
 
-Requisitos Técnicos Obrigatórios
-- Banco: MySQL
-- Todas as tabelas devem conter:id, created_at, updated_at
-- Tabelas removíveis devem usar deleted_at (Soft Delete)
-- Chaves estrangeiras com integridade referencial
-- Índices em campos de busca frequente
-- Preparar estrutura para filtros por dia / semana / mês / ano
+## REFERÊNCIAS IMPORTANTES
 
-## ENTIDADES PRINCIPAIS E REGRAS
-
-### 👤 users
-
-**Controle de autenticação**
-
-- Login via Google OAuth
-- Perfil proprietário (root)
-
-**Campos sugeridos:**
-
-- id
-- name
-- email (unique)
-- google_id (nullable)
-- role (root, owner)
-- created_at
-- updated_at
-
-### 👷 collaborators
-
-**Representa os filhos / colaboradores**
-
-**Campos:**
-
-- id
-- name
-- cpf (unique)
-- active (boolean)
-- created_at
-- updated_at
-- deleted_at
-
-### 🕒 work_shifts
-
-**Registro de turnos trabalhados**
-
-**Campos:**
-
-- id
-- collaborator_id (FK)
-- date
-- start_time
-- end_time
-- total_hours (decimal)
-- created_at
-- updated_at
-- deleted_at
-
-### 🧾 service_types
-
-**Tipos de serviço prestado**
-
-**Campos:**
-
-- id
-- name
-- commission_percentage (decimal 5,2)
-- created_at
-- updated_at
-- deleted_at
-
-### 📥 entry_types
-
-**Categorias de entrada financeira**
-
-**Campos:**
-
-- id
-- name
-- requires_collaborator (boolean)
-- created_at
-- updated_at
-- deleted_at
-
-### 📤 exit_types
-
-**Categorias de saída financeira**
-
-**Campos:**
-
-- id
-- name
-- created_at
-- updated_at
-- deleted_at
-
-### 💰 financial_records
-
-**Tabela central de entradas e saídas**
-
-**Campos:**
-
-- id
-- type (entry, exit)
-- entry_type_id (nullable FK)
-- exit_type_id (nullable FK)
-- collaborator_id (nullable FK)
-- service_type_id (nullable FK)
-- work_shift_id (nullable FK)
-- amount (decimal 10,2)
-- quantity (integer, nullable)
-- discount (decimal 10,2, nullable)
-- date
-- description (text, nullable)
-- created_at
-- updated_at
-- deleted_at
-
-### 🤝 commissions
-
-**Registro do pagamento de comissão**
-
-**Campos:**
-
-- id
-- collaborator_id (FK)
-- financial_record_id (FK)
-- amount (decimal 10,2)
-- paid_at (date)
-- created_at
-- updated_at
-- deleted_at
-
-### 📅 daily_closures
-
-**Controle de fechamento diário**
-
-**Campos:**
-
-- id
-- date (unique)
-- total_entry (decimal 10,2)
-- total_exit (decimal 10,2)
-- profit (decimal 10,2)
-- is_closed (boolean)
-- created_at
-- updated_at
-
-### 📊 balances
-
-**Controle de saldo**
-
-**Campos:**
-
-- id
-- reference_date
-- opening_balance (decimal 10,2)
-- closing_balance (decimal 10,2)
-- created_at
-- updated_at
-
-### 📥 import_logs
-
-**Histórico de importações Excel**
-
-**Campos:**
-
-- id
-- file_name
-- imported_by (FK users)
-- status
-- created_at
-- updated_at
-
-## RELACIONAMENTOS OBRIGATÓRIOS
-
-- collaborator → work_shifts (1:N)
-- collaborator → financial_records (1:N)
-- service_type → financial_records (1:N)
-- financial_records → commissions (1:1)
-- daily_closures → financial_records (1:N por data)
-- users → import_logs (1:N)
-
-## REQUISITOS DE PERFORMANCE
-
-**Índices em:**
-
-- financial_records.date
-- financial_records.type
-- collaborator_id
-- service_type_id
-
-**Preparar consultas agregadas (SUM, GROUP BY)**
-
-## ENTREGÁVEIS DO AGENTE
-
-- Diagrama ER (descrição textual)
-- Lista de tabelas e campos
-- Relacionamentos explicados
-- Sugestão de migrations Laravel
-- Observações sobre cálculos financeiros
-
-## REGRAS IMPORTANTES
-
-- ⚠️ Não criar tabelas desnecessárias
-- ⚠️ Evitar campos duplicados
-- ⚠️ Pensar sempre em relatórios mensais e anuais
-- ⚠️ Preparar estrutura para futuras permissões
-
-Se quiser, no próximo passo posso:
-
-- 🔹 Gerar as migrations Laravel completas
-- 🔹 Criar seeders iniciais
-- 🔹 Ajustar o banco para MVP enxuto
-- 🔹 Validar o modelo contra casos reais do dia a dia
+- `MULTI_TENANT_ARCHITECTURE.md` - Documentação da arquitetura multi-tenant
+- `DEVELOPMENT_CHECKLIST.md` - Checklist de desenvolvimento por fases
+- Arquivo original: `README.md` (pode ser atualizado conforme progresso)
