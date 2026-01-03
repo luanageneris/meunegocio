@@ -22,9 +22,10 @@ Route::prefix('auth')->group(function () {
     Route::get('/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('google.callback');
 });
 
-Route::get('/auth/google/callback', function () {
+// Página de processamento OAuth (recebe token e redireciona)
+Route::get('/oauth/callback', function () {
     return Inertia::render('auth/GoogleCallback');
-})->name('google.callback.page');
+})->name('oauth.callback.page');
 
 // Setup de Empresa (protegido)
 Route::get('/setup-empresa', function () {

@@ -56,8 +56,8 @@ class AuthController extends Controller
             $token = $user->createToken('auth_token')->plainTextToken;
             $userData = $user->load('company')->toArray();
 
-            // Redirecionar para página de callback com token na URL
-            return redirect('/auth/google/callback?' . http_build_query([
+            // Redirecionar para página de processamento OAuth com token na URL
+            return redirect('/oauth/callback?' . http_build_query([
                 'token' => $token,
                 'user' => json_encode($userData),
             ]));

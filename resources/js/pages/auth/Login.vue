@@ -123,6 +123,7 @@ onMounted(() => {
                 <!-- Footer -->
                 <div class="mt-8 text-center text-sm text-gray-500">
                     <p>&copy; 2024 MEU NEGÓCIO. Todos os direitos reservados.</p>
+                
                 </div>
             </div>
         </div>
