@@ -145,6 +145,12 @@ const handleLogout = async () => {
 };
 
 onMounted(async () => {
+    // Verificar autenticação
+    if (!auth.isAuthenticated.value) {
+        window.location.href = '/login';
+        return;
+    }
+    
     try {
         const response = await fetch('/api/company', {
             headers: {

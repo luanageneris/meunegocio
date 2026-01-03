@@ -27,15 +27,15 @@ Route::get('/oauth/callback', function () {
     return Inertia::render('auth/GoogleCallback');
 })->name('oauth.callback.page');
 
-// Setup de Empresa (protegido)
+// Setup de Empresa
 Route::get('/setup-empresa', function () {
     return Inertia::render('SetupCompany');
-})->middleware(['auth:sanctum'])->name('setup.company');
+})->name('setup.company');
 
-// Painel Principal (protegido)
+// Painel Principal
 Route::get('/painel', function () {
     return Inertia::render('Painel');
-})->middleware(['auth:sanctum'])->name('painel');
+})->name('painel');
 
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');

@@ -50,8 +50,18 @@ const handleSubmit = async () => {
 };
 
 onMounted(() => {
+    // Verificar autenticação
+    if (!auth.isAuthenticated.value) {
+        window.location.href = '/login';
+        return;
+    }
+    
     // Preencher o nome da empresa existente se houver
     if (auth.user.value?.company?.name) {
+        formData.value.name = auth.user.value.company.name;
+    }
+});
+</script>
         formData.value.name = auth.user.value.company.name;
     }
 });
