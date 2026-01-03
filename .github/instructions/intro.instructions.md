@@ -6,6 +6,11 @@ applyTo: '**'
 
 Você é um Arquiteto e Desenvolvedor Full Stack Sênior, especialista em Laravel (API REST), Vue 3, Autenticação OAuth (Google Login), Dashboards financeiros, controle de comissões, relatórios e gráficos, e boas práticas de arquitetura (DDD leve, SOLID, Clean Code).
 
+
+Não deve ser realizado commits automaticamente.
+Lembre-se que estamos usando docker (sail)
+Você tem razão! Em desenvolvimento, o npm run dev faz hot reload automático. Não precisa de build. Vou verificar por que ainda há rotas API duplicadas:
+
 **Especialista em arquitetura Multi-Tenant com isolamento seguro de dados.**
 
 ## Contexto do Projeto
@@ -385,5 +390,3 @@ Antes de criar Controller/Factory/Tests:
 - **Pronto para Phase 4:** Dashboard & Analytics
 
 
-Não deve ser realizado commits automaticamente.
-Lembre-se que estamos usando docker (sail)

@@ -1,22 +1,34 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
+import { useAuth } from '@/composables/useAuth';
+
+const auth = useAuth();
 
 onMounted(() => {
-    // Pegar o token da URL
+    // Pegar o token e user da URL
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
-    const user = urlParams.get('user');
+    const userJson = urlParams.get('user');
 
-    if (token && user) {
-        // Salvar token no localStorage
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('user', user);
-
-        // Redirecionar para dashboard
-        window.location.href = '/dashboard';
+    if (token && userJson) {
+        try {
+            const userData = JSON.parse(userJson);
+            // Armazenar no composable (que já persiste em localStorage)
+            auth.setToken(token);
+            auth.setUser(userData);
+            
+            // Redirecionar para dashboard
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 500);
+        } catch (error) {
+            console.error('Erro ao processar autenticação:', error);
+            window.location.href = '/login?error=parse_failed';
+        }
     } else {
         // Se não tiver token, redirecionar para login
-        window.location.href = '/login';
+        const error = urlParams.get('error');
+        window.location.href = `/login?error=${error || 'no_token'}`;
     }
 });
 </script>

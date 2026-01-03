@@ -5,8 +5,12 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
+import { useAuth } from './composables/useAuth';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+// Inicializar autenticação e interceptadores
+useAuth();
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
