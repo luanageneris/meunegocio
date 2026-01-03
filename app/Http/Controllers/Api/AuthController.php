@@ -8,11 +8,66 @@ use App\Models\User;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
     /**
-     * Login via Google OAuth
+     * Redirecionar para Google OAuth
+     */
+    public function redirectToGoogle()
+    {
+        return Socialite::driver('google')
+            ->scopes(['email', 'profile'])
+            ->redirect();
+    }
+
+    /**
+     * Processar callback do Google OAuth
+     */
+    public function handleGoogleCallback()
+    {
+        try {
+            $googleUser = Socialite::driver('google')->user();
+            
+            // Encontrar ou criar usuário
+            $user = User::where('email', $googleUser->getEmail())->first();
+
+            if (!$user) {
+                // Determinar empresa (padrão: Xerografia & Cia)
+                $company = Company::first();
+
+                if (!$company) {
+                    return redirect('/login?error=company_not_found');
+                }
+
+                // Criar novo usuário
+                $user = User::create([
+                    'company_id' => $company->id,
+                    'name' => $googleUser->getName() ?? $googleUser->getEmail(),
+                    'email' => $googleUser->getEmail(),
+                    'google_id' => $googleUser->getId(),
+                    'role' => 'owner',
+                    'email_verified_at' => now(),
+                ]);
+            }
+
+            // Gerar token Sanctum
+            $token = $user->createToken('auth_token')->plainTextToken;
+            $userData = $user->load('company')->toArray();
+
+            // Redirecionar para página de callback com token na URL
+            return redirect('/auth/google/callback?' . http_build_query([
+                'token' => $token,
+                'user' => json_encode($userData),
+            ]));
+        } catch (\Exception $e) {
+            return redirect('/login?error=' . urlencode($e->getMessage()));
+        }
+    }
+
+    /**
+     * Login via Google OAuth (POST - para compatibilidade)
      */
     public function loginGoogle(LoginGoogleRequest $request)
     {

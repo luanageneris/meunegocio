@@ -383,3 +383,7 @@ Antes de criar Controller/Factory/Tests:
 - **Tests:** 47/64 passando (73.4%) ✅
 - **Multi-Tenant:** Isolamento 100% implementado ✅
 - **Pronto para Phase 4:** Dashboard & Analytics
+
+
+Não deve ser realizado commits automaticamente.
+Lembre-se que estamos usando docker (sail)

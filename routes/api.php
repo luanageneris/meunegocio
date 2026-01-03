@@ -21,6 +21,8 @@ Route::get('/health', function () {
 
 // Autenticação (pública)
 Route::prefix('auth')->group(function () {
+    Route::get('/google', [AuthController::class, 'redirectToGoogle'])->name('google.redirect');
+    Route::get('/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('google.callback');
     Route::post('/google', [AuthController::class, 'loginGoogle']);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
     Route::get('/user', [AuthController::class, 'user'])->middleware('auth:sanctum');
