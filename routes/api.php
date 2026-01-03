@@ -41,13 +41,31 @@ Route::middleware('auth:sanctum')->group(function () {
     // Registros
     Route::prefix('registros')->group(function () {
         Route::apiResource('financial-records', FinancialRecordController::class);
-        Route::apiResource('work-shifts', WorkShiftController::class);
-        Route::apiResource('daily-closures', DailyClosureController::class);
-        Route::apiResource('commissions', CommissionController::class);
+        Route::get('financial-records/by-date/{date}', [FinancialRecordController::class, 'byDate']);
+        Route::post('financial-records/between-dates', [FinancialRecordController::class, 'betweenDates']);
+        Route::post('financial-records/daily-totals', [FinancialRecordController::class, 'dailyTotals']);
         
-        // Ações customizadas
-        Route::post('daily-closures/{date}/close', [DailyClosureController::class, 'close']);
-        Route::get('balance', [BalanceController::class, 'current']);
+        Route::apiResource('work-shifts', WorkShiftController::class);
+        Route::get('work-shifts/by-date/{date}', [WorkShiftController::class, 'byDate']);
+        Route::get('work-shifts/collaborator/{collaboratorId}', [WorkShiftController::class, 'collaboratorShifts']);
+        Route::post('work-shifts/monthly-schedule', [WorkShiftController::class, 'monthlySchedule']);
+        
+        Route::apiResource('daily-closures', DailyClosureController::class);
+        Route::post('daily-closures/reopen/{dailyClosure}', [DailyClosureController::class, 'reopen']);
+        Route::post('daily-closures/summary', [DailyClosureController::class, 'summary']);
+        Route::get('daily-closures/is-closed/{date}', [DailyClosureController::class, 'isClosed']);
+        
+        Route::apiResource('commissions', CommissionController::class);
+        Route::post('commissions/generate-from-date', [CommissionController::class, 'generateFromDate']);
+        Route::get('commissions/collaborator/{collaboratorId}', [CommissionController::class, 'collaboratorCommissions']);
+        Route::get('commissions/collaborator/{collaboratorId}/unpaid', [CommissionController::class, 'unpaidCommissions']);
+        Route::post('commissions/mark-as-paid', [CommissionController::class, 'markAsPaid']);
+        Route::post('commissions/summary-by-collaborator', [CommissionController::class, 'summaryByCollaborator']);
+        
+        Route::apiResource('balance', BalanceController::class, ['only' => ['index', 'store']]);
+        Route::post('balance/daily-progression', [BalanceController::class, 'dailyProgression']);
+        Route::post('balance/monthly-summary', [BalanceController::class, 'monthlySummary']);
+        Route::post('balance/yearly-summary', [BalanceController::class, 'yearlySummary']);
     });
 
     // Dashboard

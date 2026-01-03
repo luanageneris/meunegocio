@@ -254,11 +254,22 @@ Todos os dados isolados por empresa
 
 # PRÓXIMOS PASSOS
 
-- **Fase 2:** Implementar Controllers API REST (endpoints de auth, colaboradores, tipos, registros)
-- **Fase 3:** Lógica financeira (comissões, fechamento, saldo)
-- **Fase 4:** Importação Excel
-- **Fase 5:** Frontend Vue 3
-- **Fase 6-10:** Testes, qualidade, deploy
+  
+- **Fase 3:** Implementar Financial Logic endpoints (próximo foco)
+  - FinancialRecordController (CRUD + cálculos)
+  - WorkShiftController (CRUD + escala)
+  - CommissionController (cálculo automático + listagem)
+  - BalanceController (saldo atual + histórico)
+  - DailyClosureController (fechamento do dia)
+  
+- **Fase 4:** Dashboard & Analytics
+  - DashboardController (resumos)
+  - Gráficos (Chart.js)
+  
+- **Fase 5:** Importação Excel
+  - ImportController
+  
+- **Fase 6-10:** Frontend Vue 3, Testes, Deploy
 
 Ver `DEVELOPMENT_CHECKLIST.md` para roadmap completo.
 
