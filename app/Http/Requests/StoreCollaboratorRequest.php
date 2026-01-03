@@ -8,7 +8,7 @@ class StoreCollaboratorRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->isRoot();
+        return true; // Qualquer usuário autenticado pode criar colaborador em sua empresa
     }
 
     public function rules(): array

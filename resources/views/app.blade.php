@@ -44,5 +44,6 @@
     </head>
     <body class="font-sans antialiased">
         @inertia
+        <Toaster />
     </body>
 </html>

@@ -23,6 +23,49 @@ class CollaboratorController extends Controller
     }
 
     /**
+     * Listar colaboradores incluindo removidos
+     */
+    public function withTrashed(Request $request)
+    {
+        $collaborators = Collaborator::withTrashed()
+            ->forCompany()
+            ->orderByDesc('deleted_at')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($collaborators);
+    }
+
+    /**
+     * Criar ou obter colaborador existente (por CPF)
+     */
+    public function getOrCreate(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'cpf' => ['required', 'regex:/^\d{3}\.\d{3}\.\d{3}-\d{2}$/'],
+        ]);
+
+        $collaborator = Collaborator::where('cpf', $request->cpf)
+            ->forCompany()
+            ->first();
+
+        if ($collaborator) {
+            return response()->json($collaborator);
+        }
+
+        $collaborator = Collaborator::create(array_merge(
+            $request->only(['name', 'cpf']),
+            [
+                'company_id' => $request->user()->company_id,
+                'active' => true,
+            ]
+        ));
+
+        return response()->json($collaborator, 201);
+    }
+
+    /**
      * Criar colaborador
      */
     public function store(StoreCollaboratorRequest $request)
@@ -64,23 +107,45 @@ class CollaboratorController extends Controller
     }
 
     /**
-     * Deletar colaborador (soft delete)
+     * Deletar colaborador (soft delete) e inativar
      */
     public function destroy(Request $request, Collaborator $collaborator)
     {
-        // Validar isolamento e permissão
+        // Validar isolamento (qualquer usuário pode deletar colaborador de sua empresa)
         if ($collaborator->company_id !== $request->user()->company_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!$request->user()->isRoot()) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
+        // Inativar antes de deletar
+        $collaborator->update(['active' => false]);
         $collaborator->delete();
 
         return response()->json([
             'message' => 'Colaborador removido com sucesso',
+        ]);
+    }
+
+    /**
+     * Restaurar colaborador removido
+     */
+    public function restore(Request $request, int $id)
+    {
+        $collaborator = Collaborator::onlyTrashed()
+            ->where('id', $id)
+            ->where('company_id', $request->user()->company_id)
+            ->first();
+
+        if (!$collaborator) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
+        // Ativar e restaurar
+        $collaborator->update(['active' => true]);
+        $collaborator->restore();
+
+        return response()->json([
+            'message' => 'Colaborador restaurado com sucesso',
+            'data' => $collaborator,
         ]);
     }
 }

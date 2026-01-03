@@ -40,6 +40,9 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Personalizar
     Route::prefix('personalizar')->group(function () {
+        Route::get('collaborators/with-trashed', [CollaboratorController::class, 'withTrashed']);
+        Route::post('collaborators/get-or-create', [CollaboratorController::class, 'getOrCreate']);
+        Route::post('collaborators/{id}/restore', [CollaboratorController::class, 'restore']);
         Route::apiResource('collaborators', CollaboratorController::class);
         Route::apiResource('entry-types', EntryTypeController::class);
         Route::apiResource('exit-types', ExitTypeController::class);
