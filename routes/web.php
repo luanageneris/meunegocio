@@ -37,6 +37,11 @@ Route::get('/painel', function () {
     return Inertia::render('Painel');
 })->name('painel');
 
+// Registros
+Route::get('/registros', function () {
+    return Inertia::render('Registros');
+})->name('registros');
+
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth:sanctum', 'verified'])->name('dashboard');
