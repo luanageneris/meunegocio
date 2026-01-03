@@ -24,7 +24,6 @@ class UpdateWorkShiftRequest extends FormRequest
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
             'collaborator_id' => 'required|exists:collaborators,id',
-            'notes' => 'nullable|string|max:500',
         ];
     }
 

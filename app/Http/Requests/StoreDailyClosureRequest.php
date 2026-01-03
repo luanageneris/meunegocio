@@ -21,7 +21,6 @@ class StoreDailyClosureRequest extends FormRequest
     {
         return [
             'date' => 'required|date|before_or_equal:today',
-            'notes' => 'nullable|string|max:500',
         ];
     }
 

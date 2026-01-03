@@ -19,7 +19,7 @@ class DailyClosureController
             ->orderBy('date', 'desc')
             ->paginate(30);
 
-        return response()->json($closures);
+        return response()->json(['data' => $closure]);
     }
 
     /**

@@ -55,14 +55,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('daily-closures/summary', [DailyClosureController::class, 'summary']);
         Route::get('daily-closures/is-closed/{date}', [DailyClosureController::class, 'isClosed']);
         
-        Route::apiResource('commissions', CommissionController::class);
+        // Commission routes - custom actions FIRST
         Route::post('commissions/generate-from-date', [CommissionController::class, 'generateFromDate']);
-        Route::get('commissions/collaborator/{collaboratorId}', [CommissionController::class, 'collaboratorCommissions']);
-        Route::get('commissions/collaborator/{collaboratorId}/unpaid', [CommissionController::class, 'unpaidCommissions']);
         Route::post('commissions/mark-as-paid', [CommissionController::class, 'markAsPaid']);
         Route::post('commissions/summary-by-collaborator', [CommissionController::class, 'summaryByCollaborator']);
+        Route::get('commissions/collaborator/{collaboratorId}/unpaid', [CommissionController::class, 'unpaidCommissions']);
+        Route::get('commissions/collaborator/{collaboratorId}', [CommissionController::class, 'collaboratorCommissions']);
+        // Commission CRUD last (these match /commissions/{id})
+        Route::apiResource('commissions', CommissionController::class);
         
-        Route::apiResource('balance', BalanceController::class, ['only' => ['index', 'store']]);
+        Route::get('balance', [BalanceController::class, 'history']);
+        Route::post('balance', [BalanceController::class, 'store']);
         Route::post('balance/daily-progression', [BalanceController::class, 'dailyProgression']);
         Route::post('balance/monthly-summary', [BalanceController::class, 'monthlySummary']);
         Route::post('balance/yearly-summary', [BalanceController::class, 'yearlySummary']);

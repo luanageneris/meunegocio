@@ -31,7 +31,7 @@ class CommissionController
     {
         $commission = Commission::create($request->validated());
         
-        return response()->json($commission->load('collaborator', 'financialRecord'), 201);
+        return response()->json(['data' => $commission->load('collaborator', 'financialRecord')], 201);
     }
 
     /**
@@ -57,7 +57,7 @@ class CommissionController
 
         $commission->update($request->validated());
 
-        return response()->json($commission->load('collaborator', 'financialRecord'));
+        return response()->json(['data' => $commission->load('collaborator', 'financialRecord')]);
     }
 
     /**
@@ -104,8 +104,8 @@ class CommissionController
 
         $commissions = [];
         foreach ($records as $record) {
-            // Calculate commission: value * (percentage / 100)
-            $commissionValue = $record->value * ($record->serviceType->commission_percentage / 100);
+            // Calculate commission: amount * (percentage / 100)
+            $commissionValue = $record->amount * ($record->serviceType->commission_percentage / 100);
 
             // Create commission
             $commission = Commission::create([

@@ -27,9 +27,23 @@ class WorkShiftController
      */
     public function store(StoreWorkShiftRequest $request)
     {
-        $shift = WorkShift::create($request->validated());
+        $data = $request->validated();
         
-        return response()->json($shift->load('collaborator'), 201);
+        // Calculate total hours from start and end times
+        $startTime = strtotime('2000-01-01 ' . $data['start_time']);
+        $endTime = strtotime('2000-01-01 ' . $data['end_time']);
+        
+        // Handle midnight crossing (shift that goes past midnight)
+        if ($endTime < $startTime) {
+            $endTime += 86400; // Add 24 hours
+        }
+        
+        $totalSeconds = $endTime - $startTime;
+        $data['total_hours'] = round($totalSeconds / 3600, 2);
+        
+        $shift = WorkShift::create($data);
+        
+        return response()->json(['data' => $shift->load('collaborator')], 201);
     }
 
     /**
@@ -53,9 +67,24 @@ class WorkShiftController
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $workShift->update($request->validated());
+        $data = $request->validated();
+        
+        // Calculate total hours if start/end times are provided
+        if (isset($data['start_time']) && isset($data['end_time'])) {
+            $startTime = strtotime('2000-01-01 ' . $data['start_time']);
+            $endTime = strtotime('2000-01-01 ' . $data['end_time']);
+            
+            if ($endTime < $startTime) {
+                $endTime += 86400;
+            }
+            
+            $totalSeconds = $endTime - $startTime;
+            $data['total_hours'] = round($totalSeconds / 3600, 2);
+        }
 
-        return response()->json($workShift->load('collaborator'));
+        $workShift->update($data);
+
+        return response()->json(['data' => $workShift->load('collaborator')]);
     }
 
     /**
@@ -87,7 +116,7 @@ class WorkShiftController
             ->orderBy('start_time')
             ->get();
 
-        return response()->json($shifts);
+        return response()->json(['data' => $shifts]);
     }
 
     /**

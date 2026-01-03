@@ -20,9 +20,9 @@ class StoreBalanceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'date' => 'required|date',
-            'amount' => 'required|numeric',
-            'notes' => 'nullable|string|max:500',
+            'reference_date' => 'required|date',
+            'opening_balance' => 'required|numeric',
+            'closing_balance' => 'required|numeric',
         ];
     }
 
@@ -32,10 +32,12 @@ class StoreBalanceRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'date.required' => 'A data é obrigatória',
-            'date.date' => 'A data deve ser válida',
-            'amount.required' => 'O valor é obrigatório',
-            'amount.numeric' => 'O valor deve ser numérico',
+            'reference_date.required' => 'A data de referência é obrigatória',
+            'reference_date.date' => 'A data de referência deve ser válida',
+            'opening_balance.required' => 'O saldo inicial é obrigatório',
+            'opening_balance.numeric' => 'O saldo inicial deve ser numérico',
+            'closing_balance.required' => 'O saldo de fechamento é obrigatório',
+            'closing_balance.numeric' => 'O saldo de fechamento deve ser numérico',
         ];
     }
 }

@@ -19,7 +19,7 @@ class FinancialRecordController
             ->orderBy('date', 'desc')
             ->paginate(15);
 
-        return response()->json($records);
+        return response()->json(['data' => $records->items(), 'pagination' => ['total' => $records->total(), 'per_page' => $records->perPage(), 'current_page' => $records->currentPage()]]);
     }
 
     /**
@@ -29,7 +29,7 @@ class FinancialRecordController
     {
         $record = FinancialRecord::create($request->validated());
         
-        return response()->json($record->load('collaborator', 'entryType', 'exitType', 'serviceType'), 201);
+        return response()->json(['data' => $record->load('collaborator', 'entryType', 'exitType', 'serviceType')], 201);
     }
 
     /**
@@ -55,7 +55,7 @@ class FinancialRecordController
 
         $financialRecord->update($request->validated());
 
-        return response()->json($financialRecord->load('collaborator', 'entryType', 'exitType', 'serviceType'));
+        return response()->json(['data' => $financialRecord->load('collaborator', 'entryType', 'exitType', 'serviceType')]);
     }
 
     /**
@@ -122,12 +122,12 @@ class FinancialRecordController
         $entries = FinancialRecord::forCompany()
             ->whereDate('date', $date)
             ->whereNotNull('entry_type_id')
-            ->sum('value');
+            ->sum('amount');
 
         $exits = FinancialRecord::forCompany()
             ->whereDate('date', $date)
             ->whereNotNull('exit_type_id')
-            ->sum('value');
+            ->sum('amount');
 
         $profit = $entries - $exits;
 

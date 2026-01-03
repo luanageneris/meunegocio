@@ -16,7 +16,7 @@ class BalanceController
     public function current(Request $request)
     {
         $balance = Balance::forCompany()
-            ->orderBy('date', 'desc')
+            ->orderBy('reference_date', 'desc')
             ->first();
 
         if (!$balance) {
@@ -26,18 +26,10 @@ class BalanceController
             ], 404);
         }
 
-        // Calculate current balance with all transactions since last recorded balance
-        $transactionsAfter = FinancialRecord::forCompany()
-            ->where('date', '>', $balance->date)
-            ->selectRaw('SUM(CASE WHEN entry_type_id IS NOT NULL THEN value ELSE -value END) as net_change')
-            ->first();
-
-        $currentTotal = $balance->amount + ($transactionsAfter->net_change ?? 0);
-
         return response()->json([
-            'initial_balance' => $balance,
-            'current_balance' => $currentTotal,
-            'transactions_since_last_balance' => $transactionsAfter->net_change ?? 0,
+            'balance' => $balance,
+            'opening' => $balance->opening_balance,
+            'closing' => $balance->closing_balance,
         ]);
     }
 
@@ -54,10 +46,10 @@ class BalanceController
         $query = Balance::forCompany();
 
         if ($request->start_date && $request->end_date) {
-            $query->whereBetween('date', [$request->start_date, $request->end_date]);
+            $query->whereBetween('reference_date', [$request->start_date, $request->end_date]);
         }
 
-        $balances = $query->orderBy('date', 'desc')->paginate(30);
+        $balances = $query->orderBy('reference_date', 'desc')->paginate(30);
 
         return response()->json($balances);
     }
@@ -73,10 +65,9 @@ class BalanceController
 
         $balance = Balance::create([
             'company_id' => $request->user()->company_id,
-            'date' => $request->date,
-            'amount' => $request->amount,
-            'notes' => $request->notes ?? null,
-            'recorded_by' => $request->user()->id,
+            'reference_date' => $request->reference_date,
+            'opening_balance' => $request->opening_balance,
+            'closing_balance' => $request->closing_balance,
         ]);
 
         return response()->json([
@@ -95,15 +86,7 @@ class BalanceController
             'end_date' => 'required|date|after_or_equal:start_date',
         ]);
 
-        // Get the balance at the start date
-        $startBalance = Balance::forCompany()
-            ->where('date', '<=', $request->start_date)
-            ->orderBy('date', 'desc')
-            ->first();
-
-        $baseAmount = $startBalance ? $startBalance->amount : 0;
-
-        // Get all transactions in the range
+        // Get all transactions in the range grouped by date
         $transactions = FinancialRecord::forCompany()
             ->whereBetween('date', [$request->start_date, $request->end_date])
             ->with('entryType', 'exitType')
@@ -113,6 +96,14 @@ class BalanceController
                 return $record->date->format('Y-m-d');
             });
 
+        // Get the latest balance before start date to use as base
+        $lastBalance = Balance::forCompany()
+            ->where('reference_date', '<', $request->start_date)
+            ->orderBy('reference_date', 'desc')
+            ->first();
+
+        $baseAmount = $lastBalance ? $lastBalance->closing_balance : 0;
+
         // Build progression
         $progression = [];
         $currentBalance = $baseAmount;
@@ -121,9 +112,9 @@ class BalanceController
             $dayTotal = 0;
             foreach ($records as $record) {
                 if ($record->entry_type_id) {
-                    $dayTotal += $record->value;
+                    $dayTotal += $record->amount;
                 } else {
-                    $dayTotal -= $record->value;
+                    $dayTotal -= $record->amount;
                 }
             }
 
@@ -163,13 +154,13 @@ class BalanceController
             ->whereYear('date', $year)
             ->whereMonth('date', $month)
             ->whereNotNull('entry_type_id')
-            ->sum('value');
+            ->sum('amount');
 
         $exits = FinancialRecord::forCompany()
             ->whereYear('date', $year)
             ->whereMonth('date', $month)
             ->whereNotNull('exit_type_id')
-            ->sum('value');
+            ->sum('amount');
 
         $commissions = Commission::forCompany()
             ->whereYear('date', $year)
@@ -203,12 +194,12 @@ class BalanceController
         $entries = FinancialRecord::forCompany()
             ->whereYear('date', $year)
             ->whereNotNull('entry_type_id')
-            ->sum('value');
+            ->sum('amount');
 
         $exits = FinancialRecord::forCompany()
             ->whereYear('date', $year)
             ->whereNotNull('exit_type_id')
-            ->sum('value');
+            ->sum('amount');
 
         $commissions = Commission::forCompany()
             ->whereYear('date', $year)
