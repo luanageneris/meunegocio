@@ -62,10 +62,6 @@ onMounted(() => {
     }
 });
 </script>
-        formData.value.name = auth.user.value.company.name;
-    }
-});
-</script>
 
 <template>
     <div class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 to-orange-100 p-4">

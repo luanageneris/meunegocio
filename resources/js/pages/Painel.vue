@@ -2,6 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import { ref, onMounted, computed } from 'vue';
 import { useAuth } from '@/composables/useAuth';
+import Sidebar from '@/components/Sidebar.vue';
 
 const auth = useAuth();
 const company = ref<any>(null);
@@ -128,22 +129,6 @@ const maxValueLinha = computed(() => {
     return Math.max(...mockDataMensal.graficoLinha.flatMap(item => [item.lucro, item.investimento]));
 });
 
-const handleLogout = async () => {
-    try {
-        await fetch('/api/auth/logout', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${auth.token.value}`,
-            },
-        });
-
-        auth.logout();
-        window.location.href = '/login';
-    } catch (error) {
-        console.error('Erro ao fazer logout:', error);
-    }
-};
-
 onMounted(async () => {
     // Verificar autenticação
     if (!auth.isAuthenticated.value) {
@@ -171,33 +156,25 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100">
+    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex">
         <Head title="Painel - MEU NEGÓCIO" />
 
-        <!-- Header -->
-        <header class="bg-gradient-to-r from-orange-400 to-amber-500 shadow-lg">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-4">
-                        <button class="text-white hover:text-orange-100 transition-colors">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                            </svg>
-                        </button>
-                        <h1 class="text-2xl font-bold text-white">{{ company?.name || 'Meu Negócio' }}</h1>
-                    </div>
-                    <button
-                        @click="handleLogout"
-                        class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors text-sm font-medium backdrop-blur-sm"
-                    >
-                        Sair
-                    </button>
-                </div>
-            </div>
-        </header>
+        <!-- Sidebar -->
+        <Sidebar active-route="painel" />
 
-        <!-- Main Content -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Main Content with margin for sidebar -->
+        <div class="flex-1 lg:ml-64 transition-all duration-300">
+            <!-- Header -->
+            <header class="bg-gradient-to-r from-orange-400 to-amber-500 shadow-lg">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                    <div class="flex items-center justify-between">
+                        <h1 class="text-2xl font-bold text-white ml-12 lg:ml-0">{{ company?.name || 'Meu Negócio' }}</h1>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div v-if="isLoading" class="flex items-center justify-center min-h-96">
                 <div class="text-center">
                     <svg class="animate-spin h-12 w-12 text-orange-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -575,5 +552,6 @@ onMounted(async () => {
                 </div>
             </div>
         </main>
+        </div>
     </div>
 </template>
