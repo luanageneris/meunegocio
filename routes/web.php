@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
+use App\Http\Controllers\Api\AuthController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -13,6 +14,12 @@ Route::get('/', function () {
 Route::get('/login', function () {
     return Inertia::render('auth/Login');
 })->name('login');
+
+// OAuth Routes (precisam de session)
+Route::prefix('auth')->group(function () {
+    Route::get('/google', [AuthController::class, 'redirectToGoogle'])->name('google.redirect');
+    Route::get('/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('google.callback');
+});
 
 Route::get('/auth/google/callback', function () {
     return Inertia::render('auth/GoogleCallback');
