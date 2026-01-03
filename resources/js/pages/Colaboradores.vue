@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import CollaboratorModal from '@/components/modals/CollaboratorModal.vue';
 import { useAuth } from '@/composables/useAuth';
 
@@ -102,12 +103,7 @@ onMounted(fetchCollaborators);
         <Sidebar active-route="colaboradores" />
 
         <div class="flex-1 lg:ml-64 transition-all duration-300">
-            <!-- Header -->
-            <header class="bg-gradient-to-r from-orange-400 to-amber-500 shadow-lg">
-                <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <h1 class="text-2xl font-bold text-white">Colaboradores</h1>
-                </div>
-            </header>
+            <PageHeader container-class="max-w-6xl" />
 
             <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div class="bg-white rounded-xl shadow-lg p-6">

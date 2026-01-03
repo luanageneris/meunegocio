@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/vue3';
 import { ref, onMounted, computed } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import Sidebar from '@/components/Sidebar.vue';
+import PageHeader from '@/components/PageHeader.vue';
 
 const auth = useAuth();
 const company = ref<any>(null);
@@ -164,14 +165,7 @@ onMounted(async () => {
 
         <!-- Main Content with margin for sidebar -->
         <div class="flex-1 lg:ml-64 transition-all duration-300">
-            <!-- Header -->
-            <header class="bg-gradient-to-r from-orange-400 to-amber-500 shadow-lg">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <div class="flex items-center justify-between">
-                        <h1 class="text-2xl font-bold text-white ml-12 lg:ml-0">{{ company?.name || 'Meu Negócio' }}</h1>
-                    </div>
-                </div>
-            </header>
+            <PageHeader title-class="ml-12 lg:ml-0" />
 
             <!-- Main Content -->
             <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
