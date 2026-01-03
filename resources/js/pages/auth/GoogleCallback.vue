@@ -4,7 +4,7 @@ import { useAuth } from '@/composables/useAuth';
 
 const auth = useAuth();
 
-onMounted(() => {
+onMounted(async () => {
     // Pegar o token e user da URL
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
@@ -17,10 +17,33 @@ onMounted(() => {
             auth.setToken(token);
             auth.setUser(userData);
             
-            // Redirecionar para dashboard
-            setTimeout(() => {
-                window.location.href = '/dashboard';
-            }, 500);
+            // Verificar se a empresa precisa de setup
+            const setupResponse = await fetch('/api/company/needs-setup', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (setupResponse.ok) {
+                const setupData = await setupResponse.json();
+                
+                if (setupData.data.needs_setup) {
+                    // Redirecionar para setup de empresa
+                    setTimeout(() => {
+                        window.location.href = '/setup-empresa';
+                    }, 500);
+                } else {
+                    // Redirecionar para dashboard
+                    setTimeout(() => {
+                        window.location.href = '/painel';
+                    }, 500);
+                }
+            } else {
+                // Se erro ao verificar setup, redirecionar para painel mesmo assim
+                setTimeout(() => {
+                    window.location.href = '/painel';
+                }, 500);
+            }
         } catch (error) {
             console.error('Erro ao processar autenticação:', error);
             window.location.href = '/login?error=parse_failed';

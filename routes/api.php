@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\CommissionController;
 use App\Http\Controllers\Api\BalanceController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ImportController;
+use App\Http\Controllers\Api\CompanyController;
 
 Route::get('/health', function () {
     return response()->json(['status' => 'ok']);
@@ -29,6 +30,13 @@ Route::prefix('auth')->group(function () {
 
 // Rotas protegidas
 Route::middleware('auth:sanctum')->group(function () {
+    
+    // Empresa
+    Route::prefix('company')->group(function () {
+        Route::get('/', [CompanyController::class, 'show'])->name('company.show');
+        Route::put('/', [CompanyController::class, 'update'])->name('company.update');
+        Route::get('/needs-setup', [CompanyController::class, 'needsSetup'])->name('company.needs-setup');
+    });
     
     // Personalizar
     Route::prefix('personalizar')->group(function () {

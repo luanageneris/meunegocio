@@ -26,6 +26,16 @@ Route::get('/auth/google/callback', function () {
     return Inertia::render('auth/GoogleCallback');
 })->name('google.callback.page');
 
+// Setup de Empresa (protegido)
+Route::get('/setup-empresa', function () {
+    return Inertia::render('SetupCompany');
+})->middleware(['auth:sanctum'])->name('setup.company');
+
+// Painel Principal (protegido)
+Route::get('/painel', function () {
+    return Inertia::render('Painel');
+})->middleware(['auth:sanctum'])->name('painel');
+
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth:sanctum', 'verified'])->name('dashboard');
