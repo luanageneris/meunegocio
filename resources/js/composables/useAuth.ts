@@ -4,10 +4,13 @@ import axios from 'axios';
 const token = ref<string | null>(localStorage.getItem('auth_token'));
 const user = ref<any>(localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
 const isLoading = ref(false);
+let interceptorsSetup = false;
 
 export const useAuth = () => {
-    // Configurar axios com token
+    // Configurar axios com token (apenas uma vez)
     const setupAxiosInterceptor = () => {
+        if (interceptorsSetup) return;
+        
         axios.interceptors.request.use(
             (config) => {
                 if (token.value) {
@@ -24,11 +27,15 @@ export const useAuth = () => {
                 // Se erro 401, limpar token e redirecionar para login
                 if (error.response?.status === 401) {
                     logout();
-                    window.location.href = '/login?error=unauthorized';
+                    if (typeof window !== 'undefined') {
+                        window.location.href = '/login?error=unauthorized';
+                    }
                 }
                 return Promise.reject(error);
             }
         );
+        
+        interceptorsSetup = true;
     };
 
     const setToken = (newToken: string) => {

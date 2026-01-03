@@ -13,37 +13,24 @@ onMounted(async () => {
     if (token && userJson) {
         try {
             const userData = JSON.parse(userJson);
+            
             // Armazenar no composable (que já persiste em localStorage)
             auth.setToken(token);
             auth.setUser(userData);
             
-            // Verificar se a empresa precisa de setup
-            const setupResponse = await fetch('/api/company/needs-setup', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-
-            if (setupResponse.ok) {
-                const setupData = await setupResponse.json();
-                
-                if (setupData.data.needs_setup) {
-                    // Redirecionar para setup de empresa
-                    setTimeout(() => {
-                        window.location.href = '/setup-empresa';
-                    }, 500);
+            console.log('Token e usuário salvos com sucesso');
+            
+            // Verificar se a empresa tem nome (precisa de setup)
+            const needsSetup = !userData.company?.name || userData.company.name === '';
+            
+            // Redirecionar para a página apropriada
+            setTimeout(() => {
+                if (needsSetup) {
+                    window.location.href = '/setup-empresa';
                 } else {
-                    // Redirecionar para dashboard
-                    setTimeout(() => {
-                        window.location.href = '/painel';
-                    }, 500);
-                }
-            } else {
-                // Se erro ao verificar setup, redirecionar para painel mesmo assim
-                setTimeout(() => {
                     window.location.href = '/painel';
-                }, 500);
-            }
+                }
+            }, 800);
         } catch (error) {
             console.error('Erro ao processar autenticação:', error);
             window.location.href = '/login?error=parse_failed';

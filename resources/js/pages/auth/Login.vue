@@ -122,7 +122,7 @@ onMounted(() => {
 
                 <!-- Footer -->
                 <div class="mt-8 text-center text-sm text-gray-500">
-                    <p>&copy; 2024 MEU NEGÓCIO. Todos os direitos reservados.</p>
+                    <p>&copy; {{ new Date().getFullYear() }} | MEU NEGÓCIO. Todos os direitos reservados.</p>
                 
                 </div>
             </div>
