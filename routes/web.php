@@ -42,6 +42,11 @@ Route::get('/registros', function () {
     return Inertia::render('Registros');
 })->name('registros');
 
+// Colaboradores
+Route::get('/colaboradores', function () {
+    return Inertia::render('Colaboradores');
+})->name('colaboradores');
+
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth:sanctum', 'verified'])->name('dashboard');
