@@ -86,7 +86,7 @@ class FinancialRecordController
             ->with('collaborator', 'entryType', 'exitType', 'serviceType')
             ->get();
 
-        return response()->json($records);
+        return response()->json(['data' => $records]);
     }
 
     /**
@@ -131,12 +131,12 @@ class FinancialRecordController
 
         $profit = $entries - $exits;
 
-        return response()->json([
+        return response()->json(['data' => [
             'date' => $date,
             'entries' => $entries,
             'exits' => $exits,
             'profit' => $profit,
             'closed' => false, // TODO: check if day is closed in DailyClosure
-        ]);
+        ]]);
     }
 }

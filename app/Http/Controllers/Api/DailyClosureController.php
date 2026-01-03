@@ -19,7 +19,7 @@ class DailyClosureController
             ->orderBy('date', 'desc')
             ->paginate(30);
 
-        return response()->json(['data' => $closure]);
+        return response()->json(['data' => $closures->items(), 'pagination' => ['total' => $closures->total(), 'per_page' => $closures->perPage(), 'current_page' => $closures->currentPage()]]);
     }
 
     /**
@@ -58,12 +58,12 @@ class DailyClosureController
         $entries = FinancialRecord::forCompany()
             ->whereDate('date', $date)
             ->whereNotNull('entry_type_id')
-            ->sum('value');
+            ->sum('amount');
 
         $exits = FinancialRecord::forCompany()
             ->whereDate('date', $date)
             ->whereNotNull('exit_type_id')
-            ->sum('value');
+            ->sum('amount');
 
         $commissions = Commission::forCompany()
             ->whereDate('date', $date)

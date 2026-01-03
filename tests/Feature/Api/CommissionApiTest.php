@@ -130,7 +130,7 @@ class CommissionApiTest extends TestCase
             ->for($this->collaborator, 'collaborator')
             ->create([
                 'date' => $date,
-                'value' => 100.00,
+                'amount' => 100.00,
                 'service_type_id' => $this->serviceType->id,
             ]);
 

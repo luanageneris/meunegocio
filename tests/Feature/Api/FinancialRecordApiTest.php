@@ -51,7 +51,7 @@ class FinancialRecordApiTest extends TestCase
             'email' => 'owner+' . $ts . '@example.com',
             'password' => bcrypt('password'),
             'company_id' => $this->company->id,
-            'is_root' => false,
+            'role' => 'owner',
         ]);
     }
 
@@ -65,7 +65,7 @@ class FinancialRecordApiTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonStructure([
                 'data' => [
-                    '*' => ['id', 'company_id', 'date', 'value', 'description']
+                    '*' => ['id', 'date', 'amount', 'description']
                 ]
             ]);
     }
@@ -86,7 +86,7 @@ class FinancialRecordApiTest extends TestCase
 
         $response->assertStatus(201)
             ->assertJsonPath('data.description', 'Test entry')
-            ->assertJsonPath('data.amount', 150.50);
+            ->assertJsonPath('data.amount', '150.50');
 
         $this->assertDatabaseHas('financial_records', [
             'description' => 'Test entry',
@@ -109,7 +109,7 @@ class FinancialRecordApiTest extends TestCase
             ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.amount', 200.00)
+            ->assertJsonPath('data.amount', '200.00')
             ->assertJsonPath('data.description', 'Updated');
 
         $this->assertDatabaseHas('financial_records', [
@@ -177,7 +177,7 @@ class FinancialRecordApiTest extends TestCase
             ->for($this->company)
             ->create([
                 'date' => $date,
-                'amount' => 100.00,
+                'amount' => '100.00',
                 'entry_type_id' => EntryType::first()->id,
                 'exit_type_id' => null,
             ]);
@@ -186,7 +186,7 @@ class FinancialRecordApiTest extends TestCase
             ->for($this->company)
             ->create([
                 'date' => $date,
-                'amount' => 30.00,
+                'amount' => '30.00',
                 'entry_type_id' => null,
                 'exit_type_id' => ExitType::first()->id,
             ]);
@@ -197,8 +197,8 @@ class FinancialRecordApiTest extends TestCase
             ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.entries', 100.00)
-            ->assertJsonPath('data.exits', 30.00)
-            ->assertJsonPath('data.profit', 70.00);
+            ->assertJsonPath('data.entries', '100.00')
+            ->assertJsonPath('data.exits', '30.00')
+            ->assertJsonPath('data.profit', '70.00');
     }
 }
