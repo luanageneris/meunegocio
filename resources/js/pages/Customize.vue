@@ -198,9 +198,11 @@ const confirmRestoreEntryType = async () => {
     }
 };
 
-const toggleEntryTypeRemoved = () => {
+const toggleEntryTypeRemoved = async () => {
+    const scrollPosition = window.scrollY;
     showEntryTypeRemoved.value = !showEntryTypeRemoved.value;
-    fetchData();
+    await fetchData();
+    window.scrollTo(0, scrollPosition);
 };
 
 const handleSaveEntryType = async (payload: Partial<EntryType>) => {
@@ -307,9 +309,11 @@ const confirmRestoreExitType = async () => {
     }
 };
 
-const toggleExitTypeRemoved = () => {
+const toggleExitTypeRemoved = async () => {
+    const scrollPosition = window.scrollY;
     showExitTypeRemoved.value = !showExitTypeRemoved.value;
-    fetchData();
+    await fetchData();
+    window.scrollTo(0, scrollPosition);
 };
 
 // Service Type handlers
@@ -394,9 +398,11 @@ const confirmRestoreServiceType = async () => {
     }
 };
 
-const toggleServiceTypeRemoved = () => {
+const toggleServiceTypeRemoved = async () => {
+    const scrollPosition = window.scrollY;
     showServiceTypeRemoved.value = !showServiceTypeRemoved.value;
-    fetchData();
+    await fetchData();
+    window.scrollTo(0, scrollPosition);
 };
 
 onMounted(fetchData);
