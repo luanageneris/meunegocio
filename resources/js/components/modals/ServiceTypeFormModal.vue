@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import ModalShell from './ModalShell.vue';
+import UnsavedChangesModal from './UnsavedChangesModal.vue';
 
 interface ServiceType {
     id?: number;
@@ -33,7 +34,22 @@ const formData = ref<ServiceType>({
     resource_value: '',
 });
 
+const showUnsavedModal = ref(false);
+const initialFormData = ref<ServiceType>({
+    name: '',
+    unit: '',
+    service_value: '',
+    commission_percentage: '',
+    commission_value: '',
+    resource_value: '',
+});
+
 const errors = ref<Record<string, string[]>>({});
+const isUpdatingCommission = ref(false); // Flag para evitar loop infinito
+
+const hasChanges = computed(() => {
+    return JSON.stringify(formData.value) !== JSON.stringify(initialFormData.value);
+});
 
 watch(
     () => props.show,
@@ -41,18 +57,113 @@ watch(
         if (newVal) {
             if (props.mode === 'edit' && props.serviceType) {
                 formData.value = { ...props.serviceType };
+                initialFormData.value = { ...props.serviceType };
             } else {
-                formData.value = { name: '', commission_percentage: '' };
+                const emptyForm = {
+                    name: '',
+                    unit: '',
+                    service_value: '',
+                    commission_percentage: '',
+                    commission_value: '',
+                    resource_value: '',
+                };
+                formData.value = { ...emptyForm };
+                initialFormData.value = { ...emptyForm };
             }
             errors.value = {};
         }
     }
 );
 
+// Quando o percentual muda, calcular o valor em R$
+watch(
+    () => formData.value.commission_percentage,
+    (newPercentage) => {
+        if (isUpdatingCommission.value) return;
+        
+        const serviceValue = Number(formData.value.service_value);
+        const percentage = Number(newPercentage);
+        
+        if (serviceValue > 0 && !isNaN(percentage)) {
+            isUpdatingCommission.value = true;
+            formData.value.commission_value = (serviceValue * (percentage / 100)).toFixed(2);
+            setTimeout(() => {
+                isUpdatingCommission.value = false;
+            }, 0);
+        }
+    }
+);
+
+// Quando o valor em R$ muda, calcular o percentual
+watch(
+    () => formData.value.commission_value,
+    (newValue) => {
+        if (isUpdatingCommission.value) return;
+        
+        const serviceValue = Number(formData.value.service_value);
+        const commissionValue = Number(newValue);
+        
+        if (serviceValue > 0 && !isNaN(commissionValue)) {
+            isUpdatingCommission.value = true;
+            formData.value.commission_percentage = ((commissionValue / serviceValue) * 100).toFixed(2);
+            setTimeout(() => {
+                isUpdatingCommission.value = false;
+            }, 0);
+        }
+    }
+);
+
+// Quando o valor do serviço muda, recalcular a comissão em R$ baseado no percentual
+watch(
+    () => formData.value.service_value,
+    (newServiceValue) => {
+        if (isUpdatingCommission.value) return;
+        
+        const serviceValue = Number(newServiceValue);
+        const percentage = Number(formData.value.commission_percentage);
+        
+        if (serviceValue > 0 && !isNaN(percentage) && percentage > 0) {
+            isUpdatingCommission.value = true;
+            formData.value.commission_value = (serviceValue * (percentage / 100)).toFixed(2);
+            setTimeout(() => {
+                isUpdatingCommission.value = false;
+            }, 0);
+        }
+    }
+);
+
 const handleClose = () => {
-    formData.value = { name: '', commission_percentage: '' };
-    errors.value = {};
+    if (hasChanges.value) {
+        showUnsavedModal.value = true;
+        return;
+    }
+
+    resetFormState();
     emit('close');
+};
+
+const resetFormState = () => {
+    const emptyForm = {
+        name: '',
+        unit: '',
+        service_value: '',
+        commission_percentage: '',
+        commission_value: '',
+        resource_value: '',
+    };
+    formData.value = { ...emptyForm };
+    initialFormData.value = { ...emptyForm };
+    errors.value = {};
+};
+
+const confirmDiscard = () => {
+    showUnsavedModal.value = false;
+    resetFormState();
+    emit('close');
+};
+
+const cancelDiscard = () => {
+    showUnsavedModal.value = false;
 };
 
 const handleSave = () => {
@@ -158,7 +269,26 @@ const handleSave = () => {
                     />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Percentual de Comissão (%)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Valor do Recurso (R$)</label>
+                    <input
+                        v-model="formData.resource_value"
+                        type="number"
+                        @keydown.enter.prevent="handleSave"
+                        placeholder="0,00"
+                        step="0.01"
+                        min="0"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                        :disabled="props.isLoading"
+                    />
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Percentual de Comissão (%)
+                        <span class="text-xs text-gray-500 ml-1">Altera o valor em R$</span>
+                    </label>
                     <input
                         v-model="formData.commission_percentage"
                         type="number"
@@ -171,26 +301,13 @@ const handleSave = () => {
                         :disabled="props.isLoading"
                     />
                 </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Valor da Comissão (R$)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Valor da Comissão (R$)
+                        <span class="text-xs text-gray-500 ml-1">Altera o percentual</span>
+                    </label>
                     <input
                         v-model="formData.commission_value"
-                        type="number"
-                        @keydown.enter.prevent="handleSave"
-                        placeholder="0,00"
-                        step="0.01"
-                        min="0"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                        :disabled="props.isLoading"
-                    />
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Valor do Recurso (R$)</label>
-                    <input
-                        v-model="formData.resource_value"
                         type="number"
                         @keydown.enter.prevent="handleSave"
                         placeholder="0,00"
@@ -223,4 +340,10 @@ const handleSave = () => {
             </button>
         </div>
     </ModalShell>
+
+    <UnsavedChangesModal
+        :show="showUnsavedModal"
+        @confirm="confirmDiscard"
+        @close="cancelDiscard"
+    />
 </template>

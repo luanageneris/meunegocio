@@ -35,6 +35,27 @@ class UpdateFinancialRecordRequest extends FormRequest
     }
 
     /**
+     * Configure the validator instance.
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $amount = (float) $this->input('amount', 0);
+            $quantity = (float) $this->input('quantity', 1);
+            $discount = (float) $this->input('discount', 0);
+            
+            $total = ($amount * $quantity) - $discount;
+            
+            if ($total < 0) {
+                $validator->errors()->add(
+                    'discount', 
+                    'O desconto não pode ser maior que o valor total. Total calculado: R$ ' . number_format($total, 2, ',', '.')
+                );
+            }
+        });
+    }
+
+    /**
      * Get custom messages for validator errors.
      */
     public function messages(): array

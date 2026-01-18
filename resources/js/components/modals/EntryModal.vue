@@ -1,20 +1,31 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, onMounted, computed } from 'vue';
+import axios from 'axios';
 import ModalShell from './ModalShell.vue';
-import RecordFormFields from './RecordFormFields.vue';
+import UnsavedChangesModal from './UnsavedChangesModal.vue';
+
+interface ServiceType {
+    id: number;
+    name: string;
+    unit: string;
+    service_value: string;
+    commission_percentage: string;
+}
 
 interface Entry {
     id?: number;
-    tipo: 'entrada' | 'saida';
+    tipo: 'entrada';
+    entry_type_id?: number;
+    service_type_id?: number;
+    collaborator_id?: number;
     tipoEntrada?: string;
-    tipoSaida?: string;
-    categoria: string;
+    tipoServico?: string;
+    responsavel?: string;
     descricao: string;
     data: string;
     valor: number;
     quantidade: number;
     desconto: number;
-    colaborador?: string;
     observacao?: string;
 }
 
@@ -32,75 +43,159 @@ const emit = defineEmits<{
 
 const form = ref<Entry>({
     tipo: 'entrada',
-    tipoEntrada: 'Serviço',
-    categoria: 'Serviço',
+    tipoEntrada: '',
+    tipoServico: '',
+    responsavel: '',
     descricao: '',
     data: new Date().toISOString().split('T')[0],
     valor: 0,
     quantidade: 1,
     desconto: 0,
-    colaborador: '',
     observacao: ''
 });
 
-const firstInputRef = ref<HTMLSelectElement | null>(null);
+const initialForm = ref<Entry>({ ...form.value });
 
-// Mock options
-const tiposEntrada = ['Serviço', 'Doação', 'Investimento', 'Outros'];
-const tiposSaida = ['Comissão', 'Material', 'Energia', 'Água', 'Internet', 'Aluguel', 'Outros'];
-const colaboradores = ['João Silva', 'Maria Santos', 'Pedro Costa', 'Ana Oliveira'];
+// Dynamic options from API
+const tiposEntrada = ref<any[]>([]);
+const tiposServico = ref<ServiceType[]>([]);
+const colaboradores = ref<any[]>([]);
 
-const valorFinal = ref(0);
+const selectedService = computed(() => {
+    return tiposServico.value.find(s => s.name === form.value.tipoServico);
+});
 
-const calculateValorFinal = () => {
-    const base = form.value.valor * form.value.quantidade;
-    valorFinal.value = base - form.value.desconto;
+const valorUnitario = computed(() => {
+    if (selectedService.value) {
+        return parseFloat(selectedService.value.service_value);
+    }
+    return form.value.valor;
+});
+
+const unidade = computed(() => {
+    return selectedService.value?.unit || '';
+});
+
+const totalRecebido = computed(() => {
+    const base = valorUnitario.value * form.value.quantidade;
+    return base - form.value.desconto;
+});
+
+const hasChanges = computed(() => JSON.stringify(form.value) !== JSON.stringify(initialForm.value));
+const showUnsavedModal = ref(false);
+
+const fetchData = async () => {
+    try {
+        const [entryTypesRes, serviceTypesRes, collaboratorsRes] = await Promise.all([
+            axios.get('/api/personalizar/entry-types'),
+            axios.get('/api/personalizar/service-types'),
+            axios.get('/api/personalizar/collaborators')
+        ]);
+        
+        // API retorna dados em { data: [...] }
+        tiposEntrada.value = entryTypesRes.data || [];
+        tiposServico.value = serviceTypesRes.data || [];
+        colaboradores.value = collaboratorsRes.data || [];
+        
+        console.log('Tipos Entrada:', tiposEntrada.value);
+        console.log('Tipos Serviço:', tiposServico.value);
+        console.log('Colaboradores:', colaboradores.value);
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+    }
 };
 
-watch(() => props.show, (newVal) => {
+watch(() => props.show, async (newVal) => {
     if (newVal) {
+        await fetchData();
+        
         if (props.entry && props.mode === 'edit') {
             form.value = { ...props.entry };
+            initialForm.value = { ...props.entry };
         } else {
             resetForm();
+            initialForm.value = { ...form.value };
         }
-        calculateValorFinal();
+        
         nextTick(() => {
-            firstInputRef.value?.focus();
+            // Focus no primeiro campo
         });
     }
 });
 
-watch([() => form.value.valor, () => form.value.quantidade, () => form.value.desconto], () => {
-    calculateValorFinal();
+watch(() => form.value.tipoServico, () => {
+    if (selectedService.value) {
+        form.value.valor = parseFloat(selectedService.value.service_value);
+    }
 });
 
 const resetForm = () => {
     form.value = {
         tipo: 'entrada',
-        tipoEntrada: 'Serviço',
-        categoria: 'Serviço',
+        tipoEntrada: tiposEntrada.value[0]?.name || '',
+        tipoServico: '',
+        responsavel: '',
         descricao: '',
         data: new Date().toISOString().split('T')[0],
         valor: 0,
         quantidade: 1,
         desconto: 0,
-        colaborador: '',
         observacao: ''
     };
 };
 
 const handleSave = () => {
-    emit('save', { ...form.value });
+    // Adicionar IDs correspondentes
+    const entryType = tiposEntrada.value.find(t => t.name === form.value.tipoEntrada);
+    const serviceType = tiposServico.value.find(s => s.name === form.value.tipoServico);
+    const collaborator = colaboradores.value.find(c => c.name === form.value.responsavel);
+    
+    const payload = {
+        ...form.value,
+        entry_type_id: entryType?.id,
+        service_type_id: serviceType?.id,
+        collaborator_id: collaborator?.id
+    };
+    
+    emit('save', payload);
 };
 
 const handleSaveAndReference = () => {
-    emit('saveAndReference', { ...form.value });
+    const entryType = tiposEntrada.value.find(t => t.name === form.value.tipoEntrada);
+    const serviceType = tiposServico.value.find(s => s.name === form.value.tipoServico);
+    const collaborator = colaboradores.value.find(c => c.name === form.value.responsavel);
+    
+    const payload = {
+        ...form.value,
+        entry_type_id: entryType?.id,
+        service_type_id: serviceType?.id,
+        collaborator_id: collaborator?.id
+    };
+    
+    emit('saveAndReference', payload);
 };
 
 const handleClose = () => {
+    if (hasChanges.value) {
+        showUnsavedModal.value = true;
+        return;
+    }
     emit('close');
 };
+
+const confirmDiscard = () => {
+    showUnsavedModal.value = false;
+    form.value = { ...initialForm.value };
+    emit('close');
+};
+
+const cancelDiscard = () => {
+    showUnsavedModal.value = false;
+};
+
+onMounted(() => {
+    fetchData();
+});
 
 </script>
 
@@ -112,28 +207,152 @@ const handleClose = () => {
                 {{ mode === 'create' ? 'Criando' : 'Editando' }}
             </h2>
             <p class="text-sm text-white opacity-90">
-                Registro de {{ form.tipo === 'entrada' ? 'Entrada' : 'Saída' }}
+                Registro de Entrada
             </p>
         </div>
 
         <!-- Form -->
         <div class="p-6 space-y-4">
-            <RecordFormFields
-                variant="entrada"
-                :form="form"
-                :tipos-entrada="tiposEntrada"
-                :tipos-saida="tiposSaida"
-                :colaboradores="colaboradores"
-                @update:form="(val) => (form.value = val)"
-            />
+            <!-- Tipo de entrada e Tipo de Serviço -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Tipo de entrada
+                    </label>
+                    <select
+                        v-model="form.tipoEntrada"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-yellow-50"
+                    >
+                        <option value="">Selecione</option>
+                        <option v-for="tipo in tiposEntrada" :key="tipo.id" :value="tipo.name">
+                            {{ tipo.name }}
+                        </option>
+                    </select>
+                </div>
 
-            <!-- Valor Final -->
-            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div class="flex justify-between items-center">
-                    <span class="text-sm font-medium text-gray-700">Valor Final:</span>
-                    <span class="text-xl font-bold text-yellow-600">
-                        R$ {{ valorFinal.toFixed(2).replace('.', ',') }}
-                    </span>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Tipo de Serviço
+                    </label>
+                    <select
+                        v-model="form.tipoServico"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    >
+                        <option value="">Selecione</option>
+                        <option v-for="servico in tiposServico" :key="servico.id" :value="servico.name">
+                            {{ servico.name }}
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Responsável e Data -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Responsável
+                    </label>
+                    <select
+                        v-model="form.responsavel"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    >
+                        <option value="">Selecione</option>
+                        <option v-for="colab in colaboradores" :key="colab.id" :value="colab.name">
+                            {{ colab.name }}
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                                <UnsavedChangesModal
+                                    :show="showUnsavedModal"
+                                    @confirm="confirmDiscard"
+                                    @close="cancelDiscard"
+                                />
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Data
+                    </label>
+                    <input
+                        v-model="form.data"
+                        type="date"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    />
+                </div>
+            </div>
+
+            <!-- Descrição -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Descrição
+                </label>
+                <input
+                    v-model="form.descricao"
+                    type="text"
+                    placeholder="Descrição"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                />
+            </div>
+
+            <!-- Valor e Quantidade -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Valor R$
+                    </label>
+                    <div class="relative">
+                        <input
+                            v-model.number="form.valor"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            :placeholder="`0,00 - ${unidade}`"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-yellow-50"
+                            :disabled="!!selectedService"
+                        />
+                        <span v-if="unidade" class="absolute right-3 top-2 text-sm text-gray-500">
+                            {{ unidade }}
+                        </span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Quantidade
+                    </label>
+                    <input
+                        v-model.number="form.quantidade"
+                        type="number"
+                        min="1"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    />
+                </div>
+            </div>
+
+            <!-- Desconto e Total Recebido -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Desconto
+                    </label>
+                    <input
+                        v-model.number="form.desconto"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Total Recebido R$
+                    </label>
+                    <input
+                        :value="totalRecebido.toFixed(2)"
+                        type="text"
+                        disabled
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-yellow-50 text-yellow-600 font-semibold"
+                    />
                 </div>
             </div>
         </div>
@@ -146,7 +365,7 @@ const handleClose = () => {
                 type="button"
                 class="px-4 py-2 text-sm font-medium text-yellow-700 hover:text-yellow-800 transition-colors"
             >
-                Salvar e criar referência
+                Salvar e criar um novo
             </button>
             <button
                 @click="handleClose"

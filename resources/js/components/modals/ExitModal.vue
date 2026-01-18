@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, computed } from 'vue';
 import ModalShell from './ModalShell.vue';
 import RecordFormFields from './RecordFormFields.vue';
+import UnsavedChangesModal from './UnsavedChangesModal.vue';
 
 interface Exit {
     id?: number;
@@ -42,6 +43,8 @@ const form = ref<Exit>({
     observacao: ''
 });
 
+const initialForm = ref<Exit>({ ...form.value });
+
 const firstInputRef = ref<HTMLSelectElement | null>(null);
 
 // Mock options
@@ -49,6 +52,9 @@ const tiposSaida = ['Comissão', 'Material', 'Energia', 'Água', 'Internet', 'Al
 const colaboradores = ['João Silva', 'Maria Santos', 'Pedro Costa', 'Ana Oliveira'];
 
 const valorFinal = ref(0);
+
+const hasChanges = computed(() => JSON.stringify(form.value) !== JSON.stringify(initialForm.value));
+const showUnsavedModal = ref(false);
 
 const calculateValorFinal = () => {
     const base = form.value.valor * form.value.quantidade;
@@ -59,8 +65,10 @@ watch(() => props.show, (newVal) => {
     if (newVal) {
         if (props.exit && props.mode === 'edit') {
             form.value = { ...props.exit };
+            initialForm.value = { ...props.exit };
         } else {
             resetForm();
+            initialForm.value = { ...form.value };
         }
         calculateValorFinal();
         nextTick(() => {
@@ -97,7 +105,21 @@ const handleSaveAndReference = () => {
 };
 
 const handleClose = () => {
+    if (hasChanges.value) {
+        showUnsavedModal.value = true;
+        return;
+    }
     emit('close');
+};
+
+const confirmDiscard = () => {
+    showUnsavedModal.value = false;
+    form.value = { ...initialForm.value };
+    emit('close');
+};
+
+const cancelDiscard = () => {
+    showUnsavedModal.value = false;
 };
 
 </script>
@@ -161,4 +183,10 @@ const handleClose = () => {
             </button>
         </div>
     </ModalShell>
+
+    <UnsavedChangesModal
+        :show="showUnsavedModal"
+        @confirm="confirmDiscard"
+        @close="cancelDiscard"
+    />
 </template>

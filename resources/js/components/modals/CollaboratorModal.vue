@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, computed } from 'vue';
 import ModalShell from './ModalShell.vue';
+import UnsavedChangesModal from './UnsavedChangesModal.vue';
 
 interface Collaborator {
     id?: number;
@@ -27,8 +28,12 @@ const form = ref<Collaborator>({
     active: true,
 });
 
+const initialForm = ref<Collaborator>({ ...form.value });
+
 const errorMessage = ref('');
 const firstInputRef = ref<HTMLInputElement | null>(null);
+const hasChanges = computed(() => JSON.stringify(form.value) !== JSON.stringify(initialForm.value));
+const showUnsavedModal = ref(false);
 
 const maskCPF = (value: string): string => {
     const cleanValue = value.replace(/\D/g, '').slice(0, 11);
@@ -49,8 +54,10 @@ watch(
         if (val) {
             if (props.collaborator && props.mode === 'edit') {
                 form.value = { ...props.collaborator };
+                initialForm.value = { ...props.collaborator };
             } else {
                 resetForm();
+                initialForm.value = { ...form.value };
             }
             errorMessage.value = '';
             nextTick(() => firstInputRef.value?.focus());
@@ -84,7 +91,23 @@ const handleSave = () => {
     emit('save', { ...form.value });
 };
 
-const handleClose = () => emit('close');
+const handleClose = () => {
+    if (hasChanges.value) {
+        showUnsavedModal.value = true;
+        return;
+    }
+    emit('close');
+};
+
+const confirmDiscard = () => {
+    showUnsavedModal.value = false;
+    form.value = { ...initialForm.value };
+    emit('close');
+};
+
+const cancelDiscard = () => {
+    showUnsavedModal.value = false;
+};
 </script>
 
 <template>
@@ -156,4 +179,10 @@ const handleClose = () => emit('close');
             </button>
         </div>
     </ModalShell>
+
+    <UnsavedChangesModal
+        :show="showUnsavedModal"
+        @confirm="confirmDiscard"
+        @close="cancelDiscard"
+    />
 </template>

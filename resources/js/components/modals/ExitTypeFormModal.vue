@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import ModalShell from './ModalShell.vue';
+import UnsavedChangesModal from './UnsavedChangesModal.vue';
 
 interface ExitType {
     id?: number;
@@ -24,6 +25,9 @@ const formData = ref<ExitType>({
 });
 
 const errors = ref<Record<string, string[]>>({});
+const initialForm = ref<ExitType>({ ...formData.value });
+const hasChanges = computed(() => JSON.stringify(formData.value) !== JSON.stringify(initialForm.value));
+const showUnsavedModal = ref(false);
 
 watch(
     () => props.show,
@@ -31,8 +35,11 @@ watch(
         if (newVal) {
             if (props.mode === 'edit' && props.exitType) {
                 formData.value = { ...props.exitType };
+                initialForm.value = { ...props.exitType };
             } else {
-                formData.value = { name: '' };
+                const emptyForm = { name: '' };
+                formData.value = { ...emptyForm };
+                initialForm.value = { ...emptyForm };
             }
             errors.value = {};
         }
@@ -40,9 +47,30 @@ watch(
 );
 
 const handleClose = () => {
-    formData.value = { name: '' };
-    errors.value = {};
+    if (hasChanges.value) {
+        showUnsavedModal.value = true;
+        return;
+    }
+
+    resetFormState();
     emit('close');
+};
+
+const resetFormState = () => {
+    const emptyForm = { name: '' };
+    formData.value = { ...emptyForm };
+    initialForm.value = { ...emptyForm };
+    errors.value = {};
+};
+
+const confirmDiscard = () => {
+    showUnsavedModal.value = false;
+    resetFormState();
+    emit('close');
+};
+
+const cancelDiscard = () => {
+    showUnsavedModal.value = false;
 };
 
 const handleSave = () => {
@@ -110,4 +138,10 @@ const handleSave = () => {
             </button>
         </div>
     </ModalShell>
+
+    <UnsavedChangesModal
+        :show="showUnsavedModal"
+        @confirm="confirmDiscard"
+        @close="cancelDiscard"
+    />
 </template>
