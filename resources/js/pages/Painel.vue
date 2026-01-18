@@ -10,92 +10,19 @@ const company = ref<any>(null);
 const isLoading = ref(true);
 const activeTab = ref<'hoje' | 'ultimos7dias' | 'mensal'>('hoje');
 
-// Mock Data
-const mockDataHoje = {
-    entradas: 2035.10,
-    saidas: 849.80,
-    lucro: 2035.10,
-    investimentos: 849.80,
-    comissoes: 849.80,
-    graficoComissoes: [
-        { colaborador: 'João', valor: 200 },
-        { colaborador: 'Maria', valor: 300 },
-        { colaborador: 'Pedro', valor: 150 },
-        { colaborador: 'Ana', valor: 100 },
-    ]
-};
+// Real data state
+type RangeKey = 'hoje' | 'ultimos7dias' | 'mensal';
+const rangeTotals = ref<Record<RangeKey, { entradas: number; saidas: number; lucro: number }>>({
+    hoje: { entradas: 0, saidas: 0, lucro: 0 },
+    ultimos7dias: { entradas: 0, saidas: 0, lucro: 0 },
+    mensal: { entradas: 0, saidas: 0, lucro: 0 },
+});
 
-const mockDataUltimos7Dias = {
-    entradas: 2035.10,
-    saidas: 849.80,
-    lucro: 2035.10,
-    investimentos: 849.80,
-    comissoes: 849.80,
-    graficoLucroSaida: [
-        { colaborador: 'João', lucro: 450, saida: 200 },
-        { colaborador: 'Maria', lucro: 520, saida: 180 },
-        { colaborador: 'Pedro', lucro: 380, saida: 150 },
-        { colaborador: 'Ana', lucro: 290, saida: 120 },
-        { colaborador: 'Carlos', lucro: 180, saida: 80 },
-        { colaborador: 'Fernanda', lucro: 215, saida: 120 },
-    ],
-    graficoLucroInvestimento: [
-        { colaborador: 'João', lucro: 450, investimento: 150 },
-        { colaborador: 'Maria', lucro: 520, investimento: 180 },
-        { colaborador: 'Pedro', lucro: 380, investimento: 120 },
-        { colaborador: 'Ana', lucro: 290, investimento: 90 },
-        { colaborador: 'Carlos', lucro: 180, investimento: 60 },
-        { colaborador: 'Fernanda', lucro: 215, investimento: 80 },
-    ],
-    graficoComissoes: [
-        { dia: 'Seg', valor: 150 },
-        { dia: 'Ter', valor: 200 },
-        { dia: 'Qua', valor: 280 },
-        { dia: 'Qui', valor: 120 },
-    ]
-};
-
-const mockDataMensal = {
-    entradas: 2035.10,
-    saidas: 849.80,
-    lucroAtual: 2035.10,
-    investimentoAtual: 849.80,
-    comissoes: 849.80,
-    graficoEntradasSaidas: [
-        { mes: 'Jan', entradas: 1200, saidas: 800 },
-        { mes: 'Fev', entradas: 1500, saidas: 900 },
-        { mes: 'Mar', entradas: 1800, saidas: 700 },
-        { mes: 'Abr', entradas: 1100, saidas: 600 },
-        { mes: 'Mai', entradas: 1400, saidas: 750 },
-        { mes: 'Jun', entradas: 1600, saidas: 850 },
-        { mes: 'Jul', entradas: 1900, saidas: 950 },
-        { mes: 'Ago', entradas: 1700, saidas: 800 },
-        { mes: 'Set', entradas: 1550, saidas: 720 },
-        { mes: 'Out', entradas: 1820, saidas: 880 },
-        { mes: 'Nov', entradas: 1650, saidas: 790 },
-        { mes: 'Dez', entradas: 1480, saidas: 690 },
-    ],
-    graficoLinha: [
-        { mes: 'Jan', lucro: 400, investimento: 200 },
-        { mes: 'Fev', lucro: 600, investimento: 300 },
-        { mes: 'Mar', lucro: 1100, investimento: 400 },
-        { mes: 'Abr', lucro: 500, investimento: 250 },
-        { mes: 'Mai', lucro: 650, investimento: 350 },
-        { mes: 'Jun', lucro: 750, investimento: 320 },
-        { mes: 'Jul', lucro: 950, investimento: 450 },
-        { mes: 'Ago', lucro: 900, investimento: 400 },
-        { mes: 'Set', lucro: 830, investimento: 380 },
-        { mes: 'Out', lucro: 940, investimento: 420 },
-        { mes: 'Nov', lucro: 860, investimento: 390 },
-        { mes: 'Dez', lucro: 790, investimento: 360 },
-    ],
-    graficoComissoes: [
-        { mes: 'Set', valor: 200 },
-        { mes: 'Out', valor: 280 },
-        { mes: 'Nov', valor: 180 },
-        { mes: 'Dez', valor: 150 },
-    ]
-};
+const commissionsByRange = ref<Record<RangeKey, Array<{ collaborator_id: number; collaborator_name: string; total: number }>>>({
+    hoje: [],
+    ultimos7dias: [],
+    mensal: [],
+});
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -104,19 +31,72 @@ const formatCurrency = (value: number) => {
     }).format(value);
 };
 
+const currentTotals = computed(() => rangeTotals.value[activeTab.value]);
+const currentCommissions = computed(() => commissionsByRange.value[activeTab.value]);
 const maxValueComissoes = computed(() => {
-    if (activeTab.value === 'hoje') {
-        return Math.max(...mockDataHoje.graficoComissoes.map(item => item.valor));
-    } else if (activeTab.value === 'ultimos7dias') {
-        return Math.max(...mockDataUltimos7Dias.graficoComissoes.map(item => item.valor));
-    } else {
-        return Math.max(...mockDataMensal.graficoComissoes.map(item => item.valor));
-    }
+    const values = currentCommissions.value.map((c) => Number(c.total || 0));
+    return values.length ? Math.max(...values) : 0;
 });
 
-const maxValueLucroSaida = computed(() => {
-    return Math.max(...mockDataUltimos7Dias.graficoLucroSaida.flatMap(item => [item.lucro, item.saida]));
-});
+const commissionsTotal = computed(() => currentCommissions.value.reduce((sum, c) => sum + Number(c.total || 0), 0));
+
+const makeRange = (range: RangeKey) => {
+    const today = new Date();
+    const formatYMD = (d: Date) => d.toISOString().split('T')[0];
+    if (range === 'hoje') {
+        const ymd = formatYMD(today);
+        return { start: ymd, end: ymd };
+    }
+    if (range === 'ultimos7dias') {
+        const past = new Date(today);
+        past.setDate(today.getDate() - 6);
+        return { start: formatYMD(past), end: formatYMD(today) };
+    }
+    // mensal (current month)
+    const first = new Date(today.getFullYear(), today.getMonth(), 1);
+    const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return { start: formatYMD(first), end: formatYMD(last) };
+};
+
+const fetchRangeData = async (range: RangeKey) => {
+    const { start, end } = makeRange(range);
+    try {
+        // Financial records totals
+        const recordsRes = await fetch('/api/registros/financial-records/between-dates', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${auth.token.value}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ start_date: start, end_date: end }),
+        });
+        const recordsJson = await recordsRes.json();
+        const items = Array.isArray(recordsJson?.data) ? recordsJson.data : [];
+        const entradas = items.filter((r: any) => r.type === 'entry' || r.entry_type_id).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+        const saidas = items.filter((r: any) => r.type === 'exit' || r.exit_type_id).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+        rangeTotals.value[range] = { entradas, saidas, lucro: entradas - saidas };
+
+        // Commissions summary by collaborator
+        const commRes = await fetch('/api/registros/commissions/summary-by-collaborator', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${auth.token.value}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ start_date: start, end_date: end }),
+        });
+        const commJson = await commRes.json();
+        commissionsByRange.value[range] = Array.isArray(commJson) ? commJson.map((c: any) => ({
+            collaborator_id: c.collaborator_id,
+            collaborator_name: c.collaborator_name,
+            total: Number(c.total || 0),
+        })) : [];
+    } catch (e) {
+        console.error('Erro ao carregar dados do painel:', e);
+    }
+};
 
 const maxValueLucroInvestimento = computed(() => {
     return Math.max(...mockDataUltimos7Dias.graficoLucroInvestimento.flatMap(item => [item.lucro, item.investimento]));
@@ -148,6 +128,12 @@ onMounted(async () => {
             const data = await response.json();
             company.value = data.data;
         }
+        // Fetch real dashboard data for all ranges
+        await Promise.all([
+            fetchRangeData('hoje'),
+            fetchRangeData('ultimos7dias'),
+            fetchRangeData('mensal'),
+        ]);
     } catch (error) {
         console.error('Erro ao carregar empresa:', error);
     } finally {
@@ -225,19 +211,19 @@ onMounted(async () => {
                     <!-- Cards de Resumo -->
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="bg-white rounded-lg p-4 text-center shadow-md">
-                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(mockDataHoje.entradas) }}</p>
+                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(currentTotals.entradas) }}</p>
                             <p class="text-sm text-gray-600">Entradas</p>
                         </div>
                         <div class="bg-white rounded-lg p-4 text-center shadow-md">
-                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(mockDataHoje.saidas) }}</p>
+                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(currentTotals.saidas) }}</p>
                             <p class="text-sm text-gray-600">Saídas</p>
                         </div>
                         <div class="bg-white rounded-lg p-4 text-center shadow-md">
-                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(mockDataHoje.lucro) }}</p>
+                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(currentTotals.lucro) }}</p>
                             <p class="text-sm text-gray-600">Lucro</p>
                         </div>
                         <div class="bg-white rounded-lg p-4 text-center shadow-md">
-                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(mockDataHoje.investimentos) }}</p>
+                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(commissionsTotal) }}</p>
                             <p class="text-sm text-gray-600">Investimentos</p>
                         </div>
                     </div>
@@ -245,24 +231,24 @@ onMounted(async () => {
                     <!-- Comissões Card -->
                     <div class="bg-white rounded-lg p-6 shadow-md">
                         <h3 class="text-xl font-bold text-orange-600 text-center mb-6">
-                            {{ formatCurrency(mockDataHoje.comissoes) }}
+                            {{ formatCurrency(commissionsTotal) }}
                         </h3>
                         <p class="text-center text-gray-600 mb-6">Comissões</p>
                         
                         <!-- Gráfico de Barras Verticais -->
                         <div class="flex items-end justify-center gap-8 h-64">
                             <div 
-                                v-for="item in mockDataHoje.graficoComissoes" 
-                                :key="item.colaborador"
+                                v-for="item in currentCommissions" 
+                                :key="item.collaborator_id"
                                 class="flex flex-col items-center gap-2"
                             >
                                 <div class="flex items-end h-48">
                                     <div 
                                         class="w-16 bg-orange-500 rounded-t-lg transition-all hover:bg-orange-600"
-                                        :style="{ height: `${(item.valor / maxValueComissoes) * 100}%` }"
+                                        :style="{ height: `${(item.total / maxValueComissoes) * 100}%` }"
                                     ></div>
                                 </div>
-                                <span class="text-sm text-gray-600">{{ item.colaborador }}</span>
+                                <span class="text-sm text-gray-600">{{ item.collaborator_name }}</span>
                             </div>
                         </div>
                     </div>
@@ -273,98 +259,42 @@ onMounted(async () => {
                     <!-- Cards de Resumo -->
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="bg-white rounded-lg p-4 text-center shadow-md">
-                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(mockDataUltimos7Dias.entradas) }}</p>
+                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(currentTotals.entradas) }}</p>
                             <p class="text-sm text-gray-600">Entradas</p>
                         </div>
                         <div class="bg-white rounded-lg p-4 text-center shadow-md">
-                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(mockDataUltimos7Dias.saidas) }}</p>
+                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(currentTotals.saidas) }}</p>
                             <p class="text-sm text-gray-600">Saídas</p>
                         </div>
                         <div class="bg-white rounded-lg p-4 text-center shadow-md">
-                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(mockDataUltimos7Dias.lucro) }}</p>
+                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(currentTotals.lucro) }}</p>
                             <p class="text-sm text-gray-600">Lucro</p>
                         </div>
                         <div class="bg-white rounded-lg p-4 text-center shadow-md">
-                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(mockDataUltimos7Dias.investimentos) }}</p>
-                            <p class="text-sm text-gray-600">Investimentos</p>
+                            <p class="text-sm text-gray-600">Comissões</p>
                         </div>
                     </div>
 
-                    <!-- Gráficos Horizontais -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Lucro vs Saída -->
-                        <div class="bg-white rounded-lg p-6 shadow-md">
-                            <div class="flex justify-end gap-4 mb-4 text-sm">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-3 h-3 bg-yellow-400 rounded"></div>
-                                    <span class="text-gray-600">Lucro</span>
+                    <!-- Comissões -->
+                    <div class="bg-white rounded-lg p-6 shadow-md">
+                        <h3 class="text-xl font-bold text-orange-600 text-center mb-2">
+                            {{ formatCurrency(commissionsTotal) }}
+                        </h3>
+                        <p class="text-center text-gray-600 mb-6">Comissões</p>
+                        
+                        <div class="flex items-end justify-center gap-8 h-48">
+                            <div 
+                                v-for="item in currentCommissions" 
+                                :key="item.collaborator_id"
+                                class="flex flex-col items-center gap-2"
+                            >
+                                <div class="flex items-end h-32">
+                                    <div 
+                                        class="w-16 bg-orange-500 rounded-t-lg transition-all hover:bg-orange-600"
+                                        :style="{ height: `${(item.total / maxValueComissoes) * 100}%` }"
+                                    ></div>
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="w-3 h-3 bg-orange-500 rounded"></div>
-                                    <span class="text-gray-600">Saída</span>
-                                </div>
-                            </div>
-                            <div class="space-y-3">
-                                <div v-for="item in mockDataUltimos7Dias.graficoLucroSaida" :key="item.colaborador" class="space-y-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-sm text-gray-600 w-20 text-right">{{ item.colaborador }}</span>
-                                        <div class="flex-1 flex items-center gap-1">
-                                            <div 
-                                                class="h-6 bg-yellow-400 rounded"
-                                                :style="{ width: `${(item.lucro / maxValueLucroSaida) * 100}%` }"
-                                            ></div>
-                                            <span class="text-xs text-gray-500">{{ formatCurrency(item.lucro) }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-20"></span>
-                                        <div class="flex-1 flex items-center gap-1">
-                                            <div 
-                                                class="h-6 bg-orange-500 rounded"
-                                                :style="{ width: `${(item.saida / maxValueLucroSaida) * 100}%` }"
-                                            ></div>
-                                            <span class="text-xs text-gray-500">{{ formatCurrency(item.saida) }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Lucro vs Investimento -->
-                        <div class="bg-white rounded-lg p-6 shadow-md">
-                            <div class="flex justify-end gap-4 mb-4 text-sm">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-3 h-3 bg-yellow-400 rounded"></div>
-                                    <span class="text-gray-600">Lucro</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="w-3 h-3 bg-orange-500 rounded"></div>
-                                    <span class="text-gray-600">Investimento</span>
-                                </div>
-                            </div>
-                            <div class="space-y-3">
-                                <div v-for="item in mockDataUltimos7Dias.graficoLucroInvestimento" :key="item.colaborador" class="space-y-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-sm text-gray-600 w-20 text-right">{{ item.colaborador }}</span>
-                                        <div class="flex-1 flex items-center gap-1">
-                                            <div 
-                                                class="h-6 bg-yellow-400 rounded"
-                                                :style="{ width: `${(item.lucro / maxValueLucroInvestimento) * 100}%` }"
-                                            ></div>
-                                            <span class="text-xs text-gray-500">{{ formatCurrency(item.lucro) }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-20"></span>
-                                        <div class="flex-1 flex items-center gap-1">
-                                            <div 
-                                                class="h-6 bg-orange-500 rounded"
-                                                :style="{ width: `${(item.investimento / maxValueLucroInvestimento) * 100}%` }"
-                                            ></div>
-                                            <span class="text-xs text-gray-500">{{ formatCurrency(item.investimento) }}</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                <span class="text-sm text-gray-600">{{ item.collaborator_name }}</span>
                             </div>
                         </div>
                     </div>
@@ -372,23 +302,23 @@ onMounted(async () => {
                     <!-- Comissões -->
                     <div class="bg-white rounded-lg p-6 shadow-md">
                         <h3 class="text-xl font-bold text-orange-600 text-center mb-2">
-                            {{ formatCurrency(mockDataUltimos7Dias.comissoes) }}
+                            {{ formatCurrency(commissionsTotal) }}
                         </h3>
                         <p class="text-center text-gray-600 mb-6">Comissões</p>
                         
                         <div class="flex items-end justify-center gap-8 h-48">
                             <div 
-                                v-for="item in mockDataUltimos7Dias.graficoComissoes" 
-                                :key="item.dia"
+                                v-for="item in currentCommissions" 
+                                :key="item.collaborator_id"
                                 class="flex flex-col items-center gap-2"
                             >
                                 <div class="flex items-end h-32">
                                     <div 
                                         class="w-16 bg-orange-500 rounded-t-lg transition-all hover:bg-orange-600"
-                                        :style="{ height: `${(item.valor / maxValueComissoes) * 100}%` }"
+                                        :style="{ height: `${(item.total / maxValueComissoes) * 100}%` }"
                                     ></div>
                                 </div>
-                                <span class="text-sm text-gray-600">{{ item.dia }}</span>
+                                <span class="text-sm text-gray-600">{{ item.collaborator_name }}</span>
                             </div>
                         </div>
                     </div>
@@ -399,147 +329,45 @@ onMounted(async () => {
                     <!-- Cards de Resumo -->
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="bg-white rounded-lg p-4 text-center shadow-md">
-                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(mockDataMensal.entradas) }}</p>
-                            <p class="text-sm text-gray-600">Entradas Atual</p>
+                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(currentTotals.entradas) }}</p>
+                            <p class="text-sm text-gray-600">Entradas</p>
                         </div>
                         <div class="bg-white rounded-lg p-4 text-center shadow-md">
-                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(mockDataMensal.saidas) }}</p>
-                            <p class="text-sm text-gray-600">Saídas Atual</p>
+                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(currentTotals.saidas) }}</p>
+                            <p class="text-sm text-gray-600">Saídas</p>
                         </div>
                         <div class="bg-white rounded-lg p-4 text-center shadow-md">
-                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(mockDataMensal.lucroAtual) }}</p>
-                            <p class="text-sm text-gray-600">Lucro Atual</p>
+                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(currentTotals.lucro) }}</p>
+                            <p class="text-sm text-gray-600">Lucro</p>
                         </div>
                         <div class="bg-white rounded-lg p-4 text-center shadow-md">
-                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(mockDataMensal.investimentoAtual) }}</p>
-                            <p class="text-sm text-gray-600">Investimento Atual</p>
+                            <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(commissionsTotal) }}</p>
+                            <p class="text-sm text-gray-600">Comissões</p>
                         </div>
                     </div>
 
-                    <!-- Gráfico de Barras Duplas (Entradas e Saídas) -->
-                    <div class="bg-white rounded-lg p-6 shadow-md">
-                        <div class="flex justify-center gap-4 mb-6 text-sm">
-                            <div class="flex items-center gap-2">
-                                <div class="w-3 h-3 bg-yellow-400 rounded"></div>
-                                <span class="text-gray-600">Entradas</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <div class="w-3 h-3 bg-orange-500 rounded"></div>
-                                <span class="text-gray-600">Saídas</span>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-end justify-center gap-4 h-64 overflow-x-auto">
-                            <div 
-                                v-for="item in mockDataMensal.graficoEntradasSaidas" 
-                                :key="item.mes"
-                                class="flex flex-col items-center gap-2 flex-shrink-0"
-                            >
-                                <div class="flex items-end gap-1 h-48">
-                                    <div 
-                                        class="w-8 bg-yellow-400 rounded-t-lg"
-                                        :style="{ height: `${(item.entradas / maxValueEntradasSaidas) * 100}%` }"
-                                    ></div>
-                                    <div 
-                                        class="w-8 bg-orange-500 rounded-t-lg"
-                                        :style="{ height: `${(item.saidas / maxValueEntradasSaidas) * 100}%` }"
-                                    ></div>
-                                </div>
-                                <span class="text-xs text-gray-600">{{ item.mes }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Gráfico de Linha (Lucro e Investimento) -->
-                    <div class="bg-white rounded-lg p-6 shadow-md">
-                        <div class="flex justify-center gap-4 mb-6 text-sm">
-                            <div class="flex items-center gap-2">
-                                <div class="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                                <span class="text-gray-600">Lucro</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <div class="w-3 h-3 bg-orange-500 rounded-full"></div>
-                                <span class="text-gray-600">Investimento</span>
-                            </div>
-                        </div>
-                        
-                        <div class="relative h-64">
-                            <svg class="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="none">
-                                <!-- Grid lines -->
-                                <line v-for="i in 5" :key="`grid-${i}`" 
-                                    :x1="0" :y1="i * 40" :x2="800" :y2="i * 40" 
-                                    stroke="#e5e7eb" stroke-width="1" />
-                                
-                                <!-- Linha Lucro -->
-                                <polyline 
-                                    :points="mockDataMensal.graficoLinha.map((item, i) => 
-                                        `${i * (800 / (mockDataMensal.graficoLinha.length - 1))},${200 - (item.lucro / maxValueLinha) * 180}`
-                                    ).join(' ')"
-                                    fill="none"
-                                    stroke="#fbbf24"
-                                    stroke-width="3"
-                                />
-                                
-                                <!-- Linha Investimento -->
-                                <polyline 
-                                    :points="mockDataMensal.graficoLinha.map((item, i) => 
-                                        `${i * (800 / (mockDataMensal.graficoLinha.length - 1))},${200 - (item.investimento / maxValueLinha) * 180}`
-                                    ).join(' ')"
-                                    fill="none"
-                                    stroke="#f97316"
-                                    stroke-width="3"
-                                />
-                                
-                                <!-- Pontos Lucro -->
-                                <circle 
-                                    v-for="(item, i) in mockDataMensal.graficoLinha" 
-                                    :key="`lucro-${i}`"
-                                    :cx="i * (800 / (mockDataMensal.graficoLinha.length - 1))"
-                                    :cy="200 - (item.lucro / maxValueLinha) * 180"
-                                    r="5"
-                                    fill="#fbbf24"
-                                />
-                                
-                                <!-- Pontos Investimento -->
-                                <circle 
-                                    v-for="(item, i) in mockDataMensal.graficoLinha" 
-                                    :key="`inv-${i}`"
-                                    :cx="i * (800 / (mockDataMensal.graficoLinha.length - 1))"
-                                    :cy="200 - (item.investimento / maxValueLinha) * 180"
-                                    r="5"
-                                    fill="#f97316"
-                                />
-                            </svg>
-                            
-                            <!-- Labels dos meses -->
-                            <div class="flex justify-between mt-2 text-xs text-gray-600">
-                                <span v-for="item in mockDataMensal.graficoLinha" :key="item.mes">
-                                    {{ item.mes }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- (Gráficos mensais removidos por enquanto; serão substituídos por Chart.js com dados reais) -->
 
                     <!-- Comissões -->
                     <div class="bg-white rounded-lg p-6 shadow-md">
                         <h3 class="text-xl font-bold text-orange-600 text-center mb-2">
-                            {{ formatCurrency(mockDataMensal.comissoes) }}
+                            {{ formatCurrency(commissionsTotal) }}
                         </h3>
                         <p class="text-center text-gray-600 mb-6">Comissões</p>
                         
                         <div class="flex items-end justify-center gap-12 h-48">
                             <div 
-                                v-for="item in mockDataMensal.graficoComissoes" 
-                                :key="item.mes"
+                                v-for="item in currentCommissions" 
+                                :key="item.collaborator_id"
                                 class="flex flex-col items-center gap-2"
                             >
                                 <div class="flex items-end h-32">
                                     <div 
                                         class="w-20 bg-orange-500 rounded-t-lg transition-all hover:bg-orange-600"
-                                        :style="{ height: `${(item.valor / maxValueComissoes) * 100}%` }"
+                                        :style="{ height: `${(item.total / maxValueComissoes) * 100}%` }"
                                     ></div>
                                 </div>
-                                <span class="text-sm text-gray-600">{{ item.mes }}</span>
+                                <span class="text-sm text-gray-600">{{ item.collaborator_name }}</span>
                             </div>
                         </div>
                     </div>
