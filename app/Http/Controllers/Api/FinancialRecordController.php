@@ -14,10 +14,16 @@ class FinancialRecordController
      */
     public function index(Request $request)
     {
-        $records = FinancialRecord::forCompany()
-            ->with('collaborator', 'entryType', 'exitType', 'serviceType')
-            ->orderBy('date', 'desc')
-            ->paginate(15);
+        $query = FinancialRecord::forCompany()
+            ->with('collaborator', 'entryType', 'exitType', 'serviceType');
+
+        if ($request->boolean('only_deleted')) {
+            $query->onlyTrashed();
+        } elseif ($request->boolean('include_deleted')) {
+            $query->withTrashed();
+        }
+
+        $records = $query->orderBy('date', 'desc')->paginate(15);
 
         return response()->json(['data' => $records->items(), 'pagination' => ['total' => $records->total(), 'per_page' => $records->perPage(), 'current_page' => $records->currentPage()]]);
     }
@@ -77,6 +83,30 @@ class FinancialRecordController
     }
 
     /**
+     * Restore a soft-deleted financial record
+     */
+    public function restore(Request $request, $id)
+    {
+        $record = FinancialRecord::withTrashed()->forCompany()->findOrFail($id);
+
+        if ($record->company_id !== $request->user()->company_id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (!$request->user()->isRoot()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (is_null($record->deleted_at)) {
+            return response()->json(['message' => 'Registro não está removido'], 422);
+        }
+
+        $record->restore();
+
+        return response()->json(['data' => $record->fresh()->load('collaborator', 'entryType', 'exitType', 'serviceType')]);
+    }
+
+    /**
      * Get financial records for a specific date
      */
     public function byDate(Request $request, $date)
@@ -99,13 +129,26 @@ class FinancialRecordController
             'end_date' => 'required|date|after_or_equal:start_date',
         ]);
 
-        $records = FinancialRecord::forCompany()
+        $query = FinancialRecord::forCompany()
             ->whereBetween('date', [$request->start_date, $request->end_date])
-            ->with('collaborator', 'entryType', 'exitType', 'serviceType')
-            ->orderBy('date', 'desc')
-            ->paginate(50);
+            ->with('collaborator', 'entryType', 'exitType', 'serviceType');
 
-        return response()->json($records);
+        if ($request->boolean('only_deleted')) {
+            $query->onlyTrashed();
+        } elseif ($request->boolean('include_deleted')) {
+            $query->withTrashed();
+        }
+
+        $records = $query->orderBy('date', 'desc')->paginate(50);
+
+        return response()->json([
+            'data' => $records->items(),
+            'pagination' => [
+                'total' => $records->total(),
+                'per_page' => $records->perPage(),
+                'current_page' => $records->currentPage(),
+            ],
+        ]);
     }
 
     /**

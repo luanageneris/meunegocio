@@ -4,9 +4,9 @@ import { computed } from 'vue';
 const props = defineProps<{
     variant: 'entrada' | 'saida';
     form: any;
-    tiposEntrada?: string[];
-    tiposSaida: string[];
-    colaboradores: string[];
+    tiposEntrada?: Array<string | { id: number; name: string }>;
+    tiposSaida: Array<string | { id: number; name: string }>;
+    colaboradores: Array<string | { id: number; name: string }>;
 }>();
 
 const emit = defineEmits<{
@@ -30,12 +30,19 @@ const model = computed({
                 v-model="model.tipoEntrada"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
             >
-                <option v-for="tipo in (tiposEntrada || [])" :key="tipo" :value="tipo">
-                    {{ tipo }}
+                <option
+                    v-for="tipo in (tiposEntrada || [])"
+                    :key="(tipo as any)?.id ?? (tipo as any)"
+                    :value="(tipo as any)?.name ?? (tipo as any)"
+                >
+                    {{ (tipo as any)?.name ?? (tipo as any) }}
                 </option>
             </select>
         </div>
+    </div>
 
+    <!-- Tipo de Saída e Data -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
                 Tipo de Saída
@@ -45,29 +52,13 @@ const model = computed({
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
             >
                 <option value="">Selecione</option>
-                <option v-for="tipo in tiposSaida" :key="tipo" :value="tipo">
-                    {{ tipo }}
+                <option
+                    v-for="tipo in tiposSaida"
+                    :key="(tipo as any)?.id ?? (tipo as any)"
+                    :value="(tipo as any)?.name ?? (tipo as any)"
+                >
+                    {{ (tipo as any)?.name ?? (tipo as any) }}
                 </option>
-            </select>
-        </div>
-    </div>
-
-    <!-- Resumo e Data -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-                Resumo
-            </label>
-            <select
-                v-model="model.categoria"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-            >
-                <option value="Serviço">Serviço</option>
-                <option value="Produtos">Produtos</option>
-                <option value="Diversos">Diversos</option>
-                <option value="Recursos">Recursos</option>
-                <option value="Energia">Energia</option>
-                <option value="Comissão">Comissão</option>
             </select>
         </div>
 
@@ -148,8 +139,12 @@ const model = computed({
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
             >
                 <option value="">Selecione</option>
-                <option v-for="colab in colaboradores" :key="colab" :value="colab">
-                    {{ colab }}
+                <option
+                    v-for="colab in colaboradores"
+                    :key="(colab as any)?.id ?? (colab as any)"
+                    :value="(colab as any)?.name ?? (colab as any)"
+                >
+                    {{ (colab as any)?.name ?? (colab as any) }}
                 </option>
             </select>
         </div>

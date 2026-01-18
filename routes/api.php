@@ -61,6 +61,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Registros
     Route::prefix('registros')->group(function () {
+        // Custom actions must come before the resource to avoid conflicts
+        Route::post('financial-records/{id}/restore', [FinancialRecordController::class, 'restore']);
         Route::apiResource('financial-records', FinancialRecordController::class);
         Route::get('financial-records/by-date/{date}', [FinancialRecordController::class, 'byDate']);
         Route::post('financial-records/between-dates', [FinancialRecordController::class, 'betweenDates']);

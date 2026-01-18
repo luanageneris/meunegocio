@@ -37,6 +37,7 @@ const itemsPerPage = 8;
 const editing = ref<Collaborator | null>(null);
 const deletingCollaborator = ref<Collaborator | null>(null);
 const restoringCollaborator = ref<Collaborator | null>(null);
+const modalError = ref('');
 
 const filtered = computed(() => {
     if (!search.value) return collaborators.value;
@@ -83,6 +84,7 @@ const fetchCollaborators = async () => {
 const handleNew = () => {
     modalMode.value = 'create';
     editing.value = null;
+    modalError.value = '';
     showModal.value = true;
 };
 
@@ -90,6 +92,7 @@ const handleEdit = (collab: Collaborator) => {
     if (collab.deleted_at) return;
     modalMode.value = 'edit';
     editing.value = { ...collab };
+    modalError.value = '';
     showModal.value = true;
 };
 
@@ -110,8 +113,10 @@ const handleSave = async (payload: Partial<Collaborator>) => {
             toast.success('Colaborador criado!', { description: `${data.name} foi adicionado à lista.` });
         }
     } catch (error: any) {
-        const message = error?.response?.data?.message || error?.response?.data?.errors?.cpf?.[0] || 'Erro ao salvar colaborador';
-        toast.error('Erro ao salvar', { description: message });
+        const message = error?.response?.data?.errors?.cpf?.[0] || error?.response?.data?.message || 'Erro ao salvar colaborador';
+        modalError.value = message;
+        // mantém modal aberto e exibe erro inline
+        showModal.value = true;
     } finally {
         isModalLoading.value = false;
     }
@@ -327,7 +332,8 @@ onMounted(fetchCollaborators);
             :collaborator="editing"
             :mode="modalMode"
             :is-loading="isModalLoading"
-            @close="showModal = false; editing = null"
+            :server-error="modalError"
+            @close="showModal = false; editing = null; modalError = ''"
             @save="handleSave"
         />
 

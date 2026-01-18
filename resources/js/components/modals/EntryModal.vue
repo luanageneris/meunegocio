@@ -92,14 +92,10 @@ const fetchData = async () => {
             axios.get('/api/personalizar/collaborators')
         ]);
         
-        // API retorna dados em { data: [...] }
-        tiposEntrada.value = entryTypesRes.data || [];
-        tiposServico.value = serviceTypesRes.data || [];
-        colaboradores.value = collaboratorsRes.data || [];
-        
-        console.log('Tipos Entrada:', tiposEntrada.value);
-        console.log('Tipos Serviço:', tiposServico.value);
-        console.log('Colaboradores:', colaboradores.value);
+        // API pode retornar { data: [...] } ou array direto
+        tiposEntrada.value = entryTypesRes.data?.data ?? entryTypesRes.data ?? [];
+        tiposServico.value = serviceTypesRes.data?.data ?? serviceTypesRes.data ?? [];
+        colaboradores.value = collaboratorsRes.data?.data ?? collaboratorsRes.data ?? [];
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
     }
@@ -111,7 +107,7 @@ watch(() => props.show, async (newVal) => {
         
         if (props.entry && props.mode === 'edit') {
             form.value = { ...props.entry };
-            initialForm.value = { ...props.entry };
+            initialForm.value = { ...form.value };
         } else {
             resetForm();
             initialForm.value = { ...form.value };
@@ -149,9 +145,10 @@ const handleSave = () => {
     const entryType = tiposEntrada.value.find(t => t.name === form.value.tipoEntrada);
     const serviceType = tiposServico.value.find(s => s.name === form.value.tipoServico);
     const collaborator = colaboradores.value.find(c => c.name === form.value.responsavel);
-    
+
     const payload = {
         ...form.value,
+        type: 'entry',
         entry_type_id: entryType?.id,
         service_type_id: serviceType?.id,
         collaborator_id: collaborator?.id
@@ -164,9 +161,10 @@ const handleSaveAndReference = () => {
     const entryType = tiposEntrada.value.find(t => t.name === form.value.tipoEntrada);
     const serviceType = tiposServico.value.find(s => s.name === form.value.tipoServico);
     const collaborator = colaboradores.value.find(c => c.name === form.value.responsavel);
-    
+
     const payload = {
         ...form.value,
+        type: 'entry',
         entry_type_id: entryType?.id,
         service_type_id: serviceType?.id,
         collaborator_id: collaborator?.id

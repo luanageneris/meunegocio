@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, computed } from 'vue';
+import { ref, watch, nextTick, computed, onMounted } from 'vue';
+import axios from 'axios';
 import ModalShell from './ModalShell.vue';
 import RecordFormFields from './RecordFormFields.vue';
 import UnsavedChangesModal from './UnsavedChangesModal.vue';
@@ -10,7 +11,8 @@ interface Exit {
     tipoSaida: string;
     categoria: string;
     descricao: string;
-    data: string;
+    data: string; // datetime completo
+    hora?: string; // campo auxiliar
     valor: number;
     quantidade: number;
     desconto: number;
@@ -22,6 +24,7 @@ const props = defineProps<{
     show: boolean;
     exit?: Exit | null;
     mode: 'create' | 'edit';
+    errors?: { message?: string; fields?: Record<string, string[]> };
 }>();
 
 const emit = defineEmits<{
@@ -36,6 +39,7 @@ const form = ref<Exit>({
     categoria: 'Comissão',
     descricao: '',
     data: new Date().toISOString().split('T')[0],
+    hora: new Date().toTimeString().slice(0, 5),
     valor: 0,
     quantidade: 1,
     desconto: 0,
@@ -47,9 +51,9 @@ const initialForm = ref<Exit>({ ...form.value });
 
 const firstInputRef = ref<HTMLSelectElement | null>(null);
 
-// Mock options
-const tiposSaida = ['Comissão', 'Material', 'Energia', 'Água', 'Internet', 'Aluguel', 'Outros'];
-const colaboradores = ['João Silva', 'Maria Santos', 'Pedro Costa', 'Ana Oliveira'];
+// Options from API
+const tiposSaida = ref<any[]>([]);
+const colaboradores = ref<any[]>([]);
 
 const valorFinal = ref(0);
 
@@ -61,11 +65,31 @@ const calculateValorFinal = () => {
     valorFinal.value = base - form.value.desconto;
 };
 
-watch(() => props.show, (newVal) => {
+const fetchData = async () => {
+    try {
+        const [exitTypesRes, collaboratorsRes] = await Promise.all([
+            axios.get('/api/personalizar/exit-types'),
+            axios.get('/api/personalizar/collaborators'),
+        ]);
+
+        tiposSaida.value = exitTypesRes.data?.data ?? exitTypesRes.data ?? [];
+        colaboradores.value = collaboratorsRes.data?.data ?? collaboratorsRes.data ?? [];
+    } catch (error) {
+        console.error('Erro ao carregar dados de saída/colaboradores:', error);
+    }
+};
+
+watch(() => props.show, async (newVal) => {
     if (newVal) {
+        await fetchData();
         if (props.exit && props.mode === 'edit') {
-            form.value = { ...props.exit };
-            initialForm.value = { ...props.exit };
+            const [datePart, timePart] = (props.exit.data || '').split('T');
+            form.value = {
+                ...props.exit,
+                data: datePart || new Date().toISOString().split('T')[0],
+                hora: (timePart || new Date().toTimeString().slice(0, 5)).slice(0, 5),
+            };
+            initialForm.value = { ...form.value };
         } else {
             resetForm();
             initialForm.value = { ...form.value };
@@ -88,6 +112,7 @@ const resetForm = () => {
         categoria: 'Comissão',
         descricao: '',
         data: new Date().toISOString().split('T')[0],
+        hora: new Date().toTimeString().slice(0, 5),
         valor: 0,
         quantidade: 1,
         desconto: 0,
@@ -97,11 +122,35 @@ const resetForm = () => {
 };
 
 const handleSave = () => {
-    emit('save', { ...form.value });
+    const dateTime = form.value.hora
+        ? `${form.value.data}T${form.value.hora}`
+        : form.value.data;
+
+    const exitType = (tiposSaida.value || []).find((t: any) => t?.name === form.value.tipoSaida);
+    const collaborator = (colaboradores.value || []).find((c: any) => c?.name === form.value.colaborador);
+
+    emit('save', {
+        ...form.value,
+        data: dateTime,
+        exit_type_id: exitType?.id,
+        collaborator_id: collaborator?.id,
+    });
 };
 
 const handleSaveAndReference = () => {
-    emit('saveAndReference', { ...form.value });
+    const dateTime = form.value.hora
+        ? `${form.value.data}T${form.value.hora}`
+        : form.value.data;
+
+    const exitType = (tiposSaida.value || []).find((t: any) => t?.name === form.value.tipoSaida);
+    const collaborator = (colaboradores.value || []).find((c: any) => c?.name === form.value.colaborador);
+
+    emit('saveAndReference', {
+        ...form.value,
+        data: dateTime,
+        exit_type_id: exitType?.id,
+        collaborator_id: collaborator?.id,
+    });
 };
 
 const handleClose = () => {
@@ -138,12 +187,22 @@ const cancelDiscard = () => {
 
         <!-- Form -->
         <div class="p-6 space-y-4">
+            <div v-if="errors?.message || (errors?.fields && Object.keys(errors.fields).length)" class="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">
+                <div v-if="errors?.message" class="font-medium mb-1">{{ errors.message }}</div>
+                <ul class="list-disc list-inside text-sm" v-if="errors?.fields">
+                    <li v-for="(msgs, field) in errors.fields" :key="field">
+                        {{ msgs[0] }}
+                    </li>
+                </ul>
+            </div>
             <RecordFormFields
                 variant="saida"
                 :form="form"
                 :tipos-saida="tiposSaida"
                 :colaboradores="colaboradores"
                 @update:form="(val) => (form.value = val)"
+                    v-model:data="form.data"
+                    v-model:hora="form.hora"
             />
 
             <!-- Valor Final -->

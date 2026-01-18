@@ -15,6 +15,7 @@ const props = defineProps<{
     collaborator?: Collaborator | null;
     mode: 'create' | 'edit';
     isLoading?: boolean;
+    serverError?: string;
 }>();
 
 const emit = defineEmits<{
@@ -118,8 +119,8 @@ const cancelDiscard = () => {
         </div>
 
         <!-- Error Message -->
-        <div v-if="errorMessage" class="mx-6 mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
-            {{ errorMessage }}
+        <div v-if="errorMessage || serverError" class="mx-6 mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+            {{ errorMessage || serverError }}
         </div>
 
         <!-- Form -->
