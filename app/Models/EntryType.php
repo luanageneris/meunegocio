@@ -15,11 +15,9 @@ class EntryType extends Model
     protected $fillable = [
         'company_id',
         'name',
-        'requires_collaborator',
     ];
 
     protected $casts = [
-        'requires_collaborator' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',

@@ -14,7 +14,11 @@ class ServiceTypeFactory extends Factory
     {
         return [
             'name' => $this->faker->word(),
+            'unit' => $this->faker->randomElement(['Folha', 'Hora', 'Serviço', 'Unidade', 'Metro']),
+            'service_value' => $this->faker->numberBetween(100, 5000) / 100,
             'commission_percentage' => $this->faker->numberBetween(5, 30),
+            'commission_value' => $this->faker->numberBetween(50, 1000) / 100,
+            'resource_value' => $this->faker->numberBetween(0, 500) / 100,
             'company_id' => Company::factory(),
         ];
     }

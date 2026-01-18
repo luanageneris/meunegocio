@@ -14,7 +14,6 @@ class EntryTypeFactory extends Factory
     {
         return [
             'name' => $this->faker->word(),
-            'requires_collaborator' => $this->faker->boolean(),
             'company_id' => Company::factory(),
         ];
     }

@@ -42,6 +42,11 @@ Route::get('/registros', function () {
     return Inertia::render('Registros');
 })->name('registros');
 
+// Personalizar
+Route::get('/personalizar', function () {
+    return Inertia::render('Customize');
+})->name('personalizar');
+
 // Colaboradores
 Route::get('/colaboradores', function () {
     return Inertia::render('Colaboradores');

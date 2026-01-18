@@ -45,8 +45,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('collaborators/get-or-create', [CollaboratorController::class, 'getOrCreate']);
         Route::post('collaborators/{id}/restore', [CollaboratorController::class, 'restore']);
         Route::apiResource('collaborators', CollaboratorController::class);
+        
+        Route::get('entry-types/with-trashed', [EntryTypeController::class, 'withTrashed']);
+        Route::post('entry-types/{id}/restore', [EntryTypeController::class, 'restore']);
         Route::apiResource('entry-types', EntryTypeController::class);
+        
+        Route::get('exit-types/with-trashed', [ExitTypeController::class, 'withTrashed']);
+        Route::post('exit-types/{id}/restore', [ExitTypeController::class, 'restore']);
         Route::apiResource('exit-types', ExitTypeController::class);
+        
+        Route::get('service-types/with-trashed', [ServiceTypeController::class, 'withTrashed']);
+        Route::post('service-types/{id}/restore', [ServiceTypeController::class, 'restore']);
         Route::apiResource('service-types', ServiceTypeController::class);
     });
 

@@ -21,10 +21,10 @@ class FinancialTypesSeeder extends Seeder
 
         // Tipos de Entrada
         $entryTypes = [
-            ['name' => 'Serviço', 'requires_collaborator' => true],
-            ['name' => 'Doação', 'requires_collaborator' => false],
-            ['name' => 'Investimento', 'requires_collaborator' => false],
-            ['name' => 'Devolução', 'requires_collaborator' => false],
+            ['name' => 'Serviço'],
+            ['name' => 'Doação'],
+            ['name' => 'Investimento'],
+            ['name' => 'Devolução'],
         ];
 
         foreach ($entryTypes as $type) {
@@ -55,12 +55,54 @@ class FinancialTypesSeeder extends Seeder
 
         // Tipos de Serviço
         $serviceTypes = [
-            ['name' => 'Xerox Preto e Branco', 'commission_percentage' => 15.00],
-            ['name' => 'Xerox Colorido', 'commission_percentage' => 20.00],
-            ['name' => 'Impressão Preto e Branco', 'commission_percentage' => 10.00],
-            ['name' => 'Impressão Colorida', 'commission_percentage' => 18.00],
-            ['name' => 'Design Gráfico', 'commission_percentage' => 25.00],
-            ['name' => 'Encadernação', 'commission_percentage' => 12.00],
+            [
+                'name' => 'Xerox Preto e Branco',
+                'unit' => 'Folha',
+                'service_value' => 0.50,
+                'commission_percentage' => 15.00,
+                'commission_value' => 0.08,
+                'resource_value' => 0.10,
+            ],
+            [
+                'name' => 'Xerox Colorido',
+                'unit' => 'Folha',
+                'service_value' => 2.00,
+                'commission_percentage' => 20.00,
+                'commission_value' => 0.40,
+                'resource_value' => 0.50,
+            ],
+            [
+                'name' => 'Impressão Preto e Branco',
+                'unit' => 'Folha',
+                'service_value' => 1.00,
+                'commission_percentage' => 10.00,
+                'commission_value' => 0.10,
+                'resource_value' => 0.20,
+            ],
+            [
+                'name' => 'Impressão Colorida',
+                'unit' => 'Folha',
+                'service_value' => 3.50,
+                'commission_percentage' => 18.00,
+                'commission_value' => 0.63,
+                'resource_value' => 0.80,
+            ],
+            [
+                'name' => 'Design Gráfico',
+                'unit' => 'Hora',
+                'service_value' => 80.00,
+                'commission_percentage' => 25.00,
+                'commission_value' => 20.00,
+                'resource_value' => 5.00,
+            ],
+            [
+                'name' => 'Encadernação',
+                'unit' => 'Unidade',
+                'service_value' => 15.00,
+                'commission_percentage' => 12.00,
+                'commission_value' => 1.80,
+                'resource_value' => 3.00,
+            ],
         ];
 
         foreach ($serviceTypes as $type) {

@@ -15,11 +15,18 @@ class ServiceType extends Model
     protected $fillable = [
         'company_id',
         'name',
+        'unit',
+        'service_value',
         'commission_percentage',
+        'commission_value',
+        'resource_value',
     ];
 
     protected $casts = [
         'commission_percentage' => 'decimal:2',
+        'service_value' => 'decimal:2',
+        'commission_value' => 'decimal:2',
+        'resource_value' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',

@@ -38,7 +38,7 @@ sail artisan tinker
 sail test
 
 # Limpar cache
-sail artisan cache: clear
+sail artisan cache:clear
 sail artisan config:clear
 
 # você pode usar: 

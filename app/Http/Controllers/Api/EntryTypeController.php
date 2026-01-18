@@ -65,4 +65,38 @@ class EntryTypeController extends Controller
             'message' => 'Tipo de entrada removido com sucesso',
         ]);
     }
+
+    public function withTrashed(Request $request)
+    {
+        $types = EntryType::where('company_id', $request->user()->company_id)
+            ->withTrashed()
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($types);
+    }
+
+    public function restore(Request $request, $id)
+    {
+        $type = EntryType::withTrashed()->find($id);
+
+        if (!$type) {
+            return response()->json(['message' => 'Não encontrado'], 404);
+        }
+
+        if ($type->company_id !== $request->user()->company_id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (!$request->user()->isRoot()) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $type->restore();
+
+        return response()->json([
+            'message' => 'Tipo de entrada restaurado com sucesso',
+            'data' => $type,
+        ]);
+    }
 }

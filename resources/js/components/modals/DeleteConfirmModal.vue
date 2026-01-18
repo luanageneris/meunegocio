@@ -97,13 +97,13 @@ const handleClose = () => {
             <!-- Para Colaboradores Restaurar -->
             <template v-else-if="itemType === 'restore' && record?.name">
                 <p class="text-center text-gray-700 font-semibold mb-2">
-                    Restaurar colaborador?
+                    Restaurar este item?
                 </p>
                 <p class="text-center text-gray-600 text-sm mb-4">
                     Tem certeza que deseja restaurar <span class="font-semibold text-gray-800">{{ record.name }}</span>?
                 </p>
                 <p class="text-center text-gray-500 text-xs">
-                    O colaborador será ativado e voltará à lista principal.
+                    O item será ativado e voltará à lista principal.
                 </p>
             </template>
 

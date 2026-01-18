@@ -50,6 +50,16 @@ class UserFactory extends Factory
     }
 
     /**
+     * Indicate that the user is a root/admin user.
+     */
+    public function root(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'root',
+        ]);
+    }
+
+    /**
      * Indicate that the model does not have two-factor authentication configured.
      */
     public function withoutTwoFactor(): static

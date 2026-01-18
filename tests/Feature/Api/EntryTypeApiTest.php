@@ -43,9 +43,9 @@ class EntryTypeApiTest extends TestCase
 
     public function test_can_list_entry_types()
     {
-        EntryType::create(['name' => 'Serviço 1', 'requires_collaborator' => false, 'company_id' => $this->company->id]);
-        EntryType::create(['name' => 'Serviço 2', 'requires_collaborator' => true, 'company_id' => $this->company->id]);
-        EntryType::create(['name' => 'Serviço 3', 'requires_collaborator' => false, 'company_id' => $this->company->id]);
+        EntryType::create(['name' => 'Serviço 1', 'company_id' => $this->company->id]);
+        EntryType::create(['name' => 'Serviço 2', 'company_id' => $this->company->id]);
+        EntryType::create(['name' => 'Serviço 3', 'company_id' => $this->company->id]);
 
         $response = $this->actingAs($this->rootUser, 'sanctum')
             ->getJson('/api/personalizar/entry-types');
@@ -59,11 +59,10 @@ class EntryTypeApiTest extends TestCase
         $response = $this->actingAs($this->rootUser, 'sanctum')
             ->postJson('/api/personalizar/entry-types', [
                 'name' => 'Serviço',
-                'requires_collaborator' => false,
             ]);
 
         $response->assertStatus(201)
-            ->assertJsonStructure(['id', 'name', 'requires_collaborator', 'company_id']);
+            ->assertJsonStructure(['id', 'name', 'company_id']);
 
         $this->assertDatabaseHas('entry_types', [
             'name' => 'Serviço',
@@ -75,21 +74,18 @@ class EntryTypeApiTest extends TestCase
     {
         $entryType = EntryType::create([
             'name' => 'Serviço',
-            'requires_collaborator' => false,
             'company_id' => $this->company->id
         ]);
 
         $response = $this->actingAs($this->rootUser, 'sanctum')
             ->putJson("/api/personalizar/entry-types/{$entryType->id}", [
                 'name' => 'Serviço Atualizado',
-                'requires_collaborator' => true,
             ]);
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('entry_types', [
             'id' => $entryType->id,
             'name' => 'Serviço Atualizado',
-            'requires_collaborator' => true,
         ]);
     }
 
@@ -97,7 +93,6 @@ class EntryTypeApiTest extends TestCase
     {
         $entryType = EntryType::create([
             'name' => 'Serviço',
-            'requires_collaborator' => false,
             'company_id' => $this->company->id
         ]);
 

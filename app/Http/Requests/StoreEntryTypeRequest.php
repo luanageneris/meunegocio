@@ -15,7 +15,6 @@ class StoreEntryTypeRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255|unique:entry_types,name',
-            'requires_collaborator' => 'boolean',
         ];
     }
 
