@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
+import LoadingSpinner from '@/components/LoadingSpinner.vue';
 
 interface SupportRequest {
     subject: string;

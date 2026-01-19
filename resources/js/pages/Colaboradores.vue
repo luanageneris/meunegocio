@@ -8,6 +8,7 @@ import CollaboratorModal from '@/components/modals/CollaboratorModal.vue';
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
+import LoadingSpinner from '@/components/LoadingSpinner.vue';
 
 interface Collaborator {
     id: number;
@@ -230,7 +231,7 @@ onMounted(fetchCollaborators);
                         {{ errorMessage }}
                     </div>
 
-                    <div v-if="isLoading" class="py-10 text-center text-amber-500 font-medium">Carregando...</div>
+                    <LoadingSpinner v-if="isLoading" message="Carregando colaboradores..." />
 
                     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div

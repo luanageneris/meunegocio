@@ -10,6 +10,7 @@ import ServiceTypeFormModal from '@/components/modals/ServiceTypeFormModal.vue';
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
+import LoadingSpinner from '@/components/LoadingSpinner.vue';
 
 interface EntryType {
     id: number;
