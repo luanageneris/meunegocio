@@ -217,7 +217,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex">
+    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex overflow-x-hidden">
         <Head title="Minha Conta - MEU NEGÓCIO" />
 
         <Sidebar active-route="conta" />

@@ -186,12 +186,12 @@ onMounted(fetchCollaborators);
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex">
+    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex overflow-x-hidden">
         <Head title="Colaboradores - MEU NEGÓCIO" />
 
         <Sidebar active-route="colaboradores" />
 
-        <div class="flex-1 lg:ml-64 transition-all duration-300">
+        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden">
             <PageHeaderTitle 
                 title="Colaboradores" 
                 subtitle="Gerencie os colaboradores da sua empresa"

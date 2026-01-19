@@ -248,14 +248,14 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex">
+    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex overflow-x-hidden">
         <Head title="Painel - MEU NEGÓCIO" />
 
         <!-- Sidebar -->
         <Sidebar active-route="painel" />
 
         <!-- Main Content with margin for sidebar -->
-        <div class="flex-1 lg:ml-64 transition-all duration-300">
+        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden">
             <PageHeaderTitle 
                 title="Painel" 
                 subtitle="Acompanhe o desempenho financeiro do seu negócio"

@@ -75,15 +75,15 @@ const handleKeydown = (e: KeyboardEvent) => {
 </script>
 
 <template>
-    <div v-if="isAuthenticated" class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex">
+    <div v-if="isAuthenticated" class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex overflow-x-hidden">
         <Head title="Ajuda e Suporte - MEU NEGÓCIO" />
 
         <Sidebar active-route="suporte" />
 
-        <div class="flex-1 lg:ml-64 transition-all duration-300">
+        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden">
             <PageHeaderTitle 
                 title="Ajuda e Suporte" 
-                subtitle="Conte-nos o seu problema, nos responderemos o mais breve possível"
+                subtitle="Conte-nos o seu problema, nos responderemos o mais breve possível."
             />
 
             <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
