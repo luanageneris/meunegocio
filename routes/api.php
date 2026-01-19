@@ -16,6 +16,18 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\SupportController;
+use App\Http\Controllers\Api\HistoryController;
+use App\Models\Collaborator;
+use App\Models\FinancialRecord;
+
+// Route model binding scoped por empresa
+Route::bind('collaborator', function ($value) {
+    return Collaborator::forCompany()->findOrFail($value);
+});
+
+Route::bind('financialRecord', function ($value) {
+    return FinancialRecord::forCompany()->findOrFail($value);
+});
 
 Route::get('/health', function () {
     return response()->json(['status' => 'ok']);
@@ -29,73 +41,20 @@ Route::prefix('auth')->group(function () {
     Route::post('/impersonate/{user}', [AuthController::class, 'impersonate'])->middleware(['auth:sanctum', 'root']);
 });
 
-// Rotas protegidas
-Route::middleware('auth:sanctum')->group(function () {
+// ========================================================================
+// ROTAS DE LEITURA (GET) - SEM RASTREAMENTO
+// ========================================================================
+Route::middleware(['auth:sanctum', 'company.isolation'])->group(function () {
     
-    // Empresa
-    Route::prefix('company')->group(function () {
-        Route::get('/', [CompanyController::class, 'show'])->name('company.show');
-        Route::put('/', [CompanyController::class, 'update'])->name('company.update');
-        Route::delete('/', [CompanyController::class, 'destroy'])->name('company.destroy');
-        Route::get('/needs-setup', [CompanyController::class, 'needsSetup'])->name('company.needs-setup');
-    });
-    
-    // Personalizar
-    Route::prefix('personalizar')->group(function () {
-        Route::get('collaborators/with-trashed', [CollaboratorController::class, 'withTrashed']);
-        Route::post('collaborators/get-or-create', [CollaboratorController::class, 'getOrCreate']);
-        Route::post('collaborators/{id}/restore', [CollaboratorController::class, 'restore']);
-        Route::apiResource('collaborators', CollaboratorController::class);
-        
-        Route::get('entry-types/with-trashed', [EntryTypeController::class, 'withTrashed']);
-        Route::post('entry-types/{id}/restore', [EntryTypeController::class, 'restore']);
-        Route::apiResource('entry-types', EntryTypeController::class);
-        
-        Route::get('exit-types/with-trashed', [ExitTypeController::class, 'withTrashed']);
-        Route::post('exit-types/{id}/restore', [ExitTypeController::class, 'restore']);
-        Route::apiResource('exit-types', ExitTypeController::class);
-        
-        Route::get('service-types/with-trashed', [ServiceTypeController::class, 'withTrashed']);
-        Route::post('service-types/{id}/restore', [ServiceTypeController::class, 'restore']);
-        Route::apiResource('service-types', ServiceTypeController::class);
+    // Histórico (Auditoria) - leitura apenas
+    Route::prefix('history')->group(function () {
+        Route::get('/stats', [HistoryController::class, 'stats']);
+        Route::get('/model-history', [HistoryController::class, 'modelHistory']);
+        Route::get('/{id}', [HistoryController::class, 'show']);
+        Route::get('/', [HistoryController::class, 'index']);
     });
 
-    // Registros
-    Route::prefix('registros')->group(function () {
-        // Custom actions must come before the resource to avoid conflicts
-        Route::post('financial-records/{id}/restore', [FinancialRecordController::class, 'restore']);
-        Route::apiResource('financial-records', FinancialRecordController::class);
-        Route::get('financial-records/by-date/{date}', [FinancialRecordController::class, 'byDate']);
-        Route::post('financial-records/between-dates', [FinancialRecordController::class, 'betweenDates']);
-        Route::post('financial-records/daily-totals', [FinancialRecordController::class, 'dailyTotals']);
-        
-        Route::apiResource('work-shifts', WorkShiftController::class);
-        Route::get('work-shifts/by-date/{date}', [WorkShiftController::class, 'byDate']);
-        Route::get('work-shifts/collaborator/{collaboratorId}', [WorkShiftController::class, 'collaboratorShifts']);
-        Route::post('work-shifts/monthly-schedule', [WorkShiftController::class, 'monthlySchedule']);
-        
-        Route::apiResource('daily-closures', DailyClosureController::class);
-        Route::post('daily-closures/reopen/{dailyClosure}', [DailyClosureController::class, 'reopen']);
-        Route::post('daily-closures/summary', [DailyClosureController::class, 'summary']);
-        Route::get('daily-closures/is-closed/{date}', [DailyClosureController::class, 'isClosed']);
-        
-        // Commission routes - custom actions FIRST
-        Route::post('commissions/generate-from-date', [CommissionController::class, 'generateFromDate']);
-        Route::post('commissions/mark-as-paid', [CommissionController::class, 'markAsPaid']);
-        Route::post('commissions/summary-by-collaborator', [CommissionController::class, 'summaryByCollaborator']);
-        Route::get('commissions/collaborator/{collaboratorId}/unpaid', [CommissionController::class, 'unpaidCommissions']);
-        Route::get('commissions/collaborator/{collaboratorId}', [CommissionController::class, 'collaboratorCommissions']);
-        // Commission CRUD last (these match /commissions/{id})
-        Route::apiResource('commissions', CommissionController::class);
-        
-        Route::get('balance', [BalanceController::class, 'history']);
-        Route::post('balance', [BalanceController::class, 'store']);
-        Route::post('balance/daily-progression', [BalanceController::class, 'dailyProgression']);
-        Route::post('balance/monthly-summary', [BalanceController::class, 'monthlySummary']);
-        Route::post('balance/yearly-summary', [BalanceController::class, 'yearlySummary']);
-    });
-
-    // Dashboard
+    // Dashboard (leitura)
     Route::prefix('dashboard')->group(function () {
         Route::get('/summary', [DashboardController::class, 'summary']);
         Route::get('/commissions-by-collaborator', [DashboardController::class, 'commissionsByCollaborator']);
@@ -103,9 +62,137 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/entries-exits', [DashboardController::class, 'entriesExits']);
     });
 
+    // Empresa (leitura)
+    Route::prefix('company')->group(function () {
+        Route::get('/', [CompanyController::class, 'show'])->name('company.show');
+        Route::get('/needs-setup', [CompanyController::class, 'needsSetup'])->name('company.needs-setup');
+    });
+
+    // Personalizar - Leitura (GET apenas)
+    Route::prefix('personalizar')->group(function () {
+        Route::get('collaborators', [CollaboratorController::class, 'index']);
+        Route::get('collaborators/with-trashed', [CollaboratorController::class, 'withTrashed']);
+        Route::get('collaborators/{collaborator}', [CollaboratorController::class, 'show']);
+
+        Route::get('entry-types', [EntryTypeController::class, 'index']);
+        Route::get('entry-types/with-trashed', [EntryTypeController::class, 'withTrashed']);
+        Route::get('entry-types/{entryType}', [EntryTypeController::class, 'show']);
+
+        Route::get('exit-types', [ExitTypeController::class, 'index']);
+        Route::get('exit-types/with-trashed', [ExitTypeController::class, 'withTrashed']);
+        Route::get('exit-types/{exitType}', [ExitTypeController::class, 'show']);
+
+        Route::get('service-types', [ServiceTypeController::class, 'index']);
+        Route::get('service-types/with-trashed', [ServiceTypeController::class, 'withTrashed']);
+        Route::get('service-types/{serviceType}', [ServiceTypeController::class, 'show']);
+    });
+
+    // Registros - Leitura (GET apenas)
+    Route::prefix('registros')->group(function () {
+        Route::get('financial-records', [FinancialRecordController::class, 'index']);
+        Route::get('financial-records/{financialRecord}', [FinancialRecordController::class, 'show']);
+        Route::get('financial-records/by-date/{date}', [FinancialRecordController::class, 'byDate']);
+        
+        Route::get('work-shifts', [WorkShiftController::class, 'index']);
+        Route::get('work-shifts/{id}', [WorkShiftController::class, 'show']);
+        Route::get('work-shifts/by-date/{date}', [WorkShiftController::class, 'byDate']);
+        Route::get('work-shifts/collaborator/{collaboratorId}', [WorkShiftController::class, 'collaboratorShifts']);
+        
+        Route::get('daily-closures', [DailyClosureController::class, 'index']);
+        Route::get('daily-closures/{id}', [DailyClosureController::class, 'show']);
+        Route::get('daily-closures/is-closed/{date}', [DailyClosureController::class, 'isClosed']);
+        
+        Route::get('commissions', [CommissionController::class, 'index']);
+        Route::get('commissions/{id}', [CommissionController::class, 'show']);
+        Route::get('commissions/collaborator/{collaboratorId}/unpaid', [CommissionController::class, 'unpaidCommissions']);
+        Route::get('commissions/collaborator/{collaboratorId}', [CommissionController::class, 'collaboratorCommissions']);
+        
+        Route::get('balance', [BalanceController::class, 'history']);
+    });
+
+    // Import logs (leitura)
+    Route::get('/import-logs', [ImportController::class, 'logs'])->middleware('root');
+});
+
+// ========================================================================
+// ROTAS DE ESCRITA (POST/PUT/DELETE) - COM RASTREAMENTO
+// ========================================================================
+Route::middleware(['auth:sanctum', 'company.isolation', 'track.changes'])->group(function () {
+    
+    // Empresa - Escrita
+    Route::prefix('company')->group(function () {
+        Route::put('/', [CompanyController::class, 'update'])->name('company.update');
+        Route::delete('/', [CompanyController::class, 'destroy'])->name('company.destroy');
+    });
+    
+    // Personalizar - Escrita
+    Route::prefix('personalizar')->group(function () {
+        // Colaboradores
+        Route::post('collaborators/get-or-create', [CollaboratorController::class, 'getOrCreate']);
+        Route::post('collaborators/{id}/restore', [CollaboratorController::class, 'restore']);
+        Route::post('collaborators', [CollaboratorController::class, 'store']);
+        Route::put('collaborators/{collaborator}', [CollaboratorController::class, 'update']);
+        Route::delete('collaborators/{collaborator}', [CollaboratorController::class, 'destroy']);
+        
+        // Tipos de Entrada
+        Route::post('entry-types/{id}/restore', [EntryTypeController::class, 'restore']);
+        Route::post('entry-types', [EntryTypeController::class, 'store']);
+        Route::put('entry-types/{id}', [EntryTypeController::class, 'update']);
+        Route::delete('entry-types/{id}', [EntryTypeController::class, 'destroy']);
+        
+        // Tipos de Saída
+        Route::post('exit-types/{id}/restore', [ExitTypeController::class, 'restore']);
+        Route::post('exit-types', [ExitTypeController::class, 'store']);
+        Route::put('exit-types/{id}', [ExitTypeController::class, 'update']);
+        Route::delete('exit-types/{id}', [ExitTypeController::class, 'destroy']);
+        
+        // Tipos de Serviço
+        Route::post('service-types/{id}/restore', [ServiceTypeController::class, 'restore']);
+        Route::post('service-types', [ServiceTypeController::class, 'store']);
+        Route::put('service-types/{id}', [ServiceTypeController::class, 'update']);
+        Route::delete('service-types/{id}', [ServiceTypeController::class, 'destroy']);
+    });
+
+    // Registros - Escrita
+    Route::prefix('registros')->group(function () {
+        // Financial Records
+        Route::post('financial-records/{id}/restore', [FinancialRecordController::class, 'restore']);
+        Route::post('financial-records', [FinancialRecordController::class, 'store']);
+        Route::put('financial-records/{financialRecord}', [FinancialRecordController::class, 'update']);
+        Route::delete('financial-records/{financialRecord}', [FinancialRecordController::class, 'destroy']);
+        Route::post('financial-records/between-dates', [FinancialRecordController::class, 'betweenDates']);
+        Route::post('financial-records/daily-totals', [FinancialRecordController::class, 'dailyTotals']);
+        
+        // Work Shifts
+        Route::post('work-shifts', [WorkShiftController::class, 'store']);
+        Route::put('work-shifts/{id}', [WorkShiftController::class, 'update']);
+        Route::delete('work-shifts/{id}', [WorkShiftController::class, 'destroy']);
+        Route::post('work-shifts/monthly-schedule', [WorkShiftController::class, 'monthlySchedule']);
+        
+        // Daily Closures
+        Route::post('daily-closures', [DailyClosureController::class, 'store']);
+        Route::put('daily-closures/{id}', [DailyClosureController::class, 'update']);
+        Route::delete('daily-closures/{id}', [DailyClosureController::class, 'destroy']);
+        Route::post('daily-closures/reopen/{dailyClosure}', [DailyClosureController::class, 'reopen']);
+        Route::post('daily-closures/summary', [DailyClosureController::class, 'summary']);
+        
+        // Commissions
+        Route::post('commissions/generate-from-date', [CommissionController::class, 'generateFromDate']);
+        Route::post('commissions/mark-as-paid', [CommissionController::class, 'markAsPaid']);
+        Route::post('commissions/summary-by-collaborator', [CommissionController::class, 'summaryByCollaborator']);
+        Route::post('commissions', [CommissionController::class, 'store']);
+        Route::put('commissions/{id}', [CommissionController::class, 'update']);
+        Route::delete('commissions/{id}', [CommissionController::class, 'destroy']);
+        
+        // Balance
+        Route::post('balance', [BalanceController::class, 'store']);
+        Route::post('balance/daily-progression', [BalanceController::class, 'dailyProgression']);
+        Route::post('balance/monthly-summary', [BalanceController::class, 'monthlySummary']);
+        Route::post('balance/yearly-summary', [BalanceController::class, 'yearlySummary']);
+    });
+
     // Importação
     Route::post('/import', [ImportController::class, 'import'])->middleware('root');
-    Route::get('/import-logs', [ImportController::class, 'logs'])->middleware('root');
 
     // Suporte
     Route::post('/support', [SupportController::class, 'send']);

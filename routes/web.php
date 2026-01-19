@@ -57,6 +57,11 @@ Route::get('/colaboradores', function () {
     return Inertia::render('Colaboradores');
 })->name('colaboradores');
 
+// Histórico (Auditoria)
+Route::get('/historico', function () {
+    return Inertia::render('Historico');
+})->name('historico');
+
 // Ajuda e Suporte
 Route::get('/suporte', function () {
     return Inertia::render('Suporte');

@@ -14,7 +14,10 @@ class UpdateCollaboratorRequest extends FormRequest
 
     public function rules(): array
     {
-        $collaboratorId = $this->route('collaborator');
+        $collaboratorRouteParam = $this->route('collaborator') ?? $this->route('id');
+        $collaboratorId = $collaboratorRouteParam instanceof \App\Models\Collaborator
+            ? $collaboratorRouteParam->id
+            : $collaboratorRouteParam;
         
         return [
             'name' => 'required|string|max:255',

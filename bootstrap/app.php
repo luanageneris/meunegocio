@@ -4,6 +4,7 @@ use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\EnsureUserIsRoot;
 use App\Http\Middleware\EnsureCompanyIsolation;
+use App\Http\Middleware\TrackChanges;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'root' => EnsureUserIsRoot::class,
             'company.isolation' => EnsureCompanyIsolation::class,
+            'track.changes' => TrackChanges::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

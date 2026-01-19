@@ -1,7 +1,25 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const lastUpdated = '19/01/2026';
+
+const page = usePage();
+const isAuthenticated = computed(() => Boolean((page.props as Record<string, unknown>)?.auth?.user));
+
+const handleBack = () => {
+    if (isAuthenticated.value) {
+        if (window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+
+        router.visit('/');
+        return;
+    }
+
+    router.visit('/login');
+};
 </script>
 
 <template>
@@ -15,12 +33,13 @@ const lastUpdated = '19/01/2026';
                 <p class="text-gray-700 mt-2">Como tratamos dados pessoais no Meu Negócio, com isolamento por empresa e segurança desde o design.</p>
             </div>
             <div class="flex items-center gap-3 self-start sm:self-auto">
-                <Link href="/" class="px-4 py-2 rounded-full border border-orange-200 text-orange-700 font-semibold hover:border-orange-400 hover:text-orange-800 transition">
+                <button
+                    type="button"
+                    class="px-4 py-2 rounded-full border border-orange-200 text-orange-700 font-semibold hover:border-orange-400 hover:text-orange-800 transition"
+                    @click="handleBack"
+                >
                     Voltar
-                </Link>
-                <Link href="/login" class="px-4 py-2 rounded-full bg-orange-500 text-white font-semibold shadow-md hover:bg-orange-600 transition">
-                    Acessar conta
-                </Link>
+                </button>
             </div>
         </header>
 
