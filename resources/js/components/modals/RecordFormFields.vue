@@ -12,6 +12,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'update:form', value: any): void;
+    (e: 'submit'): void;
 }>();
 
 const model = computed({
@@ -50,6 +51,7 @@ const model = computed({
             </label>
             <select
                 v-model="model.tipoSaida"
+                @keydown.enter="$emit('submit')"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
             >
                 <option value="">Selecione</option>
@@ -70,6 +72,7 @@ const model = computed({
             <input
                 v-model="model.data"
                 type="date"
+                @keydown.enter="$emit('submit')"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
             />
         </div>
@@ -84,6 +87,7 @@ const model = computed({
             v-model="model.descricao"
             type="text"
             placeholder="Descrição"
+            @keydown.enter="$emit('submit')"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
         />
     </div>
@@ -99,6 +103,7 @@ const model = computed({
                 type="number"
                 step="0.01"
                 min="0"
+                @keydown.enter="$emit('submit')"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
             />
         </div>
@@ -111,6 +116,7 @@ const model = computed({
                 v-model.number="model.quantidade"
                 type="number"
                 min="1"
+                @keydown.enter="$emit('submit')"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
             />
         </div>
@@ -127,6 +133,7 @@ const model = computed({
                 type="number"
                 step="0.01"
                 min="0"
+                @keydown.enter="$emit('submit')"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
             />
         </div>
@@ -137,6 +144,7 @@ const model = computed({
             </label>
             <select
                 v-model="model.colaborador"
+                @keydown.enter="$emit('submit')"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
             >
                 <option value="">Selecione</option>
@@ -159,6 +167,7 @@ const model = computed({
         <input
             v-model="model.observacao"
             type="text"
+            @keydown.enter="$emit('submit')"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
         />
     </div>

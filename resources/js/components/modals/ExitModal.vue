@@ -213,6 +213,7 @@ const cancelDiscard = () => {
                 :colaboradores="colaboradores"
                 :simple-mode="useServiceTypes === false"
                 @update:form="(val) => (form.value = val)"
+                @submit="handleSave"
                     v-model:data="form.data"
                     v-model:hora="form.hora"
             />
