@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
+import { usePrivacy } from '@/composables/usePrivacy';
+import { Eye, EyeOff } from 'lucide-vue-next';
 import logoUrl from '@/../../resources/img/icon-logo.svg';
 
 const isLoading = ref(false);
 const showCookieBanner = ref(false);
+const { isPrivacyMode, togglePrivacy } = usePrivacy();
 
 const handleGoogleLogin = () => {
     isLoading.value = true;
@@ -117,6 +120,44 @@ onMounted(() => {
                         
                         <span>{{ isLoading ? 'Conectando...' : 'Entrar com Google' }}</span>
                     </button>
+
+                    <!-- Privacy Mode Toggle -->
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        <button
+                            @click="togglePrivacy"
+                            class="w-full flex items-center justify-between gap-3 bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-gray-700 hover:bg-gray-100 hover:border-orange-300 transition-all duration-200"
+                        >
+                            <div class="flex items-center gap-3">
+                                <EyeOff v-if="isPrivacyMode" class="w-5 h-5 text-orange-500" />
+                                <Eye v-else class="w-5 h-5 text-gray-500" />
+                                <div class="text-left">
+                                    <p class="text-sm font-medium">Modo Privacidade</p>
+                                    <p class="text-xs text-gray-500">
+                                        {{ isPrivacyMode ? 'Valores ocultos' : 'Valores visíveis' }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="relative inline-block w-12 h-6 transition duration-200 ease-in-out">
+                                <input
+                                    type="checkbox"
+                                    :checked="isPrivacyMode"
+                                    class="opacity-0 w-0 h-0 peer"
+                                />
+                                <span
+                                    class="absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-gray-300 rounded-full transition-all duration-200"
+                                    :class="{ 'bg-orange-500': isPrivacyMode }"
+                                >
+                                    <span
+                                        class="absolute h-5 w-5 left-0.5 bottom-0.5 bg-white rounded-full transition-transform duration-200"
+                                        :class="{ 'translate-x-6': isPrivacyMode }"
+                                    ></span>
+                                </span>
+                            </div>
+                        </button>
+                        <p class="mt-2 text-xs text-gray-500 text-center">
+                            Ative para ocultar valores financeiros totais após o login
+                        </p>
+                    </div>
         
                 </div>
 

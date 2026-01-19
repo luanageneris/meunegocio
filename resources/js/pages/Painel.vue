@@ -2,11 +2,13 @@
 import { Head } from '@inertiajs/vue3';
 import { ref, onMounted, computed } from 'vue';
 import { useAuth } from '@/composables/useAuth';
+import { usePrivacy } from '@/composables/usePrivacy';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 
 const auth = useAuth();
+const { isPrivacyMode } = usePrivacy();
 const company = ref<any>(null);
 const isLoading = ref(true);
 const activeTab = ref<'hoje' | 'ultimos7dias' | 'mensal'>('hoje');
@@ -30,6 +32,9 @@ const dailyBreakdown = ref<Array<{ date: string; entradas: number; saidas: numbe
 const monthlyBreakdown = ref<Array<{ month: string; monthNum: number; entradas: number; saidas: number; lucro: number }>>([]);
 
 const formatCurrency = (value: number) => {
+    if (isPrivacyMode.value) {
+        return 'R$ •••••';
+    }
     return new Intl.NumberFormat('pt-BR', {
         style: 'currency',
         currency: 'BRL'

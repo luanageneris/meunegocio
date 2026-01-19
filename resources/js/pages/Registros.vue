@@ -2,6 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
+import { usePrivacy } from '@/composables/usePrivacy';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import EntryModal from '@/components/modals/EntryModal.vue';
@@ -9,6 +10,7 @@ import ExitModal from '@/components/modals/ExitModal.vue';
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
 
 const auth = useAuth();
+const { isPrivacyMode } = usePrivacy();
 const company = ref<any>(null);
 const isLoading = ref(false);
 const activeTab = ref<'hoje' | 'ultimos7dias' | 'mensal'>('hoje');
@@ -52,6 +54,9 @@ const sortKey = ref<'valor' | 'categoria' | 'colaborador' | 'descricao' | 'dataO
 const sortDir = ref<'asc' | 'desc'>('desc');
 
 const formatCurrency = (value: number) => {
+    if (isPrivacyMode.value) {
+        return 'R$ •••••';
+    }
     return new Intl.NumberFormat('pt-BR', {
         style: 'currency',
         currency: 'BRL'
