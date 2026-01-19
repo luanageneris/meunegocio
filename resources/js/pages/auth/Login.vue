@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
+import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import { Eye, EyeOff } from 'lucide-vue-next';
 import logoUrl from '@/../../resources/img/icon-logo.svg';
 
+const auth = useAuth();
 const isLoading = ref(false);
 const showCookieBanner = ref(false);
 const { isPrivacyMode, togglePrivacy } = usePrivacy();
@@ -20,8 +22,14 @@ const closeCookieBanner = () => {
     localStorage.setItem('cookiesAccepted', 'true');
 };
 
-// Check if cookies were already accepted
+// Check if cookies were already accepted and if user is authenticated
 onMounted(() => {
+    // Se o usuário já está autenticado, redirecionar para o painel
+    if (auth.isAuthenticated.value) {
+        window.location.href = '/painel';
+        return;
+    }
+
     const accepted = localStorage.getItem('cookiesAccepted');
     if (!accepted) {
         showCookieBanner.value = true;

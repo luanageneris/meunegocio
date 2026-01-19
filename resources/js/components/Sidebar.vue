@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
+import { usePrivacy } from '@/composables/usePrivacy';
 import logoUrl from '@/../../resources/img/icon-logo.svg';
+import { Eye, EyeOff } from 'lucide-vue-next';
 
 const props = defineProps<{
     activeRoute?: string;
 }>();
 
 const auth = useAuth();
+const { isPrivacyMode, togglePrivacy } = usePrivacy();
 const isOpen = ref(true);
 
 onMounted(() => {
@@ -142,6 +145,22 @@ const toggleSidebar = () => {
                         <span>{{ item.name }}</span>
                     </a>
                 </nav>
+
+                <!-- Privacy Toggle -->
+                <div class="px-4 pb-2 border-t border-gray-200 pt-4">
+                    <button
+                        @click="togglePrivacy"
+                        class="flex items-center justify-between w-full px-4 py-3 text-gray-700 hover:bg-orange-50 rounded-lg transition-all duration-200"
+                    >
+                        <div class="flex items-center gap-3">
+                            <component :is="isPrivacyMode ? EyeOff : Eye" class="w-5 h-5 text-orange-500" />
+                            <span class="text-sm font-medium">Modo Privacidade</span>
+                        </div>
+                        <span class="text-xs text-gray-500">
+                            {{ isPrivacyMode ? 'Oculto' : 'Visível' }}
+                        </span>
+                    </button>
+                </div>
 
                 <!-- Logout Button -->
                 <div class="p-4 border-t border-gray-200">

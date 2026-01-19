@@ -2,6 +2,7 @@
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
+import PrivacyToggleSidebar from '@/components/PrivacyToggleSidebar.vue';
 import {
     Sidebar,
     SidebarContent,
@@ -58,6 +59,9 @@ const footerNavItems: NavItem[] = [
         </SidebarContent>
 
         <SidebarFooter>
+            <div class="px-2 py-2 border-t border-sidebar-border">
+                <PrivacyToggleSidebar />
+            </div>
             <NavFooter :items="footerNavItems" />
             <NavUser />
         </SidebarFooter>

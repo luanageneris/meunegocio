@@ -222,11 +222,9 @@ onMounted(async () => {
 
         <Sidebar active-route="conta" />
 
-        <div class="flex-1 lg:ml-64 transition-all duration-300">
-            <PageHeader title="Minha Conta" container-class="max-w-6xl" />
-
-            <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div class="bg-white rounded-xl shadow-lg border border-blue-200/70">
+        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden">
+            <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="bg-white rounded-xl shadow-lg border border-blue-200/70 overflow-hidden">
                     <div class="px-6 sm:px-10 py-8 border-b border-blue-100/70">
                         <h2 class="text-2xl font-bold text-center text-orange-600">Minha Conta</h2>
                         <p class="text-center text-gray-600 mt-2">Gerencie as informações da sua empresa e acesso.</p>
@@ -236,8 +234,8 @@ onMounted(async () => {
                         <LoadingSpinner v-if="isLoading" message="Carregando informações da conta..." />
 
                         <div v-else class="space-y-8">
-                            <div class="grid gap-6 lg:grid-cols-2">
-                                <section class="bg-orange-50 border border-orange-100 rounded-xl p-6 shadow-sm">
+                            <div class="grid gap-6 lg:grid-cols-2 overflow-hidden">
+                                <section class="bg-orange-50 border border-orange-100 rounded-xl p-6 shadow-sm overflow-hidden">
                                     <div class="flex items-center justify-between mb-4">
                                         <div>
                                             <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Informações da Conta</p>
@@ -254,7 +252,7 @@ onMounted(async () => {
                                                 type="text"
                                                 :disabled="!canEdit"
                                                 placeholder="Ex: Xerografia & Cia"
-                                                class="w-full px-4 py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
                                             />
                                             <p v-if="errors.name" class="text-sm text-red-600 mt-1">{{ errors.name[0] }}</p>
                                         </div>
@@ -266,7 +264,7 @@ onMounted(async () => {
                                                 type="email"
                                                 :disabled="!canEdit"
                                                 placeholder="contato@empresa.com"
-                                                class="w-full px-4 py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
                                             />
                                             <p v-if="errors.email" class="text-sm text-red-600 mt-1">{{ errors.email[0] }}</p>
                                         </div>
@@ -279,7 +277,7 @@ onMounted(async () => {
                                                     type="tel"
                                                     :disabled="!canEdit"
                                                     placeholder="(11) 99999-9999"
-                                                    class="w-full px-4 py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
                                                 />
                                             </div>
                                             <div>
@@ -289,7 +287,7 @@ onMounted(async () => {
                                                     type="text"
                                                     :disabled="!canEdit"
                                                     placeholder="00.000.000/0000-00"
-                                                    class="w-full px-4 py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
                                                 />
                                                 <p v-if="errors.document" class="text-sm text-red-600 mt-1">{{ errors.document[0] }}</p>
                                             </div>
@@ -298,7 +296,7 @@ onMounted(async () => {
 
                                 </section>
 
-                                <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm">
+                                <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm overflow-hidden">
                                     <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Endereço (opcional)</p>
                                     <h3 class="text-lg font-bold text-gray-800 mb-4">Onde sua empresa fica?</h3>
 
@@ -310,7 +308,7 @@ onMounted(async () => {
                                                 type="text"
                                                 :disabled="!canEdit"
                                                 placeholder="Rua, número, bairro"
-                                                class="w-full px-4 py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
                                             />
                                         </div>
 
@@ -322,7 +320,7 @@ onMounted(async () => {
                                                     type="text"
                                                     :disabled="!canEdit"
                                                     placeholder="Cidade"
-                                                    class="w-full px-4 py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
                                                 />
                                             </div>
                                             <div>
@@ -333,7 +331,7 @@ onMounted(async () => {
                                                     maxlength="2"
                                                     :disabled="!canEdit"
                                                     placeholder="UF"
-                                                    class="w-full px-4 py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent uppercase disabled:bg-gray-100"
+                                                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent uppercase disabled:bg-gray-100"
                                                 />
                                             </div>
                                         </div>
@@ -346,7 +344,7 @@ onMounted(async () => {
                                                     type="text"
                                                     :disabled="!canEdit"
                                                     placeholder="00000-000"
-                                                    class="w-full px-4 py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
                                                 />
                                             </div>
                                             <div class="flex items-center gap-3 text-sm text-gray-600 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
@@ -379,8 +377,8 @@ onMounted(async () => {
                                 </button>
                             </div>
 
-                            <div class="grid gap-6 lg:grid-cols-2">
-                                <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm">
+                            <div class="grid gap-6 lg:grid-cols-2 overflow-hidden">
+                                <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm overflow-hidden">
                                     <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Acesso</p>
                                     <h3 class="text-lg font-bold text-gray-800 mb-2">Login via Google</h3>
                                     <p class="text-gray-600 mb-4">
@@ -395,14 +393,14 @@ onMounted(async () => {
                                                 <path fill="#ea4335" d="M272 107.7c39.5-.6 77.4 14.5 106.4 42.3l79.7-79.7C431.3 24.2 373.9 0 272 0 165.2 0 75.1 61.4 30.7 149.4l89 70.2C141.2 155.4 201.2 107.7 272 107.7z"/>
                                             </svg>
                                         </div>
-                                        <div>
+                                        <div class="min-w-0 flex-1">
                                             <p class="text-sm text-gray-500">Conta conectada</p>
-                                            <p class="text-base font-semibold text-gray-800">{{ auth.user.value?.email || '---' }}</p>
+                                            <p class="text-base font-semibold text-gray-800 break-all">{{ auth.user.value?.email || '---' }}</p>
                                         </div>
                                     </div>
                                 </section>
 
-                                <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm flex flex-col gap-4">
+                                <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm flex flex-col gap-4 overflow-hidden">
                                     <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Identidade visual</p>
                                     <div class="flex flex-col sm:flex-row items-center gap-4">
                                         <div class="w-24 h-24 rounded-full border-2 border-orange-200 bg-orange-50 flex items-center justify-center overflow-hidden shadow">
@@ -444,15 +442,15 @@ onMounted(async () => {
         </div>
 
         <Transition name="fade">
-            <div v-if="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div v-if="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black/60"></div>
-                <div class="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border-2 border-blue-200 overflow-hidden">
-                    <div class="px-6 sm:px-10 py-6 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50">
+                <div class="relative w-full max-w-3xl bg-white rounded-xl sm:rounded-2xl shadow-2xl border-2 border-blue-200 overflow-hidden max-h-[90vh] overflow-y-auto">
+                    <div class="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50">
                         <p class="text-sm font-semibold text-amber-600 uppercase tracking-wide">Destruindo conta</p>
-                        <h3 class="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">{{ deleteStep === 1 ? 'Apagando conta' : 'Confirmação final' }}</h3>
+                        <h3 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mt-2">{{ deleteStep === 1 ? 'Apagando conta' : 'Confirmação final' }}</h3>
                     </div>
-                    <div class="px-6 sm:px-10 py-6 space-y-6">
-                        <p class="text-gray-700 text-lg leading-7">
+                    <div class="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 space-y-4 sm:space-y-6">
+                        <p class="text-gray-700 text-base sm:text-lg leading-relaxed sm:leading-7">
                             Você está prestes a apagar sua conta e todos os dados da empresa. Esta ação é permanente e não pode ser desfeita.
                         </p>
 
@@ -468,7 +466,7 @@ onMounted(async () => {
                                 v-model="deleteConfirmInput"
                                 type="text"
                                 placeholder="APAGAR"
-                                class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"
+                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"
                                 :disabled="isDeleting"
                             />
                         </div>
