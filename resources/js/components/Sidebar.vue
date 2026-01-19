@@ -32,6 +32,7 @@ const menuItems = [
     { name: 'Histórico', icon: 'history', route: '/historico', key: 'historico' },
     { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },
     { name: 'Ajuda e Suporte', icon: 'help', route: '/suporte', key: 'suporte' },
+    { name: 'Política de Privacidade', icon: 'shield', route: '/politica-de-privacidade', key: 'privacidade' },
 ];
 
 const handleLogout = async () => {
@@ -133,6 +134,9 @@ const toggleSidebar = () => {
                             
                             <!-- Help -->
                             <path v-else-if="item.icon === 'help'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+
+                            <!-- Shield -->
+                            <path v-else-if="item.icon === 'shield'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l7 4v6c0 5-3.5 9-7 10-3.5-1-7-5-7-10V6l7-4z" />
                         </svg>
 
                         <span>{{ item.name }}</span>

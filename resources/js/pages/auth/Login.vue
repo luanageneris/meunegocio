@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import logoUrl from '@/../../resources/img/icon-logo.svg';
 
@@ -46,7 +46,7 @@ onMounted(() => {
                 <div class="container mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4 text-xs md:text-sm">
                     <p class="text-gray-700 text-center md:text-left flex-1">
                         Para garantir a melhor experiência em nosso site, utilizamos cookies. Ao continuar navegando, você concorda com o uso de cookies. 
-                        <a href="#" class="text-orange-600 hover:text-orange-700 font-semibold underline">Saiba mais em nossa Política de Privacidade</a>
+                        <Link href="/politica-de-privacidade" class="text-orange-600 hover:text-orange-700 font-semibold underline">Saiba mais em nossa Política de Privacidade</Link>
                     </p>
                     <button
                         @click="closeCookieBanner"
@@ -121,9 +121,12 @@ onMounted(() => {
                 </div>
 
                 <!-- Footer -->
-                <div class="mt-8 text-center text-sm text-gray-500">
+                <div class="mt-8 text-center text-sm text-gray-500 space-y-2">
                     <p>&copy; {{ new Date().getFullYear() }} | MEU NEGÓCIO. Todos os direitos reservados.</p>
-                
+                    <div class="flex justify-center gap-4 text-xs font-semibold">
+                        <Link href="/politica-de-privacidade" class="text-orange-600 hover:text-orange-700 underline">Política de Privacidade</Link>
+                        <Link href="/suporte" class="text-orange-600 hover:text-orange-700 underline">Ajuda e Suporte</Link>
+                    </div>
                 </div>
             </div>
         </div>

@@ -62,6 +62,11 @@ Route::get('/suporte', function () {
     return Inertia::render('Suporte');
 })->name('suporte');
 
+// Política de Privacidade (LGPD Brasil e Portugal)
+Route::get('/politica-de-privacidade', function () {
+    return Inertia::render('PoliticaPrivacidade');
+})->name('politica-privacidade');
+
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth:sanctum', 'verified'])->name('dashboard');
