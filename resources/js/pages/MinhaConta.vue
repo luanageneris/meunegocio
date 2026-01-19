@@ -35,6 +35,11 @@ const form = ref<CompanyForm>({
 const errors = ref<Record<string, string[]>>({});
 const isLoading = ref(true);
 const isSaving = ref(false);
+const showDeleteModal = ref(false);
+const deleteStep = ref<1 | 2>(1);
+const deleteConfirmInput = ref('');
+const isDeleting = ref(false);
+const deleteError = ref<string | null>(null);
 
 const canEdit = computed(() => {
     const role = auth.user.value?.role;
@@ -134,6 +139,65 @@ const save = async () => {
         toast.error('Não foi possível salvar', { description: error?.message || 'Revise os campos e tente novamente.' });
     } finally {
         isSaving.value = false;
+    }
+};
+
+const openDeleteModal = () => {
+    if (!canEdit.value) {
+        toast.info('Acesso somente leitura', { description: 'Somente o usuário root pode apagar a conta.' });
+        return;
+    }
+    showDeleteModal.value = true;
+    deleteStep.value = 1;
+    deleteConfirmInput.value = '';
+    deleteError.value = null;
+};
+
+const closeDeleteModal = () => {
+    showDeleteModal.value = false;
+    deleteStep.value = 1;
+    deleteConfirmInput.value = '';
+    deleteError.value = null;
+};
+
+const handleDeleteConfirm = async () => {
+    deleteError.value = null;
+
+    if (deleteStep.value === 1) {
+        deleteStep.value = 2;
+        deleteConfirmInput.value = '';
+        return;
+    }
+
+    if (deleteConfirmInput.value.trim().toUpperCase() !== 'APAGAR') {
+        deleteError.value = 'Digite APAGAR para confirmar a exclusão definitiva.';
+        return;
+    }
+
+    isDeleting.value = true;
+
+    try {
+        const response = await fetch('/api/company', {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${auth.token.value}`,
+                'Accept': 'application/json',
+            },
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+            throw new Error(payload?.message || 'Erro ao apagar conta');
+        }
+
+        toast.success('Conta apagada', { description: 'Todos os dados foram removidos.' });
+        auth.logout();
+        window.location.href = '/login?account_deleted=1';
+    } catch (error: any) {
+        deleteError.value = error?.message || 'Erro ao apagar conta. Tente novamente.';
+    } finally {
+        isDeleting.value = false;
     }
 };
 
@@ -366,10 +430,11 @@ onMounted(async () => {
                                 </div>
                                 <button
                                     type="button"
-                                    disabled
-                                    class="w-full sm:w-auto px-5 py-3 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium cursor-not-allowed"
+                                    :disabled="!canEdit || isDeleting"
+                                    @click="openDeleteModal"
+                                    class="w-full sm:w-auto px-5 py-3 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium hover:bg-red-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Apagar conta (fale com o suporte)
+                                    Apagar conta
                                 </button>
                             </div>
                         </div>
@@ -377,5 +442,60 @@ onMounted(async () => {
                 </div>
             </main>
         </div>
+
+        <Transition name="fade">
+            <div v-if="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center px-4">
+                <div class="absolute inset-0 bg-black/60"></div>
+                <div class="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border-2 border-blue-200 overflow-hidden">
+                    <div class="px-6 sm:px-10 py-6 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50">
+                        <p class="text-sm font-semibold text-amber-600 uppercase tracking-wide">Destruindo conta</p>
+                        <h3 class="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">{{ deleteStep === 1 ? 'Apagando conta' : 'Confirmação final' }}</h3>
+                    </div>
+                    <div class="px-6 sm:px-10 py-6 space-y-6">
+                        <p class="text-gray-700 text-lg leading-7">
+                            Você está prestes a apagar sua conta e todos os dados da empresa. Esta ação é permanente e não pode ser desfeita.
+                        </p>
+
+                        <ul class="list-disc list-inside text-gray-700 space-y-2">
+                            <li>Todas as informações (entradas, saídas, colaboradores, configurações) serão removidas.</li>
+                            <li>Os usuários vinculados perderão o acesso imediatamente.</li>
+                            <li>Não será possível recuperar os dados após a confirmação.</li>
+                        </ul>
+
+                        <div v-if="deleteStep === 2" class="space-y-3">
+                            <p class="text-sm text-gray-700 font-medium">Digite <span class="font-bold text-red-600">APAGAR</span> para confirmar.</p>
+                            <input
+                                v-model="deleteConfirmInput"
+                                type="text"
+                                placeholder="APAGAR"
+                                class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"
+                                :disabled="isDeleting"
+                            />
+                        </div>
+
+                        <p v-if="deleteError" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{{ deleteError }}</p>
+
+                        <div class="flex flex-col sm:flex-row gap-3 sm:justify-end">
+                            <button
+                                type="button"
+                                class="w-full sm:w-auto px-5 py-3 rounded-lg font-semibold border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 transition"
+                                @click="closeDeleteModal"
+                                :disabled="isDeleting"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                class="w-full sm:w-auto px-5 py-3 rounded-lg font-semibold border border-red-300 text-white bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                @click="handleDeleteConfirm"
+                                :disabled="isDeleting"
+                            >
+                                {{ deleteStep === 1 ? 'Continuar' : (isDeleting ? 'Apagando...' : 'Apagar conta') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Transition>
     </div>
 </template>
