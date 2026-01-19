@@ -33,6 +33,8 @@ const props = defineProps<{
     show: boolean;
     entry?: Entry | null;
     mode: 'create' | 'edit';
+    useServiceTypes?: boolean;
+    errors?: { message?: string; fields?: Record<string, string[]> };
 }>();
 
 const emit = defineEmits<{
@@ -86,15 +88,24 @@ const showUnsavedModal = ref(false);
 
 const fetchData = async () => {
     try {
-        const [entryTypesRes, serviceTypesRes, collaboratorsRes] = await Promise.all([
+        const requests: Promise<any>[] = [
             axios.get('/api/personalizar/entry-types'),
-            axios.get('/api/personalizar/service-types'),
-            axios.get('/api/personalizar/collaborators')
-        ]);
+            axios.get('/api/personalizar/collaborators'),
+        ];
+        if (props.useServiceTypes !== false) {
+            requests.splice(1, 0, axios.get('/api/personalizar/service-types'));
+        }
+        const responses = await Promise.all(requests);
+        // Map responses by whether service types included
+        // If useServiceTypes true: [entry, service, collaborators]
+        // If false: [entry, collaborators]
+        const entryTypesRes = responses[0];
+        const serviceTypesRes = (props.useServiceTypes !== false) ? responses[1] : null;
+        const collaboratorsRes = (props.useServiceTypes !== false) ? responses[2] : responses[1];
         
         // API pode retornar { data: [...] } ou array direto
         tiposEntrada.value = entryTypesRes.data?.data ?? entryTypesRes.data ?? [];
-        tiposServico.value = serviceTypesRes.data?.data ?? serviceTypesRes.data ?? [];
+        tiposServico.value = serviceTypesRes ? (serviceTypesRes.data?.data ?? serviceTypesRes.data ?? []) : [];
         colaboradores.value = collaboratorsRes.data?.data ?? collaboratorsRes.data ?? [];
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
@@ -120,7 +131,7 @@ watch(() => props.show, async (newVal) => {
 });
 
 watch(() => form.value.tipoServico, () => {
-    if (selectedService.value) {
+    if (props.useServiceTypes !== false && selectedService.value) {
         form.value.valor = parseFloat(selectedService.value.service_value);
     }
 });
@@ -134,8 +145,8 @@ const resetForm = () => {
         descricao: '',
         data: new Date().toISOString().split('T')[0],
         valor: 0,
-        quantidade: 1,
-        desconto: 0,
+        quantidade: props.useServiceTypes !== false ? 1 : 1,
+        desconto: props.useServiceTypes !== false ? 0 : 0,
         observacao: ''
     };
 };
@@ -143,7 +154,7 @@ const resetForm = () => {
 const handleSave = () => {
     // Adicionar IDs correspondentes
     const entryType = tiposEntrada.value.find(t => t.name === form.value.tipoEntrada);
-    const serviceType = tiposServico.value.find(s => s.name === form.value.tipoServico);
+    const serviceType = props.useServiceTypes !== false ? tiposServico.value.find(s => s.name === form.value.tipoServico) : undefined;
     const collaborator = colaboradores.value.find(c => c.name === form.value.responsavel);
 
     const payload = {
@@ -153,13 +164,18 @@ const handleSave = () => {
         service_type_id: serviceType?.id,
         collaborator_id: collaborator?.id
     };
+    if (props.useServiceTypes === false) {
+        (payload as any).quantity = 1;
+        (payload as any).discount = 0;
+        (payload as any).service_type_id = null;
+    }
     
     emit('save', payload);
 };
 
 const handleSaveAndReference = () => {
     const entryType = tiposEntrada.value.find(t => t.name === form.value.tipoEntrada);
-    const serviceType = tiposServico.value.find(s => s.name === form.value.tipoServico);
+    const serviceType = props.useServiceTypes !== false ? tiposServico.value.find(s => s.name === form.value.tipoServico) : undefined;
     const collaborator = colaboradores.value.find(c => c.name === form.value.responsavel);
 
     const payload = {
@@ -169,6 +185,11 @@ const handleSaveAndReference = () => {
         service_type_id: serviceType?.id,
         collaborator_id: collaborator?.id
     };
+    if (props.useServiceTypes === false) {
+        (payload as any).quantity = 1;
+        (payload as any).discount = 0;
+        (payload as any).service_type_id = null;
+    }
     
     emit('saveAndReference', payload);
 };
@@ -211,6 +232,14 @@ onMounted(() => {
 
         <!-- Form -->
         <div class="p-6 space-y-4">
+            <div v-if="errors?.message || (errors?.fields && Object.keys(errors.fields).length)" class="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">
+                <div v-if="errors?.message" class="font-medium mb-1">{{ errors.message }}</div>
+                <ul class="list-disc list-inside text-sm" v-if="errors?.fields">
+                    <li v-for="(msgs, field) in errors.fields" :key="field">
+                        {{ msgs[0] }}
+                    </li>
+                </ul>
+            </div>
             <!-- Tipo de entrada e Tipo de Serviço -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -228,7 +257,7 @@ onMounted(() => {
                     </select>
                 </div>
 
-                <div>
+                <div v-if="useServiceTypes !== false">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Tipo de Serviço
                     </label>
@@ -303,9 +332,9 @@ onMounted(() => {
                             type="number"
                             step="0.01"
                             min="0"
-                            :placeholder="`0,00 - ${unidade}`"
+                            :placeholder="`0,00${unidade ? ' - ' + unidade : ''}`"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-yellow-50"
-                            :disabled="!!selectedService"
+                            :disabled="(useServiceTypes !== false) && !!selectedService"
                         />
                         <span v-if="unidade" class="absolute right-3 top-2 text-sm text-gray-500">
                             {{ unidade }}
@@ -313,7 +342,7 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <div>
+                <div v-if="useServiceTypes !== false">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Quantidade
                     </label>
@@ -326,8 +355,8 @@ onMounted(() => {
                 </div>
             </div>
 
-            <!-- Desconto e Total Recebido -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Desconto (quando modo serviço ativo) -->
+            <div v-if="useServiceTypes !== false" class="grid grid-cols-1 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Desconto
@@ -338,18 +367,6 @@ onMounted(() => {
                         step="0.01"
                         min="0"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                    />
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Total Recebido R$
-                    </label>
-                    <input
-                        :value="totalRecebido.toFixed(2)"
-                        type="text"
-                        disabled
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-yellow-50 text-yellow-600 font-semibold"
                     />
                 </div>
             </div>

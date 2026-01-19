@@ -30,6 +30,7 @@ class UpdateCompanyRequest extends FormRequest
             'city' => 'nullable|string|max:100',
             'state' => 'nullable|string|max:2',
             'postal_code' => 'nullable|string|max:20',
+            'use_service_types' => 'sometimes|boolean',
         ];
     }
 

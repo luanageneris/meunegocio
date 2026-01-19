@@ -7,6 +7,7 @@ const props = defineProps<{
     tiposEntrada?: Array<string | { id: number; name: string }>;
     tiposSaida: Array<string | { id: number; name: string }>;
     colaboradores: Array<string | { id: number; name: string }>;
+    simpleMode?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -102,7 +103,7 @@ const model = computed({
             />
         </div>
 
-        <div>
+        <div v-if="!simpleMode">
             <label class="block text-sm font-medium text-gray-700 mb-1">
                 Quantidade
             </label>
@@ -117,7 +118,7 @@ const model = computed({
 
     <!-- Desconto e Colaborador -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
+        <div v-if="!simpleMode">
             <label class="block text-sm font-medium text-gray-700 mb-1">
                 Desconto
             </label>

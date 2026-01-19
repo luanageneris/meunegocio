@@ -88,6 +88,9 @@ const showServiceTypeRemoved = ref(false);
 
 const isLoading = ref(false);
 const errorMessage = ref('');
+const company = ref<any>(null);
+const savingSettings = ref(false);
+const serviceModeOn = computed(() => company.value?.use_service_types !== false);
 
 // Computed
 const filteredEntryTypes = computed(() => {
@@ -123,12 +126,14 @@ const fetchData = async () => {
         const exitEndpoint = showExitTypeRemoved.value ? '/api/personalizar/exit-types/with-trashed' : '/api/personalizar/exit-types';
         const serviceEndpoint = showServiceTypeRemoved.value ? '/api/personalizar/service-types/with-trashed' : '/api/personalizar/service-types';
 
-        const [entryRes, exitRes, serviceRes] = await Promise.all([
+        const [companyRes, entryRes, exitRes, serviceRes] = await Promise.all([
+            axios.get('/api/company'),
             axios.get(entryEndpoint),
             axios.get(exitEndpoint),
             axios.get(serviceEndpoint),
         ]);
 
+        company.value = companyRes.data?.data ?? companyRes.data ?? null;
         entryTypes.value = entryRes.data;
         exitTypes.value = exitRes.data;
         serviceTypes.value = serviceRes.data;
@@ -136,6 +141,20 @@ const fetchData = async () => {
         errorMessage.value = error?.response?.data?.message || 'Erro ao carregar dados';
     } finally {
         isLoading.value = false;
+    }
+};
+
+const toggleServiceMode = async () => {
+    if (!company.value) return;
+    savingSettings.value = true;
+    try {
+        const payload = { ...company.value, use_service_types: !company.value.use_service_types };
+        const { data } = await axios.put('/api/company', payload);
+        company.value = data?.data ?? data;
+    } catch (error: any) {
+        // noop toast here optional
+    } finally {
+        savingSettings.value = false;
     }
 };
 
@@ -613,29 +632,77 @@ onMounted(fetchData);
                         </div>
                     </div>
 
-                    <!-- Service Types Section -->
+                     <!-- Settings Section -->
                     <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">Configurações da Empresa</h2>
+                                <p class="text-sm text-gray-500">Alternar entre formulário simples e por tipo de serviço.</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="text-sm text-gray-600">Modo Tipo de Serviço</span>
+                                <button
+                                    @click="toggleServiceMode"
+                                    :disabled="savingSettings"
+                                    :class="[
+                                        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                                        (company?.use_service_types !== false) ? 'bg-blue-600' : 'bg-gray-300',
+                                        savingSettings ? 'opacity-50 cursor-not-allowed' : ''
+                                    ]"
+                                >
+                                    <span
+                                        :class="[
+                                            'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                                            (company?.use_service_types !== false) ? 'translate-x-6' : 'translate-x-1'
+                                        ]"
+                                    />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Service Types Section -->
+                    <div :class="['bg-white rounded-xl shadow-lg p-6', !serviceModeOn ? 'opacity-60' : '']">
                         <div class="flex items-center gap-2 mb-4">
                             <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                             </svg>
                             <h2 class="text-2xl font-bold text-gray-800">Tipos de Serviços</h2>
+                            <span
+                                v-if="!serviceModeOn"
+                                class="ml-2 inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 border border-yellow-200"
+                            >
+                                Irrelevante (modo desativado)
+                            </span>
+                        </div>
+
+                        <div v-if="!serviceModeOn" class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-yellow-800 text-sm">
+                            O Modo Tipo de Serviço está desativado nas Configurações da Empresa. Este cadastro não é usado ao registrar entradas até ser reativado.
                         </div>
 
                         <div class="flex flex-wrap items-center gap-2 mb-4">
                             <button
                                 @click="handleNewServiceType"
-                                class="px-5 py-2 bg-gradient-to-r from-blue-400 to-blue-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                                :disabled="!serviceModeOn"
+                                :class="[
+                                    'px-5 py-2 rounded-lg font-medium transition-all',
+                                    serviceModeOn
+                                        ? 'bg-gradient-to-r from-blue-400 to-blue-500 text-white hover:shadow-lg'
+                                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                ]"
                             >
                                 + Novo Tipo
                             </button>
                             <button
                                 @click="toggleServiceTypeRemoved"
+                                :disabled="!serviceModeOn"
                                 :class="[
                                     'px-5 py-2 border-2 rounded-lg font-medium transition-all',
-                                    showServiceTypeRemoved
-                                        ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
-                                        : 'border-blue-300 text-blue-500 hover:bg-blue-50'
+                                    !serviceModeOn
+                                        ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
+                                        : (showServiceTypeRemoved
+                                            ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
+                                            : 'border-blue-300 text-blue-500 hover:bg-blue-50')
                                 ]"
                             >
                                 {{ showServiceTypeRemoved ? 'Ocultar removidos' : 'Ver removidos' }}
@@ -677,7 +744,11 @@ onMounted(fetchData);
                                     <div class="flex gap-2" v-if="!type.deleted_at">
                                         <button
                                             @click="handleEditServiceType(type)"
-                                            class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                            :disabled="!serviceModeOn"
+                                            :class="[
+                                                'p-2 rounded-lg transition-colors',
+                                                serviceModeOn ? 'text-blue-500 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'
+                                            ]"
                                             title="Editar"
                                         >
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -686,7 +757,11 @@ onMounted(fetchData);
                                         </button>
                                         <button
                                             @click="handleDeleteServiceType(type)"
-                                            class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                            :disabled="!serviceModeOn"
+                                            :class="[
+                                                'p-2 rounded-lg transition-colors',
+                                                serviceModeOn ? 'text-red-500 hover:bg-red-50' : 'text-gray-400 cursor-not-allowed'
+                                            ]"
                                             title="Remover"
                                         >
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

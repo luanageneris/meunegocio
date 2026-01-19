@@ -25,6 +25,7 @@ const props = defineProps<{
     exit?: Exit | null;
     mode: 'create' | 'edit';
     errors?: { message?: string; fields?: Record<string, string[]> };
+    useServiceTypes?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -122,35 +123,45 @@ const resetForm = () => {
 };
 
 const handleSave = () => {
-    const dateTime = form.value.hora
+    const dateTime = (props.useServiceTypes !== false && form.value.hora)
         ? `${form.value.data}T${form.value.hora}`
         : form.value.data;
 
     const exitType = (tiposSaida.value || []).find((t: any) => t?.name === form.value.tipoSaida);
     const collaborator = (colaboradores.value || []).find((c: any) => c?.name === form.value.colaborador);
 
-    emit('save', {
+    const payload: any = {
         ...form.value,
         data: dateTime,
         exit_type_id: exitType?.id,
         collaborator_id: collaborator?.id,
-    });
+    };
+    if (props.useServiceTypes === false) {
+        payload.quantidade = 1;
+        payload.desconto = 0;
+    }
+    emit('save', payload);
 };
 
 const handleSaveAndReference = () => {
-    const dateTime = form.value.hora
+    const dateTime = (props.useServiceTypes !== false && form.value.hora)
         ? `${form.value.data}T${form.value.hora}`
         : form.value.data;
 
     const exitType = (tiposSaida.value || []).find((t: any) => t?.name === form.value.tipoSaida);
     const collaborator = (colaboradores.value || []).find((c: any) => c?.name === form.value.colaborador);
 
-    emit('saveAndReference', {
+    const payload: any = {
         ...form.value,
         data: dateTime,
         exit_type_id: exitType?.id,
         collaborator_id: collaborator?.id,
-    });
+    };
+    if (props.useServiceTypes === false) {
+        payload.quantidade = 1;
+        payload.desconto = 0;
+    }
+    emit('saveAndReference', payload);
 };
 
 const handleClose = () => {
@@ -200,6 +211,7 @@ const cancelDiscard = () => {
                 :form="form"
                 :tipos-saida="tiposSaida"
                 :colaboradores="colaboradores"
+                :simple-mode="useServiceTypes === false"
                 @update:form="(val) => (form.value = val)"
                     v-model:data="form.data"
                     v-model:hora="form.hora"
@@ -210,7 +222,7 @@ const cancelDiscard = () => {
                 <div class="flex justify-between items-center">
                     <span class="text-sm font-medium text-gray-700">Valor Final:</span>
                     <span class="text-xl font-bold text-orange-600">
-                        R$ {{ valorFinal.toFixed(2).replace('.', ',') }}
+                        R$ {{ (useServiceTypes !== false ? valorFinal : form.valor).toFixed(2).replace('.', ',') }}
                     </span>
                 </div>
             </div>

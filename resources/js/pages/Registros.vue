@@ -44,6 +44,7 @@ const editingRecord = ref<any>(null);
 const deletingRecord = ref<any>(null);
 const modalMode = ref<'create' | 'edit'>('create');
 const exitErrors = ref<{ message?: string; fields?: Record<string, string[]> }>({});
+const entryErrors = ref<{ message?: string; fields?: Record<string, string[]> }>({});
 const showRemoved = ref(false);
 
 const registros = ref<any[]>([]);
@@ -322,6 +323,7 @@ const handleEdit = (id: number) => {
 const handleNovaEntrada = () => {
     editingRecord.value = null;
     modalMode.value = 'create';
+    entryErrors.value = {};
     showEntryModal.value = true;
 };
 
@@ -364,14 +366,20 @@ const handleSaveEntry = async (entry: any) => {
         });
 
         if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Erro ao salvar entrada: ${errText}`);
+            let payload: any = null;
+            try { payload = await response.json(); } catch (e) { /* ignore */ }
+            entryErrors.value = {
+                message: payload?.message || 'Erro ao salvar entrada',
+                fields: payload?.errors || {},
+            };
+            return;
         }
 
         // Atualizar lista a partir do backend
         await fetchRegistros(currentPage.value);
         showEntryModal.value = false;
         editingRecord.value = null;
+        entryErrors.value = {};
     } catch (error) {
         console.error(error);
     }
@@ -563,23 +571,23 @@ onMounted(async () => {
                 <!-- Content Card -->
                 <div class="bg-white rounded-lg shadow-lg p-6">
                     <!-- Action Buttons -->
-                    <div class="flex flex-wrap gap-3 mb-6">
+                    <div class="flex flex-col sm:flex-row flex-wrap gap-3 mb-6">
                         <button
                             @click="handleNovaEntrada"
-                            class="px-6 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                            class="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
                         >
                             Nova Entrada
                         </button>
                         <button
                             @click="handleNovaSaida"
-                            class="px-6 py-2 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                            class="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
                         >
                             Nova Saída
                         </button>
                         <button
                             @click="handleVerRemovidos"
                             :class="[
-                                'px-6 py-2 rounded-lg font-medium transition-all border-2',
+                                'w-full sm:w-auto px-6 py-2 rounded-lg font-medium transition-all border-2',
                                 showRemoved
                                     ? 'border-orange-400 text-orange-600 bg-orange-50'
                                     : 'border-yellow-400 text-yellow-600 hover:bg-yellow-50'
@@ -640,10 +648,10 @@ onMounted(async () => {
                         <div
                             v-for="registro in paginatedRegistros"
                             :key="registro.id"
-                            class="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                            class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
                         >
                             <!-- Valor -->
-                            <div class="w-24 flex-shrink-0">
+                            <div class="md:w-24 flex-shrink-0">
                                 <span
                                     :class="[
                                         'font-bold text-sm',
@@ -655,28 +663,28 @@ onMounted(async () => {
                             </div>
 
                             <!-- Categoria -->
-                            <div class="w-32 flex-shrink-0">
-                                <span class="text-gray-700 text-sm">{{ registro.categoria }}</span>
+                            <div class="md:w-32 flex-shrink-0">
+                                <span class="text-gray-700 text-sm truncate block">{{ registro.categoria }}</span>
                             </div>
 
                             <!-- Colaborador -->
-                            <div class="w-40 flex-shrink-0">
-                                <span class="text-gray-700 text-sm">{{ registro.colaborador || '-' }}</span>
+                            <div class="md:w-40 flex-shrink-0">
+                                <span class="text-gray-700 text-sm truncate block">{{ registro.colaborador || '-' }}</span>
                             </div>
 
                             <!-- Descrição -->
-                            <div class="flex-1">
-                                <span class="text-gray-600 text-sm">{{ registro.descricao || '-' }}</span>
+                            <div class="w-full md:flex-1">
+                                <span class="text-gray-600 text-sm block">{{ registro.descricao || '-' }}</span>
                             </div>
 
                             <!-- Datas -->
-                            <div class="w-64 flex-shrink-0">
+                            <div class="w-full md:w-64 flex-shrink-0 md:text-right">
                                 <div class="text-gray-700 text-xs">Movimento: {{ formatDate(registro.dataOperacao) }}</div>
                                 <div class="text-gray-500 text-xs">Registrado: {{ formatDateTime(registro.registradoEm) }}</div>
                             </div>
 
                             <!-- Actions -->
-                            <div class="flex gap-2 flex-shrink-0">
+                            <div class="flex gap-2 flex-shrink-0 md:ml-auto">
                                 <template v-if="showRemoved">
                                     <button
                                         @click="handleRestore(registro.id)"
@@ -761,6 +769,8 @@ onMounted(async () => {
             :show="showEntryModal"
             :entry="editingRecord"
             :mode="modalMode"
+            :errors="entryErrors"
+            :use-service-types="company?.use_service_types !== false"
             @close="showEntryModal = false; editingRecord = null"
             @save="handleSaveEntry"
             @save-and-reference="handleSaveEntryAndReference"
@@ -771,6 +781,7 @@ onMounted(async () => {
             :exit="editingRecord"
             :mode="modalMode"
             :errors="exitErrors"
+            :use-service-types="company?.use_service_types !== false"
             @close="showExitModal = false; editingRecord = null"
             @save="handleSaveExit"
             @save-and-reference="handleSaveExitAndReference"

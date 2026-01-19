@@ -22,10 +22,12 @@ class Company extends Model
         'state',
         'postal_code',
         'active',
+        'use_service_types',
     ];
 
     protected $casts = [
         'active' => 'boolean',
+        'use_service_types' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
