@@ -4,7 +4,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import Sidebar from '@/components/Sidebar.vue';
-import PageHeader from '@/components/PageHeader.vue';
+import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import EntryModal from '@/components/modals/EntryModal.vue';
 import ExitModal from '@/components/modals/ExitModal.vue';
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
@@ -507,13 +507,13 @@ onMounted(async () => {
 
         <!-- Main Content -->
         <div class="flex-1 lg:ml-64 transition-all duration-300">
-            <PageHeader title-class="ml-12 lg:ml-0" />
+            <PageHeaderTitle 
+                title="Registros" 
+                subtitle="Gerencie suas entradas, saídas e comissões"
+            />
 
             <!-- Main Content -->
             <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <!-- Title -->
-                <h2 class="text-2xl font-bold text-center text-orange-500 mb-6">Registros</h2>
-
                 <!-- Tabs -->
                 <div class="flex justify-center gap-2 mb-8">
                     <button

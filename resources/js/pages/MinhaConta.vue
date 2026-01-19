@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
 import Sidebar from '@/components/Sidebar.vue';
-import PageHeader from '@/components/PageHeader.vue';
+import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
@@ -223,12 +223,13 @@ onMounted(async () => {
         <Sidebar active-route="conta" />
 
         <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden">
+            <PageHeaderTitle 
+                title="Minha Conta" 
+                subtitle="Gerencie as informações da sua empresa e acesso"
+            />
+            
             <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div class="bg-white rounded-xl shadow-lg border border-blue-200/70 overflow-hidden">
-                    <div class="px-6 sm:px-10 py-8 border-b border-blue-100/70">
-                        <h2 class="text-2xl font-bold text-center text-orange-600">Minha Conta</h2>
-                        <p class="text-center text-gray-600 mt-2">Gerencie as informações da sua empresa e acesso.</p>
-                    </div>
 
                     <div class="p-6 sm:p-10">
                         <LoadingSpinner v-if="isLoading" message="Carregando informações da conta..." />

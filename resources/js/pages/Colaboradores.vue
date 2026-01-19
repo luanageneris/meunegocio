@@ -4,6 +4,7 @@ import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import CollaboratorModal from '@/components/modals/CollaboratorModal.vue';
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
 import { useAuth } from '@/composables/useAuth';
@@ -191,7 +192,10 @@ onMounted(fetchCollaborators);
         <Sidebar active-route="colaboradores" />
 
         <div class="flex-1 lg:ml-64 transition-all duration-300">
-            <PageHeader container-class="max-w-6xl" />
+            <PageHeaderTitle 
+                title="Colaboradores" 
+                subtitle="Gerencie os colaboradores da sua empresa"
+            />
 
             <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div class="bg-white rounded-xl shadow-lg p-6">

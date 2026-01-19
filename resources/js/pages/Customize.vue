@@ -4,6 +4,7 @@ import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import EntryTypeFormModal from '@/components/modals/EntryTypeFormModal.vue';
 import ExitTypeFormModal from '@/components/modals/ExitTypeFormModal.vue';
 import ServiceTypeFormModal from '@/components/modals/ServiceTypeFormModal.vue';
@@ -434,7 +435,10 @@ onMounted(fetchData);
         <Sidebar active-route="personalizar" />
 
         <div class="flex-1 lg:ml-64 transition-all duration-300">
-            <PageHeader container-class="max-w-6xl" />
+            <PageHeaderTitle 
+                title="Personalizar" 
+                subtitle="Gerencie tipos de entrada, saída e serviços"
+            />
 
             <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <!-- Error Message -->

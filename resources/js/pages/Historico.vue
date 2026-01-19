@@ -4,6 +4,7 @@ import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import { useAuth } from '@/composables/useAuth';
 
@@ -304,7 +305,10 @@ onMounted(() => {
     <Sidebar active-route="historico" />
 
     <div class="flex-1 lg:ml-64 transition-all duration-300">
-      <PageHeader title="Histórico" container-class="max-w-6xl" />
+      <PageHeaderTitle 
+        title="Histórico" 
+        subtitle="Acompanhe todas as alterações realizadas no sistema"
+      />
 
       <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Stats Cards -->

@@ -4,6 +4,7 @@ import { ref, computed } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
@@ -80,14 +81,13 @@ const handleKeydown = (e: KeyboardEvent) => {
         <Sidebar active-route="suporte" />
 
         <div class="flex-1 lg:ml-64 transition-all duration-300">
-            <PageHeader title="Ajuda e Suporte" container-class="max-w-6xl" />
+            <PageHeaderTitle 
+                title="Ajuda e Suporte" 
+                subtitle="Conte-nos o seu problema, nos responderemos o mais breve possível"
+            />
 
             <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div class="bg-white rounded-xl shadow-lg p-8">
-                    <h2 class="text-2xl font-bold text-center text-orange-600 mb-2">Ajuda e Suporte</h2>
-                    <p class="text-center text-gray-600 mb-8">
-                        Conte-nos o seu problema, nos e responderemos o mais breve possível!
-                    </p>
 
                     <form @submit.prevent="handleSubmit" class="space-y-6">
                         <div>

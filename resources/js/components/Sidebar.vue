@@ -92,12 +92,15 @@ const toggleSidebar = () => {
             <div class="flex flex-col h-full">
                 <!-- Header -->
                 <div class="p-6 border-b border-gray-200">
-                    <div class="flex items-center justify-center mb-4">
+                    <p class="text-center text-orange-600 font-bold text-xs uppercase tracking-widest mb-1">
+                        Meu Negócio
+                    </p>
+                    <div class="flex items-center justify-center my-4">
                         <div class="w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center shadow-lg">
                             <img :src="logoUrl" alt="Logo" class="w-12 h-12" />
                         </div>
                     </div>
-                    <p class="text-center text-gray-800 font-semibold text-lg">
+                    <p class="text-center text-gray-800 font-semibold text-md">
                         Olá, {{ companyName }}!
                     </p>
                 </div>

@@ -5,6 +5,7 @@ import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 
 const auth = useAuth();
@@ -255,16 +256,16 @@ onMounted(async () => {
 
         <!-- Main Content with margin for sidebar -->
         <div class="flex-1 lg:ml-64 transition-all duration-300">
-            <PageHeader title-class="ml-12 lg:ml-0" />
+            <PageHeaderTitle 
+                title="Painel" 
+                subtitle="Acompanhe o desempenho financeiro do seu negócio"
+            />
 
             <!-- Main Content -->
             <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <LoadingSpinner v-if="isLoading" />
 
             <div v-else>
-                <!-- Title -->
-                <h2 class="text-2xl font-bold text-center text-orange-600 mb-6">Painel</h2>
-
                 <!-- Tabs -->
                 <div class="flex justify-center gap-2 mb-8">
                     <button
