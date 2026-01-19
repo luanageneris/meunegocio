@@ -15,6 +15,22 @@ class UpdateCompanyRequest extends FormRequest
     }
 
     /**
+     * Normalize empty strings to null to avoid unique constraints with blank values.
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'email' => $this->filled('email') ? $this->input('email') : null,
+            'phone' => $this->filled('phone') ? $this->input('phone') : null,
+            'document' => $this->filled('document') ? $this->input('document') : null,
+            'address' => $this->filled('address') ? $this->input('address') : null,
+            'city' => $this->filled('city') ? $this->input('city') : null,
+            'state' => $this->filled('state') ? $this->input('state') : null,
+            'postal_code' => $this->filled('postal_code') ? $this->input('postal_code') : null,
+        ]);
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array

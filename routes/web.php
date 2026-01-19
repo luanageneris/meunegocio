@@ -47,6 +47,11 @@ Route::get('/personalizar', function () {
     return Inertia::render('Customize');
 })->name('personalizar');
 
+// Minha conta
+Route::get('/minha-conta', function () {
+    return Inertia::render('MinhaConta');
+})->name('minha-conta');
+
 // Colaboradores
 Route::get('/colaboradores', function () {
     return Inertia::render('Colaboradores');
