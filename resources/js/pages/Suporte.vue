@@ -8,6 +8,7 @@ import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
+import Footer from '@/components/Footer.vue';
 
 interface SupportRequest {
     subject: string;
@@ -203,6 +204,8 @@ const handleKeydown = (e: KeyboardEvent) => {
             </div>
             <span class="text-xs text-gray-500">© {{ new Date().getFullYear() }} Meu Negócio</span>
         </footer>
+        
+        <Footer />
     </div>
 </template>
 

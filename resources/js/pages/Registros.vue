@@ -8,6 +8,7 @@ import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import EntryModal from '@/components/modals/EntryModal.vue';
 import ExitModal from '@/components/modals/ExitModal.vue';
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
+import Footer from '@/components/Footer.vue';
 
 const auth = useAuth();
 const { isPrivacyMode } = usePrivacy();
@@ -506,7 +507,7 @@ onMounted(async () => {
         <Sidebar active-route="registros" />
 
         <!-- Main Content -->
-        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden">
+        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
             <PageHeaderTitle 
                 title="Registros" 
                 subtitle="Gerencie suas entradas, saídas e comissões"
@@ -798,5 +799,7 @@ onMounted(async () => {
             @close="showDeleteModal = false; deletingRecord = null"
             @confirm="confirmDelete"
         />
+        
+        <Footer />
     </div>
 </template>

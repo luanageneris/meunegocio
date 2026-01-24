@@ -7,6 +7,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import { useAuth } from '@/composables/useAuth';
+import Footer from '@/components/Footer.vue';
 
 interface AuditLog {
   id: number;
@@ -600,6 +601,8 @@ onMounted(() => {
           </div>
         </div>
       </main>
+      
+      <Footer />
     </div>
   </div>
 </template>

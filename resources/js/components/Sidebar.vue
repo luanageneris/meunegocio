@@ -25,7 +25,6 @@ onMounted(() => {
     }
 });
 
-const userName = computed(() => auth.getUserName.value || 'Usuário');
 const companyName = computed(() => auth.getCompanyName.value || 'Empresa');
 
 const menuItems = [
@@ -174,7 +173,7 @@ const toggleMobileNav = () => {
             v-if="showMobileNav"
             class="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-orange-100 bg-white/95 backdrop-blur shadow-2xl"
         >
-            <div class="flex items-center gap-2 px-3 py-2 overflow-x-auto">
+            <div class="flex items-center w-full justify-center gap-2 px-3 py-2 overflow-x-auto">
                 <a
                     v-for="item in menuItems"
                     :key="item.key"

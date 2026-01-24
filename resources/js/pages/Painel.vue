@@ -6,6 +6,7 @@ import { usePrivacy } from '@/composables/usePrivacy';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
+import Footer from '@/components/Footer.vue';
 
 const auth = useAuth();
 const { isPrivacyMode } = usePrivacy();
@@ -254,7 +255,7 @@ onMounted(async () => {
         <Sidebar active-route="painel" />
 
         <!-- Main Content with margin for sidebar -->
-        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden">
+        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
             <PageHeaderTitle 
                 title="Painel" 
                 subtitle="Acompanhe o desempenho financeiro do seu negócio"
@@ -696,6 +697,8 @@ onMounted(async () => {
                 </div>
             </div>
         </main>
+        
+        <Footer />
         </div>
     </div>
 </template>

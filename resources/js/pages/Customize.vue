@@ -10,6 +10,7 @@ import ServiceTypeFormModal from '@/components/modals/ServiceTypeFormModal.vue';
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
+import Footer from '@/components/Footer.vue';
 
 interface EntryType {
     id: number;
@@ -876,5 +877,7 @@ onMounted(fetchData);
             @close="showServiceTypeRestoreModal = false; restoringServiceType = null"
             @confirm="confirmRestoreServiceType"
         />
+        
+        <Footer />
     </div>
 </template>

@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
+import Footer from '@/components/Footer.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
 import logoUrl from '@/../../resources/img/icon-logo.svg';
@@ -281,18 +282,18 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex overflow-x-hidden">
+    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex flex-col overflow-x-hidden">
         <Head title="Minha Conta - MEU NEGÓCIO" />
 
         <Sidebar active-route="conta" />
 
-        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden">
+        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
             <PageHeaderTitle 
                 title="Minha Conta" 
                 subtitle="Gerencie as informações da sua empresa e acesso"
             />
             
-            <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
                 <div class="bg-white rounded-xl shadow-lg border border-blue-200/70 overflow-hidden">
 
                     <div class="p-6 sm:p-10">
@@ -514,6 +515,8 @@ onMounted(async () => {
                     </div>
                 </div>
             </main>
+            
+            <Footer />
         </div>
 
         <Transition name="fade">

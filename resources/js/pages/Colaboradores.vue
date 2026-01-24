@@ -9,6 +9,7 @@ import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
+import Footer from '@/components/Footer.vue';
 
 interface Collaborator {
     id: number;
@@ -358,5 +359,7 @@ onMounted(fetchCollaborators);
             @close="showRestoreModal = false; restoringCollaborator = null"
             @confirm="confirmRestore"
         />
+        
+        <Footer />
     </div>
 </template>

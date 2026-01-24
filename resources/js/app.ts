@@ -23,7 +23,17 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         const app = createApp({ 
             render: () => h('div', [
-                h(Toaster, { position: 'top-right' }),
+                h(Toaster, { 
+                    position: 'top-right',
+                    expand: true,
+                    richColors: true,
+                    closeButton: true,
+                    toastOptions: {
+                        style: {
+                            background: 'transparent',
+                        },
+                    },
+                }),
                 h(App, props)
             ])
         });
