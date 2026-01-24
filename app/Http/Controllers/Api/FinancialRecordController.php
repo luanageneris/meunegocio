@@ -182,4 +182,27 @@ class FinancialRecordController
             'closed' => false, // TODO: check if day is closed in DailyClosure
         ]]);
     }
+
+    /**
+     * Clear all financial records (only root can do this)
+     */
+    public function clearAll(Request $request)
+    {
+        if (!$request->user()->isRoot()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $companyId = $request->user()->company_id;
+        
+        // Count records before deletion
+        $count = FinancialRecord::where('company_id', $companyId)->count();
+        
+        // Delete all records (soft delete)
+        FinancialRecord::where('company_id', $companyId)->delete();
+
+        return response()->json([
+            'message' => 'Todos os registros foram removidos com sucesso',
+            'count' => $count,
+        ]);
+    }
 }

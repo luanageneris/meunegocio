@@ -158,12 +158,13 @@ Route::middleware(['auth:sanctum', 'company.isolation', 'track.changes'])->group
     // Registros - Escrita
     Route::prefix('registros')->group(function () {
         // Financial Records
+        Route::delete('financial-records/clear-all', [FinancialRecordController::class, 'clearAll']);
+        Route::post('financial-records/between-dates', [FinancialRecordController::class, 'betweenDates']);
+        Route::post('financial-records/daily-totals', [FinancialRecordController::class, 'dailyTotals']);
         Route::post('financial-records/{id}/restore', [FinancialRecordController::class, 'restore']);
         Route::post('financial-records', [FinancialRecordController::class, 'store']);
         Route::put('financial-records/{financialRecord}', [FinancialRecordController::class, 'update']);
         Route::delete('financial-records/{financialRecord}', [FinancialRecordController::class, 'destroy']);
-        Route::post('financial-records/between-dates', [FinancialRecordController::class, 'betweenDates']);
-        Route::post('financial-records/daily-totals', [FinancialRecordController::class, 'dailyTotals']);
         
         // Work Shifts
         Route::post('work-shifts', [WorkShiftController::class, 'store']);

@@ -41,6 +41,12 @@ const deleteConfirmInput = ref('');
 const isDeleting = ref(false);
 const deleteError = ref<string | null>(null);
 
+const showClearRecordsModal = ref(false);
+const clearRecordsStep = ref<1 | 2>(1);
+const clearRecordsConfirmInput = ref('');
+const isClearingRecords = ref(false);
+const clearRecordsError = ref<string | null>(null);
+
 const canEdit = computed(() => {
     const role = auth.user.value?.role;
     return role === 'root' || role === 'owner';
@@ -158,6 +164,64 @@ const closeDeleteModal = () => {
     deleteStep.value = 1;
     deleteConfirmInput.value = '';
     deleteError.value = null;
+};
+
+const openClearRecordsModal = () => {
+    if (!canEdit.value) {
+        toast.info('Acesso somente leitura', { description: 'Somente o usuário root pode limpar registros.' });
+        return;
+    }
+    showClearRecordsModal.value = true;
+    clearRecordsStep.value = 1;
+    clearRecordsConfirmInput.value = '';
+    clearRecordsError.value = null;
+};
+
+const closeClearRecordsModal = () => {
+    showClearRecordsModal.value = false;
+    clearRecordsStep.value = 1;
+    clearRecordsConfirmInput.value = '';
+    clearRecordsError.value = null;
+};
+
+const handleClearRecordsConfirm = async () => {
+    clearRecordsError.value = null;
+
+    if (clearRecordsStep.value === 1) {
+        clearRecordsStep.value = 2;
+        clearRecordsConfirmInput.value = '';
+        return;
+    }
+
+    if (clearRecordsConfirmInput.value.trim().toUpperCase() !== 'LIMPAR') {
+        clearRecordsError.value = 'Digite LIMPAR para confirmar a exclusão de todos os registros.';
+        return;
+    }
+
+    isClearingRecords.value = true;
+
+    try {
+        const response = await fetch('/api/registros/financial-records/clear-all', {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${auth.token.value}`,
+                'Accept': 'application/json',
+            },
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+            throw new Error(payload?.message || 'Erro ao limpar registros');
+        }
+
+        toast.success('Registros limpos', { description: `${payload.count} registros foram removidos com sucesso.` });
+        closeClearRecordsModal();
+    } catch (error: any) {
+        clearRecordsError.value = error?.message || 'Erro ao limpar registros. Tente novamente.';
+    } finally {
+        isClearingRecords.value = false;
+    }
 };
 
 const handleDeleteConfirm = async () => {
@@ -427,14 +491,24 @@ onMounted(async () => {
                                     <p class="text-sm text-gray-600">Conta criada em</p>
                                     <p class="text-lg font-semibold text-gray-800">{{ createdAtText }}</p>
                                 </div>
-                                <button
-                                    type="button"
-                                    :disabled="!canEdit || isDeleting"
-                                    @click="openDeleteModal"
-                                    class="w-full sm:w-auto px-5 py-3 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium hover:bg-red-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    Apagar conta
-                                </button>
+                                <div class="flex flex-col sm:flex-row gap-3">
+                                    <button
+                                        type="button"
+                                        :disabled="!canEdit || isClearingRecords"
+                                        @click="openClearRecordsModal"
+                                        class="w-full sm:w-auto px-5 py-3 bg-orange-50 text-orange-600 border border-orange-300 rounded-lg font-medium hover:bg-orange-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Limpar registros
+                                    </button>
+                                    <button
+                                        type="button"
+                                        :disabled="!canEdit || isDeleting"
+                                        @click="openDeleteModal"
+                                        class="w-full sm:w-auto px-5 py-3 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium hover:bg-red-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Apagar conta
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -490,6 +564,64 @@ onMounted(async () => {
                                 :disabled="isDeleting"
                             >
                                 {{ deleteStep === 1 ? 'Continuar' : (isDeleting ? 'Apagando...' : 'Apagar conta') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Transition>
+
+        <!-- Modal de Limpar Registros -->
+        <Transition name="fade">
+            <div v-if="showClearRecordsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/60"></div>
+                <div class="relative w-full max-w-3xl bg-white rounded-xl sm:rounded-2xl shadow-2xl border-2 border-orange-200 overflow-hidden max-h-[90vh] overflow-y-auto">
+                    <div class="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 border-b border-orange-100 bg-gradient-to-r from-orange-50 to-yellow-50">
+                        <p class="text-sm font-semibold text-orange-600 uppercase tracking-wide">Limpeza de dados</p>
+                        <h3 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mt-2">{{ clearRecordsStep === 1 ? 'Limpar todos os registros' : 'Confirmação final' }}</h3>
+                    </div>
+                    <div class="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 space-y-4 sm:space-y-6">
+                        <p class="text-gray-700 text-base sm:text-lg leading-relaxed sm:leading-7">
+                            Você está prestes a limpar todos os registros financeiros (entradas e saídas) da sua empresa. Esta ação é permanente e não pode ser desfeita.
+                        </p>
+
+                        <ul class="list-disc list-inside text-gray-700 space-y-2">
+                            <li>Todos os registros de entradas serão removidos.</li>
+                            <li>Todos os registros de saídas serão removidos.</li>
+                            <li>Comissões, turnos e fechamentos diários permanecerão intactos.</li>
+                            <li>Colaboradores e tipos (entrada/saída/serviço) não serão afetados.</li>
+                            <li>Não será possível recuperar os dados após a confirmação.</li>
+                        </ul>
+
+                        <div v-if="clearRecordsStep === 2" class="space-y-3">
+                            <p class="text-sm text-gray-700 font-medium">Digite <span class="font-bold text-orange-600">LIMPAR</span> para confirmar.</p>
+                            <input
+                                v-model="clearRecordsConfirmInput"
+                                type="text"
+                                placeholder="LIMPAR"
+                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                                :disabled="isClearingRecords"
+                            />
+                        </div>
+
+                        <p v-if="clearRecordsError" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{{ clearRecordsError }}</p>
+
+                        <div class="flex flex-col sm:flex-row gap-3 sm:justify-end">
+                            <button
+                                type="button"
+                                class="w-full sm:w-auto px-5 py-3 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition"
+                                @click="closeClearRecordsModal"
+                                :disabled="isClearingRecords"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                class="w-full sm:w-auto px-5 py-3 rounded-lg font-semibold border border-orange-300 text-white bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                @click="handleClearRecordsConfirm"
+                                :disabled="isClearingRecords"
+                            >
+                                {{ clearRecordsStep === 1 ? 'Continuar' : (isClearingRecords ? 'Limpando...' : 'Limpar registros') }}
                             </button>
                         </div>
                     </div>
