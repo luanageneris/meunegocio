@@ -208,9 +208,7 @@ class CommissionController
 
         $summary = Commission::forCompany()
             ->with(['collaborator', 'financialRecord'])
-            ->whereHas('financialRecord', function($query) use ($request) {
-                $query->whereBetween('date', [$request->start_date, $request->end_date]);
-            })
+            ->whereBetween('date', [$request->start_date, $request->end_date])
             ->get()
             ->groupBy('collaborator_id')
             ->map(function($commissions) {

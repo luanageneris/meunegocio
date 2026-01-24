@@ -32,7 +32,6 @@ const handleClose = () => emit('close');
                 v-if="show"
                 ref="overlayRef"
                 class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-b from-white/80 via-amber-50/70 to-orange-50/60 backdrop-blur-sm"
-                @click.self="handleClose"
                 @keydown.esc.prevent="handleClose"
                 tabindex="0"
                 role="dialog"

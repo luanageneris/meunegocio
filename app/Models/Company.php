@@ -12,6 +12,7 @@ class Company extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'owner_id',
         'name',
         'slug',
         'email',
@@ -34,6 +35,11 @@ class Company extends Model
     ];
 
     // Relacionamentos
+    public function owner(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);

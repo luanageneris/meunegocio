@@ -17,7 +17,6 @@ interface Exit {
     quantidade: number;
     desconto: number;
     colaborador?: string;
-    observacao?: string;
 }
 
 const props = defineProps<{
@@ -45,7 +44,6 @@ const form = ref<Exit>({
     quantidade: 1,
     desconto: 0,
     colaborador: '',
-    observacao: ''
 });
 
 const initialForm = ref<Exit>({ ...form.value });
@@ -118,7 +116,6 @@ const resetForm = () => {
         quantidade: 1,
         desconto: 0,
         colaborador: '',
-        observacao: ''
     };
 };
 

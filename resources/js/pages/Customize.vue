@@ -3,7 +3,6 @@ import { Head } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
-import PageHeader from '@/components/PageHeader.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import EntryTypeFormModal from '@/components/modals/EntryTypeFormModal.vue';
 import ExitTypeFormModal from '@/components/modals/ExitTypeFormModal.vue';
@@ -440,7 +439,7 @@ onMounted(fetchData);
                 subtitle="Gerencie tipos de entrada, saída e serviços"
             />
 
-            <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <!-- Error Message -->
                 <div v-if="errorMessage" class="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
                     {{ errorMessage }}

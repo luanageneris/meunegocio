@@ -3,7 +3,6 @@ import { Head } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
-import PageHeader from '@/components/PageHeader.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import CollaboratorModal from '@/components/modals/CollaboratorModal.vue';
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';

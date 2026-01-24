@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginGoogleRequest;
+use App\Http\Requests\RegisterGoogleRequest;
 use App\Models\User;
 use App\Models\Company;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Http;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -30,26 +33,31 @@ class AuthController extends Controller
         try {
             $googleUser = Socialite::driver('google')->user();
             
-            // Encontrar ou criar usuário
+            // Encontrar usuário existente
             $user = User::where('email', $googleUser->getEmail())->first();
 
             if (!$user) {
-                // Determinar empresa (padrão: Xerografia & Cia)
-                $company = Company::first();
-
-                if (!$company) {
-                    return redirect('/login?error=company_not_found');
-                }
-
-                // Criar novo usuário
-                $user = User::create([
-                    'company_id' => $company->id,
+                $pendingData = [
                     'name' => $googleUser->getName() ?? $googleUser->getEmail(),
                     'email' => $googleUser->getEmail(),
                     'google_id' => $googleUser->getId(),
-                    'role' => 'owner',
-                    'email_verified_at' => now(),
-                ]);
+                    'expires_at' => now()->addMinutes(10)->timestamp,
+                ];
+
+                $encrypted = encrypt(json_encode($pendingData));
+                $cookie = cookie(
+                    'pending_registration',
+                    $encrypted,
+                    10,
+                    null,
+                    null,
+                    false,
+                    true,
+                    false,
+                    'Lax'
+                );
+
+                return redirect('/registre-se')->withCookie($cookie);
             }
 
             // Gerar token Sanctum
@@ -87,44 +95,141 @@ class AuthController extends Controller
 
             // Encontrar ou criar usuário
             $user = User::where('email', $googleUser['email'])->first();
+            $isNewUser = false;
 
             if (!$user) {
-                // Determinar empresa
-                $company = null;
-                if ($request->company_id) {
-                    $company = Company::find($request->company_id);
-                } else {
-                    // Se não especificar, usa a primeira empresa (Xerografia & Cia para MVP)
-                    $company = Company::first();
-                }
-
-                if (!$company) {
-                    return response()->json([
-                        'message' => 'Empresa não encontrada',
-                    ], 404);
-                }
-
-                // Criar novo usuário
-                $user = User::create([
-                    'company_id' => $company->id,
-                    'name' => $googleUser['name'] ?? $googleUser['email'],
-                    'email' => $googleUser['email'],
-                    'google_id' => $googleUser['id'],
-                    'role' => 'owner',
-                    'email_verified_at' => now(),
-                ]);
+                $isNewUser = true;
+                // Se o usuário não existe, retornar para que faça o registro
+                return response()->json([
+                    'message' => 'Usuário não encontrado. Por favor, registre-se.',
+                    'is_new_user' => true,
+                    'google_user' => [
+                        'name' => $googleUser['name'] ?? $googleUser['email'],
+                        'email' => $googleUser['email'],
+                        'id' => $googleUser['id'],
+                    ],
+                ], 409); // Conflict - precisa fazer registro primeiro
             }
 
             // Gerar token Sanctum
             $token = $user->createToken('auth_token')->plainTextToken;
 
             return response()->json([
-                'user' => $user->load('company'),
-                'token' => $token,
+                'data' => [
+                    'user' => $user->load('company'),
+                    'token' => $token,
+                    'is_new_user' => false,
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Erro ao autenticar: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Obter dados do Google pendentes para registro
+     */
+    public function pendingRegistration(Request $request)
+    {
+        $cookie = $request->cookie('pending_registration');
+
+        if (!$cookie) {
+            return response()->json([
+                'message' => 'Nenhum registro pendente encontrado.',
+            ], 404);
+        }
+
+        try {
+            $pending = json_decode(decrypt($cookie), true);
+        } catch (DecryptException $e) {
+            Cookie::queue(Cookie::forget('pending_registration'));
+            return response()->json([
+                'message' => 'Registro pendente inválido ou expirado.',
+            ], 410);
+        }
+
+        if (($pending['expires_at'] ?? 0) < now()->timestamp) {
+            Cookie::queue(Cookie::forget('pending_registration'));
+            return response()->json([
+                'message' => 'Registro pendente expirado.',
+            ], 410);
+        }
+
+        return response()->json([
+            'data' => $pending,
+        ]);
+    }
+
+    /**
+     * Registrar novo usuário e empresa via Google OAuth
+     */
+    public function registerGoogle(RegisterGoogleRequest $request)
+    {
+        try {
+            $cookie = $request->cookie('pending_registration');
+
+            if (!$cookie) {
+                return response()->json([
+                    'message' => 'Registro pendente não encontrado ou expirado.',
+                ], 410);
+            }
+
+            try {
+                $pending = json_decode(decrypt($cookie), true);
+            } catch (DecryptException $e) {
+                Cookie::queue(Cookie::forget('pending_registration'));
+                return response()->json([
+                    'message' => 'Registro pendente inválido ou expirado.',
+                ], 410);
+            }
+
+            if (($pending['expires_at'] ?? 0) < now()->timestamp) {
+                Cookie::queue(Cookie::forget('pending_registration'));
+                return response()->json([
+                    'message' => 'Registro pendente expirado.',
+                ], 410);
+            }
+
+            if (User::where('email', $pending['email'])->exists()) {
+                Cookie::queue(Cookie::forget('pending_registration'));
+                return response()->json([
+                    'message' => 'Este email já possui uma conta ativa.',
+                ], 409);
+            }
+
+            // Criar nova empresa
+            $company = Company::create([
+                'name' => $request->company_name,
+            ]);
+
+            // Criar novo usuário root para essa empresa
+            $user = User::create([
+                'company_id' => $company->id,
+                'name' => $pending['name'],
+                'email' => $pending['email'],
+                'google_id' => $pending['google_id'],
+                'role' => 'root',
+                'email_verified_at' => now(),
+            ]);
+
+            Cookie::queue(Cookie::forget('pending_registration'));
+
+            // Gerar token Sanctum
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'data' => [
+                    'user' => $user->load('company'),
+                    'token' => $token,
+                    'is_new_user' => true,
+                    'message' => 'Conta criada com sucesso!',
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erro ao registrar: ' . $e->getMessage(),
             ], 500);
         }
     }

@@ -4,7 +4,6 @@ import { ref, onMounted, computed } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import Sidebar from '@/components/Sidebar.vue';
-import PageHeader from '@/components/PageHeader.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 

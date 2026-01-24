@@ -16,6 +16,10 @@ Route::get('/login', function () {
     return Inertia::render('auth/Login');
 })->name('login');
 
+Route::get('/registre-se', function () {
+    return Inertia::render('auth/Register');
+})->name('register.form');
+
 // OAuth Routes (precisam de session)
 Route::prefix('auth')->group(function () {
     Route::get('/google', [AuthController::class, 'redirectToGoogle'])->name('google.redirect');

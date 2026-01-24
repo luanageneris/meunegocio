@@ -3,18 +3,26 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
+import { useToast } from '@/composables/useToast';
 import { Eye, EyeOff } from 'lucide-vue-next';
 import logoUrl from '@/../../resources/img/icon-logo.svg';
 
 const auth = useAuth();
+const toast = useToast();
 const isLoading = ref(false);
 const showCookieBanner = ref(false);
 const { isPrivacyMode, togglePrivacy } = usePrivacy();
 
-const handleGoogleLogin = () => {
+const handleGoogleLogin = async () => {
     isLoading.value = true;
-    // Redirecionar para o endpoint GET que faz o OAuth com Google
-    window.location.href = '/auth/google';
+    try {
+        window.location.href = '/auth/google';
+    } catch (error: any) {
+        isLoading.value = false;
+        toast.error('Erro ao conectar', {
+            description: error?.message || 'Ocorreu um erro inesperado',
+        });
+    }
 };
 
 const closeCookieBanner = () => {
@@ -130,7 +138,7 @@ onMounted(() => {
                     </button>
 
                     <!-- Privacy Mode Toggle -->
-                    <div class="mt-6 pt-6 border-t border-gray-200">
+                    <div class="mt-6 pt-6 border-t border-gray-200 space-y-4">
                         <button
                             @click="togglePrivacy"
                             class="w-full flex items-center justify-between gap-3 bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-gray-700 hover:bg-gray-100 hover:border-orange-300 transition-all duration-200"
@@ -162,9 +170,20 @@ onMounted(() => {
                                 </span>
                             </div>
                         </button>
-                        <p class="mt-2 text-xs text-gray-500 text-center">
+                        <p class="text-xs text-gray-500 text-center">
                             Ative para ocultar valores financeiros totais após o login
                         </p>
+
+                        <!-- Registration Link -->
+                        <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
+                            <p class="text-sm text-gray-700 mb-2">Primeira vez aqui?</p>
+                            <Link 
+                                href="/registre-se" 
+                                class="inline-block px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all text-sm"
+                            >
+                                Criar conta
+                            </Link>
+                        </div>
                     </div>
         
                 </div>

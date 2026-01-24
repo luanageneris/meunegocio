@@ -61,6 +61,11 @@ class User extends Authenticatable
         return $this->belongsTo(Company::class);
     }
 
+    public function ownedCompanies(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Company::class, 'owner_id');
+    }
+
     public function importLogs(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(ImportLog::class, 'imported_by');

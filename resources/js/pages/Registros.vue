@@ -574,7 +574,7 @@ onMounted(async () => {
                 </div>
 
                 <!-- Content Card -->
-                <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="bg-white rounded-lg shadow-lg p-6 ">
                     <!-- Action Buttons -->
                     <div class="flex flex-col sm:flex-row flex-wrap gap-3 mb-6">
                         <button

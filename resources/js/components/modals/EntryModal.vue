@@ -240,144 +240,209 @@ onMounted(() => {
                     </li>
                 </ul>
             </div>
-            <!-- Tipo de entrada e Tipo de Serviço -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Tipo de entrada
-                    </label>
-                    <select
-                        v-model="form.tipoEntrada"
-                        @keydown.enter="handleSave"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-yellow-50"
-                    >
-                        <option value="">Selecione</option>
-                        <option v-for="tipo in tiposEntrada" :key="tipo.id" :value="tipo.name">
-                            {{ tipo.name }}
-                        </option>
-                    </select>
-                </div>
 
-                <div v-if="useServiceTypes !== false">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Tipo de Serviço
-                    </label>
-                    <select
-                        v-model="form.tipoServico"
-                        @keydown.enter="handleSave"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                    >
-                        <option value="">Selecione</option>
-                        <option v-for="servico in tiposServico" :key="servico.id" :value="servico.name">
-                            {{ servico.name }}
-                        </option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Responsável e Data -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Responsável
-                    </label>
-                    <select
-                        v-model="form.responsavel"
-                        @keydown.enter="handleSave"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                    >
-                        <option value="">Selecione</option>
-                        <option v-for="colab in colaboradores" :key="colab.id" :value="colab.name">
-                            {{ colab.name }}
-                        </option>
-                    </select>
-                </div>
-
-                <div>
-                                <UnsavedChangesModal
-                                    :show="showUnsavedModal"
-                                    @confirm="confirmDiscard"
-                                    @close="cancelDiscard"
-                                />
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Data
-                    </label>
-                    <input
-                        v-model="form.data"
-                        type="date"
-                        @keydown.enter="handleSave"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                    />
-                </div>
-            </div>
-
-            <!-- Descrição -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Descrição
-                </label>
-                <input
-                    v-model="form.descricao"
-                    type="text"
-                    placeholder="Descrição"
-                    @keydown.enter="handleSave"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                />
-            </div>
-
-            <!-- Valor e Quantidade -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Valor R$
-                    </label>
-                    <div class="relative">
-                        <input
-                            v-model.number="form.valor"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            :placeholder="`0,00${unidade ? ' - ' + unidade : ''}`"
+            <!-- Layout otimizado quando modo de serviço está inativo -->
+            <template v-if="useServiceTypes === false">
+                <!-- Linha: Tipo de entrada, Responsável, Data -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de entrada</label>
+                        <select
+                            v-model="form.tipoEntrada"
                             @keydown.enter="handleSave"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-yellow-50"
-                            :disabled="(useServiceTypes !== false) && !!selectedService"
+                        >
+                            <option value="">Selecione</option>
+                            <option v-for="tipo in tiposEntrada" :key="tipo.id" :value="tipo.name">
+                                {{ tipo.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Responsável</label>
+                        <select
+                            v-model="form.responsavel"
+                            @keydown.enter="handleSave"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                        >
+                            <option value="">Selecione</option>
+                            <option v-for="colab in colaboradores" :key="colab.id" :value="colab.name">
+                                {{ colab.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <UnsavedChangesModal
+                            :show="showUnsavedModal"
+                            @confirm="confirmDiscard"
+                            @close="cancelDiscard"
                         />
-                        <span v-if="unidade" class="absolute right-3 top-2 text-sm text-gray-500">
-                            {{ unidade }}
-                        </span>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                        <input
+                            v-model="form.data"
+                            type="date"
+                            @keydown.enter="handleSave"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                        />
                     </div>
                 </div>
 
-                <div v-if="useServiceTypes !== false">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Quantidade
-                    </label>
-                    <input
-                        v-model.number="form.quantidade"
-                        type="number"
-                        min="1"
-                        @keydown.enter="handleSave"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                    />
-                </div>
-            </div>
+                <!-- Linha: Valor e Descrição -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Valor R$</label>
+                        <div class="relative">
+                            <input
+                                v-model.number="form.valor"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                :placeholder="`0,00${unidade ? ' - ' + unidade : ''}`"
+                                @keydown.enter="handleSave"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-yellow-50"
+                            />
+                            <span v-if="unidade" class="absolute right-3 top-2 text-sm text-gray-500">{{ unidade }}</span>
+                        </div>
+                    </div>
 
-            <!-- Desconto (quando modo serviço ativo) -->
-            <div v-if="useServiceTypes !== false" class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                        <input
+                            v-model="form.descricao"
+                            type="text"
+                            placeholder="Descrição"
+                            @keydown.enter="handleSave"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                        />
+                    </div>
+                </div>
+            </template>
+
+            <!-- Layout padrão quando modo de serviço está ativo -->
+            <template v-else>
+                <!-- Tipo de entrada e Tipo de Serviço -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de entrada</label>
+                        <select
+                            v-model="form.tipoEntrada"
+                            @keydown.enter="handleSave"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-yellow-50"
+                        >
+                            <option value="">Selecione</option>
+                            <option v-for="tipo in tiposEntrada" :key="tipo.id" :value="tipo.name">
+                                {{ tipo.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Serviço</label>
+                        <select
+                            v-model="form.tipoServico"
+                            @keydown.enter="handleSave"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                        >
+                            <option value="">Selecione</option>
+                            <option v-for="servico in tiposServico" :key="servico.id" :value="servico.name">
+                                {{ servico.name }}
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Responsável e Data -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Responsável</label>
+                        <select
+                            v-model="form.responsavel"
+                            @keydown.enter="handleSave"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                        >
+                            <option value="">Selecione</option>
+                            <option v-for="colab in colaboradores" :key="colab.id" :value="colab.name">
+                                {{ colab.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <UnsavedChangesModal
+                            :show="showUnsavedModal"
+                            @confirm="confirmDiscard"
+                            @close="cancelDiscard"
+                        />
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                        <input
+                            v-model="form.data"
+                            type="date"
+                            @keydown.enter="handleSave"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                        />
+                    </div>
+                </div>
+
+                <!-- Descrição -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Desconto
-                    </label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
                     <input
-                        v-model.number="form.desconto"
-                        type="number"
-                        step="0.01"
-                        min="0"
+                        v-model="form.descricao"
+                        type="text"
+                        placeholder="Descrição"
                         @keydown.enter="handleSave"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                     />
                 </div>
-            </div>
+
+                <!-- Valor e Quantidade -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Valor R$</label>
+                        <div class="relative">
+                            <input
+                                v-model.number="form.valor"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                :placeholder="`0,00${unidade ? ' - ' + unidade : ''}`"
+                                @keydown.enter="handleSave"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-yellow-50"
+                                :disabled="useServiceTypes !== false && !!selectedService"
+                            />
+                            <span v-if="unidade" class="absolute right-3 top-2 text-sm text-gray-500">{{ unidade }}</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Quantidade</label>
+                        <input
+                            v-model.number="form.quantidade"
+                            type="number"
+                            min="1"
+                            @keydown.enter="handleSave"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                        />
+                    </div>
+                </div>
+
+                <!-- Desconto (quando modo serviço ativo) -->
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Desconto</label>
+                        <input
+                            v-model.number="form.desconto"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            @keydown.enter="handleSave"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                        />
+                    </div>
+                </div>
+            </template>
         </div>
 
         <!-- Footer -->
