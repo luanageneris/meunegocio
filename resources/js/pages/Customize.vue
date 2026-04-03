@@ -11,6 +11,7 @@ import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
 import Footer from '@/components/Footer.vue';
+import LoadingSpinner from '@/components/LoadingSpinner.vue';
 
 interface EntryType {
     id: number;
@@ -431,368 +432,366 @@ onMounted(fetchData);
 <template>
     <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex overflow-x-hidden">
         <Head title="Personalizar - MEU NEGÓCIO" />
-
+        
         <Sidebar active-route="personalizar" />
 
-        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden">
-            <PageHeaderTitle 
-                title="Personalizar" 
-                subtitle="Gerencie tipos de entrada, saída e serviços"
-            />
-
+        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
+            <PageHeaderTitle title="Personalizar" subtitle="Gerencie tipos de entrada, saída e serviços"/>
+            
+            <!-- Main Content -->
             <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <!-- Error Message -->
                 <div v-if="errorMessage" class="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
                     {{ errorMessage }}
                 </div>
+                
+                <LoadingSpinner v-if="isLoading" />
 
-                <!-- Loading State -->
-                <div v-if="isLoading" class="text-center text-amber-500 font-medium py-10">Carregando...</div>
-
-                <!-- Content -->
                 <div v-else class="space-y-6">
                     <!-- Entry Types Section -->
                     <div class="bg-white rounded-xl shadow-lg p-6">
-                        <div class="flex items-center gap-2 mb-4">
-                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m0 0h6" />
-                            </svg>
-                            <h2 class="text-2xl font-bold text-gray-800">Tipos de Entradas</h2>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-2 mb-4">
-                            <button
-                                @click="handleNewEntryType"
-                                class="px-5 py-2 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
-                            >
-                                + Novo Tipo
-                            </button>
-                            <button
-                                @click="toggleEntryTypeRemoved"
-                                :class="[
-                                    'px-5 py-2 border-2 rounded-lg font-medium transition-all',
-                                    showEntryTypeRemoved
-                                        ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
-                                        : 'border-green-300 text-green-500 hover:bg-green-50'
-                                ]"
-                            >
-                                {{ showEntryTypeRemoved ? 'Ocultar removidos' : 'Ver removidos' }}
-                            </button>
-                        </div>
-
-                        <div class="mb-4">
-                            <input
-                                v-model="entryTypeSearch"
-                                type="text"
-                                placeholder="Pesquise tipos de entrada..."
-                                class="w-full px-4 py-3 border-2 border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
-                            />
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div
-                                v-for="type in filteredEntryTypes"
-                                :key="type.id"
-                                :class="[
-                                    'border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow',
-                                    type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
-                                ]"
-                            >
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="font-semibold text-gray-800">{{ type.name }}</p>
-                                        <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
-                                    </div>
-                                    <div class="flex gap-2" v-if="!type.deleted_at">
-                                        <button
-                                            @click="handleEditEntryType(type)"
-                                            class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
-                                            title="Editar"
-                                        >
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                            </svg>
-                                        </button>
-                                        <button
-                                            @click="handleDeleteEntryType(type)"
-                                            class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Remover"
-                                        >
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <div v-else class="flex gap-2">
-                                        <button
-                                            @click="handleRestoreEntryType(type)"
-                                            class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
-                                            title="Restaurar"
-                                        >
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
+                            <div class="flex items-center gap-2 mb-4">
+                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m0 0h6" />
+                                </svg>
+                                <h2 class="text-2xl font-bold text-gray-800">Tipos de Entradas</h2>
                             </div>
-                        </div>
 
-                        <div v-if="filteredEntryTypes.length === 0" class="text-center text-gray-500 py-8">
-                            Nenhum tipo de entrada encontrado.
-                        </div>
-                    </div>
-
-                    <!-- Exit Types Section -->
-                    <div class="bg-white rounded-xl shadow-lg p-6">
-                        <div class="flex items-center gap-2 mb-4">
-                            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18l8 0M12 18l-8 0M12 18V6" />
-                            </svg>
-                            <h2 class="text-2xl font-bold text-gray-800">Tipos de Saídas</h2>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-2 mb-4">
-                            <button
-                                @click="handleNewExitType"
-                                class="px-5 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
-                            >
-                                + Novo Tipo
-                            </button>
-                            <button
-                                @click="toggleExitTypeRemoved"
-                                :class="[
-                                    'px-5 py-2 border-2 rounded-lg font-medium transition-all',
-                                    showExitTypeRemoved
-                                        ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
-                                        : 'border-red-300 text-red-500 hover:bg-red-50'
-                                ]"
-                            >
-                                {{ showExitTypeRemoved ? 'Ocultar removidos' : 'Ver removidos' }}
-                            </button>
-                        </div>
-
-                        <div class="mb-4">
-                            <input
-                                v-model="exitTypeSearch"
-                                type="text"
-                                placeholder="Pesquise tipos de saída..."
-                                class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
-                            />
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div
-                                v-for="type in filteredExitTypes"
-                                :key="type.id"
-                                :class="[
-                                    'border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow',
-                                    type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
-                                ]"
-                            >
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="font-semibold text-gray-800">{{ type.name }}</p>
-                                        <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
-                                    </div>
-                                    <div class="flex gap-2" v-if="!type.deleted_at">
-                                        <button
-                                            @click="handleEditExitType(type)"
-                                            class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Editar"
-                                        >
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                            </svg>
-                                        </button>
-                                        <button
-                                            @click="handleDeleteExitType(type)"
-                                            class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Remover"
-                                        >
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <div v-else class="flex gap-2">
-                                        <button
-                                            @click="handleRestoreExitType(type)"
-                                            class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
-                                            title="Restaurar"
-                                        >
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="filteredExitTypes.length === 0" class="text-center text-gray-500 py-8">
-                            Nenhum tipo de saída encontrado.
-                        </div>
-                    </div>
-
-                     <!-- Settings Section -->
-                    <div class="bg-white rounded-xl shadow-lg p-6">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h2 class="text-xl font-bold text-gray-800">Configurações da Empresa</h2>
-                                <p class="text-sm text-gray-500">Alternar entre formulário simples e por tipo de serviço.</p>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <span class="text-sm text-gray-600">Modo Tipo de Serviço</span>
+                            <div class="flex flex-wrap items-center gap-2 mb-4">
                                 <button
-                                    @click="toggleServiceMode"
-                                    :disabled="savingSettings"
+                                    @click="handleNewEntryType"
+                                    class="px-5 py-2 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                                >
+                                    + Novo Tipo
+                                </button>
+                                <button
+                                    @click="toggleEntryTypeRemoved"
                                     :class="[
-                                        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                                        (company?.use_service_types !== false) ? 'bg-blue-600' : 'bg-gray-300',
-                                        savingSettings ? 'opacity-50 cursor-not-allowed' : ''
+                                        'px-5 py-2 border-2 rounded-lg font-medium transition-all',
+                                        showEntryTypeRemoved
+                                            ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
+                                            : 'border-green-300 text-green-500 hover:bg-green-50'
                                     ]"
                                 >
-                                    <span
-                                        :class="[
-                                            'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                                            (company?.use_service_types !== false) ? 'translate-x-6' : 'translate-x-1'
-                                        ]"
-                                    />
+                                    {{ showEntryTypeRemoved ? 'Ocultar removidos' : 'Ver removidos' }}
                                 </button>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Service Types Section -->
-                    <div :class="['bg-white rounded-xl shadow-lg p-6', !serviceModeOn ? 'opacity-60' : '']">
-                        <div class="flex items-center gap-2 mb-4">
-                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                            <h2 class="text-2xl font-bold text-gray-800">Tipos de Serviços</h2>
-                            <span
-                                v-if="!serviceModeOn"
-                                class="ml-2 inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 border border-yellow-200"
-                            >
-                                Irrelevante (modo desativado)
-                            </span>
-                        </div>
 
-                        <div v-if="!serviceModeOn" class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-yellow-800 text-sm">
-                            O Modo Tipo de Serviço está desativado nas Configurações da Empresa. Este cadastro não é usado ao registrar entradas até ser reativado.
-                        </div>
+                            <div class="mb-4">
+                                <input
+                                    v-model="entryTypeSearch"
+                                    type="text"
+                                    placeholder="Pesquise tipos de entrada..."
+                                    class="w-full px-4 py-3 border-2 border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                                />
+                            </div>
 
-                        <div class="flex flex-wrap items-center gap-2 mb-4">
-                            <button
-                                @click="handleNewServiceType"
-                                :disabled="!serviceModeOn"
-                                :class="[
-                                    'px-5 py-2 rounded-lg font-medium transition-all',
-                                    serviceModeOn
-                                        ? 'bg-gradient-to-r from-blue-400 to-blue-500 text-white hover:shadow-lg'
-                                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                ]"
-                            >
-                                + Novo Tipo
-                            </button>
-                            <button
-                                @click="toggleServiceTypeRemoved"
-                                :disabled="!serviceModeOn"
-                                :class="[
-                                    'px-5 py-2 border-2 rounded-lg font-medium transition-all',
-                                    !serviceModeOn
-                                        ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
-                                        : (showServiceTypeRemoved
-                                            ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
-                                            : 'border-blue-300 text-blue-500 hover:bg-blue-50')
-                                ]"
-                            >
-                                {{ showServiceTypeRemoved ? 'Ocultar removidos' : 'Ver removidos' }}
-                            </button>
-                        </div>
-
-                        <div class="mb-4">
-                            <input
-                                v-model="serviceTypeSearch"
-                                type="text"
-                                placeholder="Pesquise tipos de serviço..."
-                                class="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                            />
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div
-                                v-for="type in filteredServiceTypes"
-                                :key="type.id"
-                                :class="[
-                                    'border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow',
-                                    type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
-                                ]"
-                            >
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="font-semibold text-gray-800">{{ type.name }}</p>
-                                        <p class="text-xs text-gray-500 mt-1">
-                                            Unidade: <span class="font-semibold">{{ type.unit }}</span>
-                                        </p>
-                                        <p class="text-xs text-gray-500 mt-1">
-                                            Valor: R$ <span class="font-semibold">{{ parseFloat(String(type.service_value || '0')).toFixed(2) }}</span>
-                                        </p>
-                                        <p class="text-xs text-gray-500 mt-1">
-                                            Comissão: <span class="font-semibold">{{ type.commission_percentage }}%</span>
-                                        </p>
-                                        <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
-                                    </div>
-                                    <div class="flex gap-2" v-if="!type.deleted_at">
-                                        <button
-                                            @click="handleEditServiceType(type)"
-                                            :disabled="!serviceModeOn"
-                                            :class="[
-                                                'p-2 rounded-lg transition-colors',
-                                                serviceModeOn ? 'text-blue-500 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'
-                                            ]"
-                                            title="Editar"
-                                        >
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                            </svg>
-                                        </button>
-                                        <button
-                                            @click="handleDeleteServiceType(type)"
-                                            :disabled="!serviceModeOn"
-                                            :class="[
-                                                'p-2 rounded-lg transition-colors',
-                                                serviceModeOn ? 'text-red-500 hover:bg-red-50' : 'text-gray-400 cursor-not-allowed'
-                                            ]"
-                                            title="Remover"
-                                        >
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <div v-else class="flex gap-2">
-                                        <button
-                                            @click="handleRestoreServiceType(type)"
-                                            class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
-                                            title="Restaurar"
-                                        >
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                            </svg>
-                                        </button>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div
+                                    v-for="type in filteredEntryTypes"
+                                    :key="type.id"
+                                    :class="[
+                                        'border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow',
+                                        type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                    ]"
+                                >
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <p class="font-semibold text-gray-800">{{ type.name }}</p>
+                                            <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
+                                        </div>
+                                        <div class="flex gap-2" v-if="!type.deleted_at">
+                                            <button
+                                                @click="handleEditEntryType(type)"
+                                                class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
+                                                title="Editar"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                @click="handleDeleteEntryType(type)"
+                                                class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Remover"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <div v-else class="flex gap-2">
+                                            <button
+                                                @click="handleRestoreEntryType(type)"
+                                                class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
+                                                title="Restaurar"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+
+                            <div v-if="filteredEntryTypes.length === 0" class="text-center text-gray-500 py-8">
+                                Nenhum tipo de entrada encontrado.
+                            </div>
                         </div>
 
-                        <div v-if="filteredServiceTypes.length === 0" class="text-center text-gray-500 py-8">
-                            Nenhum tipo de serviço encontrado.
+                        <!-- Exit Types Section -->
+                        <div class="bg-white rounded-xl shadow-lg p-6">
+                            <div class="flex items-center gap-2 mb-4">
+                                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18l8 0M12 18l-8 0M12 18V6" />
+                                </svg>
+                                <h2 class="text-2xl font-bold text-gray-800">Tipos de Saídas</h2>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2 mb-4">
+                                <button
+                                    @click="handleNewExitType"
+                                    class="px-5 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                                >
+                                    + Novo Tipo
+                                </button>
+                                <button
+                                    @click="toggleExitTypeRemoved"
+                                    :class="[
+                                        'px-5 py-2 border-2 rounded-lg font-medium transition-all',
+                                        showExitTypeRemoved
+                                            ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
+                                            : 'border-red-300 text-red-500 hover:bg-red-50'
+                                    ]"
+                                >
+                                    {{ showExitTypeRemoved ? 'Ocultar removidos' : 'Ver removidos' }}
+                                </button>
+                            </div>
+
+                            <div class="mb-4">
+                                <input
+                                    v-model="exitTypeSearch"
+                                    type="text"
+                                    placeholder="Pesquise tipos de saída..."
+                                    class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
+                                />
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div
+                                    v-for="type in filteredExitTypes"
+                                    :key="type.id"
+                                    :class="[
+                                        'border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow',
+                                        type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                    ]"
+                                >
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <p class="font-semibold text-gray-800">{{ type.name }}</p>
+                                            <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
+                                        </div>
+                                        <div class="flex gap-2" v-if="!type.deleted_at">
+                                            <button
+                                                @click="handleEditExitType(type)"
+                                                class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Editar"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                @click="handleDeleteExitType(type)"
+                                                class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Remover"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <div v-else class="flex gap-2">
+                                            <button
+                                                @click="handleRestoreExitType(type)"
+                                                class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
+                                                title="Restaurar"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-if="filteredExitTypes.length === 0" class="text-center text-gray-500 py-8">
+                                Nenhum tipo de saída encontrado.
+                            </div>
                         </div>
-                    </div>
+
+                        <!-- Settings Section -->
+                        <div class="bg-white rounded-xl shadow-lg p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h2 class="text-xl font-bold text-gray-800">Configurações da Empresa</h2>
+                                    <p class="text-sm text-gray-500">Alternar entre formulário simples e por tipo de serviço.</p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-sm text-gray-600">Modo Tipo de Serviço</span>
+                                    <button
+                                        @click="toggleServiceMode"
+                                        :disabled="savingSettings"
+                                        :class="[
+                                            'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                                            (company?.use_service_types !== false) ? 'bg-blue-600' : 'bg-gray-300',
+                                            savingSettings ? 'opacity-50 cursor-not-allowed' : ''
+                                        ]"
+                                    >
+                                        <span
+                                            :class="[
+                                                'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                                                (company?.use_service_types !== false) ? 'translate-x-6' : 'translate-x-1'
+                                            ]"
+                                        />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Service Types Section -->
+                        <div :class="['bg-white rounded-xl shadow-lg p-6', !serviceModeOn ? 'opacity-60' : '']">
+                            <div class="flex items-center gap-2 mb-4">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                <h2 class="text-2xl font-bold text-gray-800">Tipos de Serviços</h2>
+                                <span
+                                    v-if="!serviceModeOn"
+                                    class="ml-2 inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 border border-yellow-200"
+                                >
+                                    Irrelevante (modo desativado)
+                                </span>
+                            </div>
+
+                            <div v-if="!serviceModeOn" class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-yellow-800 text-sm">
+                                O Modo Tipo de Serviço está desativado nas Configurações da Empresa. Este cadastro não é usado ao registrar entradas até ser reativado.
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2 mb-4">
+                                <button
+                                    @click="handleNewServiceType"
+                                    :disabled="!serviceModeOn"
+                                    :class="[
+                                        'px-5 py-2 rounded-lg font-medium transition-all',
+                                        serviceModeOn
+                                            ? 'bg-gradient-to-r from-blue-400 to-blue-500 text-white hover:shadow-lg'
+                                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                    ]"
+                                >
+                                    + Novo Tipo
+                                </button>
+                                <button
+                                    @click="toggleServiceTypeRemoved"
+                                    :disabled="!serviceModeOn"
+                                    :class="[
+                                        'px-5 py-2 border-2 rounded-lg font-medium transition-all',
+                                        !serviceModeOn
+                                            ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
+                                            : (showServiceTypeRemoved
+                                                ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
+                                                : 'border-blue-300 text-blue-500 hover:bg-blue-50')
+                                    ]"
+                                >
+                                    {{ showServiceTypeRemoved ? 'Ocultar removidos' : 'Ver removidos' }}
+                                </button>
+                            </div>
+
+                            <div class="mb-4">
+                                <input
+                                    v-model="serviceTypeSearch"
+                                    type="text"
+                                    placeholder="Pesquise tipos de serviço..."
+                                    class="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                />
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div
+                                    v-for="type in filteredServiceTypes"
+                                    :key="type.id"
+                                    :class="[
+                                        'border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow',
+                                        type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                    ]"
+                                >
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <p class="font-semibold text-gray-800">{{ type.name }}</p>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                Unidade: <span class="font-semibold">{{ type.unit }}</span>
+                                            </p>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                Valor: R$ <span class="font-semibold">{{ parseFloat(String(type.service_value || '0')).toFixed(2) }}</span>
+                                            </p>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                Comissão: <span class="font-semibold">{{ type.commission_percentage }}%</span>
+                                            </p>
+                                            <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
+                                        </div>
+                                        <div class="flex gap-2" v-if="!type.deleted_at">
+                                            <button
+                                                @click="handleEditServiceType(type)"
+                                                :disabled="!serviceModeOn"
+                                                :class="[
+                                                    'p-2 rounded-lg transition-colors',
+                                                    serviceModeOn ? 'text-blue-500 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'
+                                                ]"
+                                                title="Editar"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                @click="handleDeleteServiceType(type)"
+                                                :disabled="!serviceModeOn"
+                                                :class="[
+                                                    'p-2 rounded-lg transition-colors',
+                                                    serviceModeOn ? 'text-red-500 hover:bg-red-50' : 'text-gray-400 cursor-not-allowed'
+                                                ]"
+                                                title="Remover"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <div v-else class="flex gap-2">
+                                            <button
+                                                @click="handleRestoreServiceType(type)"
+                                                class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
+                                                title="Restaurar"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-if="filteredServiceTypes.length === 0" class="text-center text-gray-500 py-8">
+                                Nenhum tipo de serviço encontrado.
+                            </div>
+                        </div>
                 </div>
             </main>
+            
+            <Footer />
         </div>
 
         <!-- Modals -->
@@ -878,6 +877,5 @@ onMounted(fetchData);
             @confirm="confirmRestoreServiceType"
         />
         
-        <Footer />
     </div>
 </template>

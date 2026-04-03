@@ -767,6 +767,7 @@ onMounted(async () => {
                         </button>
                     </div>
                 </div>
+            <Footer />
             </main>
         </div>
 
@@ -799,7 +800,5 @@ onMounted(async () => {
             @close="showDeleteModal = false; deletingRecord = null"
             @confirm="confirmDelete"
         />
-        
-        <Footer />
     </div>
 </template>

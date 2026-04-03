@@ -191,7 +191,7 @@ onMounted(fetchCollaborators);
 
         <Sidebar active-route="colaboradores" />
 
-        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden">
+        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
             <PageHeaderTitle 
                 title="Colaboradores" 
                 subtitle="Gerencie os colaboradores da sua empresa"
@@ -329,6 +329,7 @@ onMounted(fetchCollaborators);
                         </button>
                     </div>
                 </div>
+                <Footer />
             </main>
         </div>
 
@@ -359,7 +360,5 @@ onMounted(fetchCollaborators);
             @close="showRestoreModal = false; restoringCollaborator = null"
             @confirm="confirmRestore"
         />
-        
-        <Footer />
     </div>
 </template>
