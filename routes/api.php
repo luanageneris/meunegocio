@@ -139,20 +139,20 @@ Route::middleware(['auth:sanctum', 'company.isolation', 'track.changes'])->group
         // Tipos de Entrada
         Route::post('entry-types/{id}/restore', [EntryTypeController::class, 'restore']);
         Route::post('entry-types', [EntryTypeController::class, 'store']);
-        Route::put('entry-types/{id}', [EntryTypeController::class, 'update']);
-        Route::delete('entry-types/{id}', [EntryTypeController::class, 'destroy']);
+        Route::put('entry-types/{entryType}', [EntryTypeController::class, 'update']);
+        Route::delete('entry-types/{entryType}', [EntryTypeController::class, 'destroy']);
         
         // Tipos de Saída
         Route::post('exit-types/{id}/restore', [ExitTypeController::class, 'restore']);
         Route::post('exit-types', [ExitTypeController::class, 'store']);
-        Route::put('exit-types/{id}', [ExitTypeController::class, 'update']);
-        Route::delete('exit-types/{id}', [ExitTypeController::class, 'destroy']);
+        Route::put('exit-types/{exitType}', [ExitTypeController::class, 'update']);
+        Route::delete('exit-types/{exitType}', [ExitTypeController::class, 'destroy']);
         
         // Tipos de Serviço
         Route::post('service-types/{id}/restore', [ServiceTypeController::class, 'restore']);
         Route::post('service-types', [ServiceTypeController::class, 'store']);
-        Route::put('service-types/{id}', [ServiceTypeController::class, 'update']);
-        Route::delete('service-types/{id}', [ServiceTypeController::class, 'destroy']);
+        Route::put('service-types/{serviceType}', [ServiceTypeController::class, 'update']);
+        Route::delete('service-types/{serviceType}', [ServiceTypeController::class, 'destroy']);
     });
 
     // Registros - Escrita

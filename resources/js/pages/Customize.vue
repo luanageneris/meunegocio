@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
@@ -50,11 +50,13 @@ const showEntryTypeDeleteModal = ref(false);
 const showEntryTypeRestoreModal = ref(false);
 const showNewEntryTypeInline = ref(false);
 const showEditEntryTypeInline = ref(false);
+const showDeleteConfirmEntryTypeInline = ref(false);
 const entryTypeModalMode = ref<'create' | 'edit'>('create');
 const editingEntryType = ref<EntryType | null>(null);
 const editingEntryTypeInlineName = ref('');
 const editingEntryTypeInlineError = ref('');
 const editingEntryTypeInputRef = ref<HTMLInputElement | null>(null);
+const entryTypeDeleteConfirmButtonRef = ref<HTMLButtonElement | null>(null);
 const deletingEntryType = ref<EntryType | null>(null);
 const restoringEntryType = ref<EntryType | null>(null);
 const isEntryTypeModalLoading = ref(false);
@@ -73,11 +75,13 @@ const showExitTypeDeleteModal = ref(false);
 const showExitTypeRestoreModal = ref(false);
 const showNewExitTypeInline = ref(false);
 const showEditExitTypeInline = ref(false);
+const showDeleteConfirmExitTypeInline = ref(false);
 const exitTypeModalMode = ref<'create' | 'edit'>('create');
 const editingExitType = ref<ExitType | null>(null);
 const editingExitTypeInlineName = ref('');
 const editingExitTypeInlineError = ref('');
 const editingExitTypeInputRef = ref<HTMLInputElement | null>(null);
+const exitTypeDeleteConfirmButtonRef = ref<HTMLButtonElement | null>(null);
 const deletingExitType = ref<ExitType | null>(null);
 const restoringExitType = ref<ExitType | null>(null);
 const isExitTypeModalLoading = ref(false);
@@ -109,11 +113,85 @@ const company = ref<any>(null);
 const savingSettings = ref(false);
 const serviceModeOn = computed(() => company.value?.use_service_types !== false);
 
+const normalizeNullableString = (value: string | null | undefined) => value ?? '';
+const currentSoftDeleteTimestamp = () => new Date().toISOString();
+const applySoftDeleteLocally = <T extends { id: number; deleted_at?: string | null }>(
+    items: T[],
+    itemId: number,
+    keepRemovedVisible: boolean,
+) => {
+    if (keepRemovedVisible) {
+        return items.map((item) => (
+            item.id === itemId
+                ? { ...item, deleted_at: item.deleted_at ?? currentSoftDeleteTimestamp() }
+                : item
+        ));
+    }
+
+    return items.filter((item) => item.id !== itemId);
+};
+const sortByCreatedAtDesc = <T extends { created_at?: string }>(items: T[]) => (
+    items.sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())
+);
+const applyRestoreLocally = <T extends { id: number; deleted_at?: string | null }>(items: T[], itemId: number) => (
+    items.map((item) => (item.id === itemId ? { ...item, deleted_at: null } : item))
+);
+
+watch(entryTypeSearch, (value) => {
+    if (value === null || value === undefined) {
+        entryTypeSearch.value = normalizeNullableString(value);
+    }
+});
+
+watch(exitTypeSearch, (value) => {
+    if (value === null || value === undefined) {
+        exitTypeSearch.value = normalizeNullableString(value);
+    }
+});
+
+watch(serviceTypeSearch, (value) => {
+    if (value === null || value === undefined) {
+        serviceTypeSearch.value = normalizeNullableString(value);
+    }
+});
+
+watch(newEntryTypeName, (value) => {
+    if (value === null || value === undefined) {
+        newEntryTypeName.value = normalizeNullableString(value);
+    }
+});
+
+watch(newExitTypeName, (value) => {
+    if (value === null || value === undefined) {
+        newExitTypeName.value = normalizeNullableString(value);
+    }
+});
+
+watch(editingEntryTypeInlineName, (value) => {
+    if (value === null || value === undefined) {
+        editingEntryTypeInlineName.value = normalizeNullableString(value);
+    }
+});
+
+watch(editingExitTypeInlineName, (value) => {
+    if (value === null || value === undefined) {
+        editingExitTypeInlineName.value = normalizeNullableString(value);
+    }
+});
+
 // Computed
 const filteredEntryTypes = computed(() => {
-    if (!entryTypeSearch.value) return entryTypes.value;
+    let types = entryTypes.value;
+    
+    // Filtrar deletados se não estiver em modo "Ver removidos"
+    if (!showEntryTypeRemoved.value) {
+        types = types.filter((t) => !t.deleted_at);
+    }
+    
+    // Filtrar por search
+    if (!entryTypeSearch.value) return types;
     const q = entryTypeSearch.value.toLowerCase();
-    return entryTypes.value.filter((t) => t.name.toLowerCase().includes(q));
+    return types.filter((t) => t.name.toLowerCase().includes(q));
 });
 
 const canSuggestCreateEntryTypeFromSearch = computed(() => {
@@ -128,9 +206,17 @@ const canSuggestCreateEntryTypeFromSearch = computed(() => {
 });
 
 const filteredExitTypes = computed(() => {
-    if (!exitTypeSearch.value) return exitTypes.value;
+    let types = exitTypes.value;
+    
+    // Filtrar deletados se não estiver em modo "Ver removidos"
+    if (!showExitTypeRemoved.value) {
+        types = types.filter((t) => !t.deleted_at);
+    }
+    
+    // Filtrar por search
+    if (!exitTypeSearch.value) return types;
     const q = exitTypeSearch.value.toLowerCase();
-    return exitTypes.value.filter((t) => t.name.toLowerCase().includes(q));
+    return types.filter((t) => t.name.toLowerCase().includes(q));
 });
 
 const canSuggestCreateExitTypeFromSearch = computed(() => {
@@ -145,10 +231,41 @@ const canSuggestCreateExitTypeFromSearch = computed(() => {
 });
 
 const filteredServiceTypes = computed(() => {
-    if (!serviceTypeSearch.value) return serviceTypes.value;
+    let types = serviceTypes.value;
+    
+    // Filtrar deletados se não estiver em modo "Ver removidos"
+    if (!showServiceTypeRemoved.value) {
+        types = types.filter((t) => !t.deleted_at);
+    }
+    
+    // Filtrar por search
+    if (!serviceTypeSearch.value) return types;
     const q = serviceTypeSearch.value.toLowerCase();
-    return serviceTypes.value.filter((t) => t.name.toLowerCase().includes(q));
+    return types.filter((t) => t.name.toLowerCase().includes(q));
 });
+
+const fetchCompany = async () => {
+    const companyRes = await axios.get('/api/company');
+    company.value = companyRes.data?.data ?? companyRes.data ?? null;
+};
+
+const fetchEntryTypes = async (showRemoved = showEntryTypeRemoved.value) => {
+    const endpoint = showRemoved ? '/api/personalizar/entry-types/with-trashed' : '/api/personalizar/entry-types';
+    const { data } = await axios.get(endpoint);
+    entryTypes.value = sortByCreatedAtDesc(data || []);
+};
+
+const fetchExitTypes = async (showRemoved = showExitTypeRemoved.value) => {
+    const endpoint = showRemoved ? '/api/personalizar/exit-types/with-trashed' : '/api/personalizar/exit-types';
+    const { data } = await axios.get(endpoint);
+    exitTypes.value = sortByCreatedAtDesc(data || []);
+};
+
+const fetchServiceTypes = async (showRemoved = showServiceTypeRemoved.value) => {
+    const endpoint = showRemoved ? '/api/personalizar/service-types/with-trashed' : '/api/personalizar/service-types';
+    const { data } = await axios.get(endpoint);
+    serviceTypes.value = sortByCreatedAtDesc(data || []);
+};
 
 // Fetch data
 const fetchData = async () => {
@@ -161,27 +278,12 @@ const fetchData = async () => {
     errorMessage.value = '';
 
     try {
-        const entryEndpoint = showEntryTypeRemoved.value ? '/api/personalizar/entry-types/with-trashed' : '/api/personalizar/entry-types';
-        const exitEndpoint = showExitTypeRemoved.value ? '/api/personalizar/exit-types/with-trashed' : '/api/personalizar/exit-types';
-        const serviceEndpoint = showServiceTypeRemoved.value ? '/api/personalizar/service-types/with-trashed' : '/api/personalizar/service-types';
-
-        const [companyRes, entryRes, exitRes, serviceRes] = await Promise.all([
-            axios.get('/api/company'),
-            axios.get(entryEndpoint),
-            axios.get(exitEndpoint),
-            axios.get(serviceEndpoint),
+        await Promise.all([
+            fetchCompany(),
+            fetchEntryTypes(),
+            fetchExitTypes(),
+            fetchServiceTypes(),
         ]);
-
-        company.value = companyRes.data?.data ?? companyRes.data ?? null;
-        entryTypes.value = (entryRes.data || []).sort((a: any, b: any) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        exitTypes.value = (exitRes.data || []).sort((a: any, b: any) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        serviceTypes.value = (serviceRes.data || []).sort((a: any, b: any) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
     } catch (error: any) {
         errorMessage.value = error?.response?.data?.message || 'Erro ao carregar dados';
     } finally {
@@ -243,13 +345,11 @@ const persistNewEntryType = async (name: string, clearSearch: boolean = false) =
 
         if (showEntryTypeRemoved.value) {
             showEntryTypeRemoved.value = false;
-            await fetchData();
+            await fetchEntryTypes(false);
         } else {
             entryTypes.value = [data, ...entryTypes.value];
         }
 
-        toast.success('Tipo criado!', { description: `Tipo de entrada "${data.name}" foi adicionado.` });
-        
         if (clearSearch) {
             entryTypeSearch.value = '';
         }
@@ -308,7 +408,6 @@ const saveEditEntryType = async () => {
     try {
         const { data } = await axios.put(`/api/personalizar/entry-types/${editingEntryType.value.id}`, { name });
         entryTypes.value = entryTypes.value.map((t) => (t.id === editingEntryType.value!.id ? data : t));
-        toast.success('Tipo atualizado!', { description: 'Tipo de entrada foi atualizado com sucesso.' });
         cancelEditEntryType();
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao atualizar tipo de entrada';
@@ -323,7 +422,13 @@ const saveEditEntryType = async () => {
 const handleDeleteEntryType = (type: EntryType) => {
     if (type.deleted_at) return;
     deletingEntryType.value = type;
-    showEntryTypeDeleteModal.value = true;
+    showDeleteConfirmEntryTypeInline.value = true;
+    nextTick(() => entryTypeDeleteConfirmButtonRef.value?.focus());
+};
+
+const cancelDeleteEntryType = () => {
+    showDeleteConfirmEntryTypeInline.value = false;
+    deletingEntryType.value = null;
 };
 
 const handleRestoreEntryType = (type: EntryType) => {
@@ -336,11 +441,11 @@ const confirmDeleteEntryType = async () => {
     if (!deletingEntryType.value) return;
     isEntryTypeDeleteLoading.value = true;
     try {
-        await axios.delete(`/api/personalizar/entry-types/${deletingEntryType.value.id}`);
-        await fetchData();
-        showEntryTypeDeleteModal.value = false;
+        const entryTypeId = deletingEntryType.value.id;
+        await axios.delete(`/api/personalizar/entry-types/${entryTypeId}`);
+        entryTypes.value = applySoftDeleteLocally(entryTypes.value, entryTypeId, showEntryTypeRemoved.value);
+        showDeleteConfirmEntryTypeInline.value = false;
         deletingEntryType.value = null;
-        toast.success('Removido com sucesso!', { description: 'O tipo de entrada foi removido.' });
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao remover tipo de entrada';
         toast.error('Erro ao remover', { description: message });
@@ -353,11 +458,11 @@ const confirmRestoreEntryType = async () => {
     if (!restoringEntryType.value) return;
     isEntryTypeRestoreLoading.value = true;
     try {
-        await axios.post(`/api/personalizar/entry-types/${restoringEntryType.value.id}/restore`);
-        await fetchData();
+        const entryTypeId = restoringEntryType.value.id;
+        await axios.post(`/api/personalizar/entry-types/${entryTypeId}/restore`);
+        entryTypes.value = applyRestoreLocally(entryTypes.value, entryTypeId);
         showEntryTypeRestoreModal.value = false;
         restoringEntryType.value = null;
-        toast.success('Restaurado com sucesso!', { description: `O tipo de entrada foi restaurado.` });
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao restaurar tipo de entrada';
         toast.error('Erro ao restaurar', { description: message });
@@ -367,10 +472,8 @@ const confirmRestoreEntryType = async () => {
 };
 
 const toggleEntryTypeRemoved = async () => {
-    const scrollPosition = window.scrollY;
     showEntryTypeRemoved.value = !showEntryTypeRemoved.value;
-    await fetchData();
-    window.scrollTo(0, scrollPosition);
+    await fetchEntryTypes(showEntryTypeRemoved.value);
 };
 
 const handleSaveEntryType = async (payload: Partial<EntryType>) => {
@@ -379,11 +482,9 @@ const handleSaveEntryType = async (payload: Partial<EntryType>) => {
         if (entryTypeModalMode.value === 'edit' && editingEntryType.value) {
             const { data } = await axios.put(`/api/personalizar/entry-types/${editingEntryType.value.id}`, payload);
             entryTypes.value = entryTypes.value.map((t) => (t.id === editingEntryType.value!.id ? data : t));
-            toast.success('Tipo atualizado!', { description: 'Tipo de entrada foi atualizado com sucesso.' });
         } else {
             const { data } = await axios.post('/api/personalizar/entry-types', payload);
             entryTypes.value = [data, ...entryTypes.value];
-            toast.success('Tipo criado!', { description: `Tipo de entrada "${data.name}" foi adicionado.` });
         }
         showEntryTypeModal.value = false;
         editingEntryType.value = null;
@@ -435,13 +536,11 @@ const persistNewExitType = async (name: string, clearSearch: boolean = false) =>
 
         if (showExitTypeRemoved.value) {
             showExitTypeRemoved.value = false;
-            await fetchData();
+            await fetchExitTypes(false);
         } else {
             exitTypes.value = [data, ...exitTypes.value];
         }
 
-        toast.success('Tipo criado!', { description: `Tipo de saída "${data.name}" foi adicionado.` });
-        
         if (clearSearch) {
             exitTypeSearch.value = '';
         }
@@ -500,7 +599,6 @@ const saveEditExitType = async () => {
     try {
         const { data } = await axios.put(`/api/personalizar/exit-types/${editingExitType.value.id}`, { name });
         exitTypes.value = exitTypes.value.map((t) => (t.id === editingExitType.value!.id ? data : t));
-        toast.success('Tipo atualizado!', { description: 'Tipo de saída foi atualizado com sucesso.' });
         cancelEditExitType();
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao atualizar tipo de saída';
@@ -515,7 +613,13 @@ const saveEditExitType = async () => {
 const handleDeleteExitType = (type: ExitType) => {
     if (type.deleted_at) return;
     deletingExitType.value = type;
-    showExitTypeDeleteModal.value = true;
+    showDeleteConfirmExitTypeInline.value = true;
+    nextTick(() => exitTypeDeleteConfirmButtonRef.value?.focus());
+};
+
+const cancelDeleteExitType = () => {
+    showDeleteConfirmExitTypeInline.value = false;
+    deletingExitType.value = null;
 };
 
 const handleRestoreExitType = (type: ExitType) => {
@@ -530,11 +634,9 @@ const handleSaveExitType = async (payload: Partial<ExitType>) => {
         if (exitTypeModalMode.value === 'edit' && editingExitType.value) {
             const { data } = await axios.put(`/api/personalizar/exit-types/${editingExitType.value.id}`, payload);
             exitTypes.value = exitTypes.value.map((t) => (t.id === editingExitType.value!.id ? data : t));
-            toast.success('Tipo atualizado!', { description: 'Tipo de saída foi atualizado com sucesso.' });
         } else {
             const { data } = await axios.post('/api/personalizar/exit-types', payload);
             exitTypes.value = [data, ...exitTypes.value];
-            toast.success('Tipo criado!', { description: `Tipo de saída "${data.name}" foi adicionado.` });
         }
         showExitTypeModal.value = false;
         editingExitType.value = null;
@@ -550,11 +652,11 @@ const confirmDeleteExitType = async () => {
     if (!deletingExitType.value) return;
     isExitTypeDeleteLoading.value = true;
     try {
-        await axios.delete(`/api/personalizar/exit-types/${deletingExitType.value.id}`);
-        await fetchData();
-        showExitTypeDeleteModal.value = false;
+        const exitTypeId = deletingExitType.value.id;
+        await axios.delete(`/api/personalizar/exit-types/${exitTypeId}`);
+        exitTypes.value = applySoftDeleteLocally(exitTypes.value, exitTypeId, showExitTypeRemoved.value);
+        showDeleteConfirmExitTypeInline.value = false;
         deletingExitType.value = null;
-        toast.success('Removido com sucesso!', { description: 'O tipo de saída foi removido.' });
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao remover tipo de saída';
         toast.error('Erro ao remover', { description: message });
@@ -567,11 +669,11 @@ const confirmRestoreExitType = async () => {
     if (!restoringExitType.value) return;
     isExitTypeRestoreLoading.value = true;
     try {
-        await axios.post(`/api/personalizar/exit-types/${restoringExitType.value.id}/restore`);
-        await fetchData();
+        const exitTypeId = restoringExitType.value.id;
+        await axios.post(`/api/personalizar/exit-types/${exitTypeId}/restore`);
+        exitTypes.value = applyRestoreLocally(exitTypes.value, exitTypeId);
         showExitTypeRestoreModal.value = false;
         restoringExitType.value = null;
-        toast.success('Restaurado com sucesso!', { description: `O tipo de saída foi restaurado.` });
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao restaurar tipo de saída';
         toast.error('Erro ao restaurar', { description: message });
@@ -581,10 +683,8 @@ const confirmRestoreExitType = async () => {
 };
 
 const toggleExitTypeRemoved = async () => {
-    const scrollPosition = window.scrollY;
     showExitTypeRemoved.value = !showExitTypeRemoved.value;
-    await fetchData();
-    window.scrollTo(0, scrollPosition);
+    await fetchExitTypes(showExitTypeRemoved.value);
 };
 
 // Service Type handlers
@@ -619,11 +719,9 @@ const handleSaveServiceType = async (payload: Partial<ServiceType>) => {
         if (serviceTypeModalMode.value === 'edit' && editingServiceType.value) {
             const { data } = await axios.put(`/api/personalizar/service-types/${editingServiceType.value.id}`, payload);
             serviceTypes.value = serviceTypes.value.map((t) => (t.id === editingServiceType.value!.id ? data : t));
-            toast.success('Tipo atualizado!', { description: 'Tipo de serviço foi atualizado com sucesso.' });
         } else {
             const { data } = await axios.post('/api/personalizar/service-types', payload);
             serviceTypes.value = [data, ...serviceTypes.value];
-            toast.success('Tipo criado!', { description: `Tipo de serviço "${data.name}" foi adicionado.` });
         }
         showServiceTypeModal.value = false;
         editingServiceType.value = null;
@@ -639,11 +737,11 @@ const confirmDeleteServiceType = async () => {
     if (!deletingServiceType.value) return;
     isServiceTypeDeleteLoading.value = true;
     try {
-        await axios.delete(`/api/personalizar/service-types/${deletingServiceType.value.id}`);
-        await fetchData();
+        const serviceTypeId = deletingServiceType.value.id;
+        await axios.delete(`/api/personalizar/service-types/${serviceTypeId}`);
+        serviceTypes.value = applySoftDeleteLocally(serviceTypes.value, serviceTypeId, showServiceTypeRemoved.value);
         showServiceTypeDeleteModal.value = false;
         deletingServiceType.value = null;
-        toast.success('Removido com sucesso!', { description: 'O tipo de serviço foi removido.' });
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao remover tipo de serviço';
         toast.error('Erro ao remover', { description: message });
@@ -656,11 +754,11 @@ const confirmRestoreServiceType = async () => {
     if (!restoringServiceType.value) return;
     isServiceTypeRestoreLoading.value = true;
     try {
-        await axios.post(`/api/personalizar/service-types/${restoringServiceType.value.id}/restore`);
-        await fetchData();
+        const serviceTypeId = restoringServiceType.value.id;
+        await axios.post(`/api/personalizar/service-types/${serviceTypeId}/restore`);
+        serviceTypes.value = applyRestoreLocally(serviceTypes.value, serviceTypeId);
         showServiceTypeRestoreModal.value = false;
         restoringServiceType.value = null;
-        toast.success('Restaurado com sucesso!', { description: `O tipo de serviço foi restaurado.` });
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao restaurar tipo de serviço';
         toast.error('Erro ao restaurar', { description: message });
@@ -670,10 +768,8 @@ const confirmRestoreServiceType = async () => {
 };
 
 const toggleServiceTypeRemoved = async () => {
-    const scrollPosition = window.scrollY;
     showServiceTypeRemoved.value = !showServiceTypeRemoved.value;
-    await fetchData();
-    window.scrollTo(0, scrollPosition);
+    await fetchServiceTypes(showServiceTypeRemoved.value);
 };
 
 onMounted(fetchData);
@@ -736,10 +832,10 @@ onMounted(fetchData);
                                 />
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
                                 <div
                                     v-if="showNewEntryTypeInline"
-                                    class="border-2 border-green-300 rounded-lg p-4 shadow-sm bg-green-50/60"
+                                    class="self-start border-2 border-green-300 rounded-lg p-4 shadow-sm bg-green-50/60"
                                 >
                                     <div class="flex items-center gap-3">
                                         <input
@@ -784,7 +880,7 @@ onMounted(fetchData);
                                     v-for="type in filteredEntryTypes"
                                     :key="type.id"
                                     :class="[
-                                        'border rounded-lg p-4 shadow-sm transition-shadow',
+                                        'self-start border rounded-lg p-4 shadow-sm transition-shadow',
                                         editingEntryType?.id === type.id
                                             ? 'border-2 border-blue-300 bg-blue-50/60'
                                             : [
@@ -871,6 +967,33 @@ onMounted(fetchData);
                                             </button>
                                         </div>
                                     </div>
+
+                                    <!-- Confirmação de deleção inline -->
+                                    <div
+                                        v-if="deletingEntryType?.id === type.id && showDeleteConfirmEntryTypeInline"
+                                        class="border-l-4 border-green-500 bg-green-50/80 p-4 rounded mt-2 space-y-3"
+                                    >
+                                        <p class="text-sm font-semibold text-gray-800">
+                                            Tem certeza que deseja remover "<span class="text-green-600">{{ type.name }}</span>"?
+                                        </p>
+                                        <div class="flex gap-2 justify-end">
+                                            <button
+                                                @click="cancelDeleteEntryType"
+                                                :disabled="isEntryTypeDeleteLoading"
+                                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                ref="entryTypeDeleteConfirmButtonRef"
+                                                @click="confirmDeleteEntryType"
+                                                :disabled="isEntryTypeDeleteLoading"
+                                                class="px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                                            >
+                                                {{ isEntryTypeDeleteLoading ? 'Removendo...' : 'Remover' }}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -941,10 +1064,10 @@ onMounted(fetchData);
                                 />
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
                                 <div
                                     v-if="showNewExitTypeInline"
-                                    class="border-2 border-red-300 rounded-lg p-4 shadow-sm bg-red-50/60"
+                                    class="self-start border-2 border-red-300 rounded-lg p-4 shadow-sm bg-red-50/60"
                                 >
                                     <div class="flex items-center gap-3">
                                         <input
@@ -988,7 +1111,7 @@ onMounted(fetchData);
                                     v-for="type in filteredExitTypes"
                                     :key="type.id"
                                     :class="[
-                                        'border rounded-lg p-4 shadow-sm transition-shadow',
+                                        'self-start border rounded-lg p-4 shadow-sm transition-shadow',
                                         editingExitType?.id === type.id
                                             ? 'border-2 border-blue-300 bg-blue-50/60'
                                             : [
@@ -1072,6 +1195,33 @@ onMounted(fetchData);
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Confirmação de deleção inline -->
+                                    <div
+                                        v-if="deletingExitType?.id === type.id && showDeleteConfirmExitTypeInline"
+                                        class="border-l-4 border-red-500 bg-red-50/80 p-4 rounded mt-2 space-y-3"
+                                    >
+                                        <p class="text-sm font-semibold text-gray-800">
+                                            Tem certeza que deseja remover "<span class="text-red-600">{{ type.name }}</span>"?
+                                        </p>
+                                        <div class="flex gap-2 justify-end">
+                                            <button
+                                                @click="cancelDeleteExitType"
+                                                :disabled="isExitTypeDeleteLoading"
+                                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                ref="exitTypeDeleteConfirmButtonRef"
+                                                @click="confirmDeleteExitType"
+                                                :disabled="isExitTypeDeleteLoading"
+                                                class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                                            >
+                                                {{ isExitTypeDeleteLoading ? 'Removendo...' : 'Remover' }}
                                             </button>
                                         </div>
                                     </div>
@@ -1189,7 +1339,7 @@ onMounted(fetchData);
                                 />
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
                                 <div
                                     v-for="type in filteredServiceTypes"
                                     :key="type.id"

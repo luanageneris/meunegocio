@@ -4,15 +4,13 @@ import axios from 'axios';
 const token = ref<string | null>(localStorage.getItem('auth_token'));
 const user = ref<any>(localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
 const isLoading = ref(false);
-let interceptorsSetup = false;
 
 export const useAuth = () => {
     // Configurar axios com token (apenas uma vez)
     const setupAxiosInterceptor = () => {
-        if (interceptorsSetup) return;
-        
         axios.interceptors.request.use(
             (config) => {
+                // Always get token from ref (atualizado em tempo real)
                 if (token.value) {
                     config.headers.Authorization = `Bearer ${token.value}`;
                 }
@@ -34,14 +32,14 @@ export const useAuth = () => {
                 return Promise.reject(error);
             }
         );
-        
-        interceptorsSetup = true;
     };
+
+    // Inicializar interceptor ao criar composable
+    setupAxiosInterceptor();
 
     const setToken = (newToken: string) => {
         token.value = newToken;
         localStorage.setItem('auth_token', newToken);
-        setupAxiosInterceptor();
     };
 
     const setUser = (newUser: any) => {
