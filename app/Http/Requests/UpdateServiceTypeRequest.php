@@ -14,7 +14,7 @@ class UpdateServiceTypeRequest extends FormRequest
 
     public function rules(): array
     {
-        $serviceTypeId = $this->route('service_type');
+        $serviceTypeId = $this->route('serviceType');
         
         return [
             'name' => ['required', 'string', 'max:255', Rule::unique('service_types', 'name')->ignore($serviceTypeId)->where('company_id', $this->user()->company_id)],

@@ -14,7 +14,7 @@ class UpdateExitTypeRequest extends FormRequest
 
     public function rules(): array
     {
-        $exitTypeId = $this->route('exit_type');
+        $exitTypeId = $this->route('exitType');
         
         return [
             'name' => ['required', 'string', 'max:255', Rule::unique('exit_types', 'name')->ignore($exitTypeId)->where('company_id', $this->user()->company_id)],

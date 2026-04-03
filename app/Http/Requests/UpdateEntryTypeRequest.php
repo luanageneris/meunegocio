@@ -14,7 +14,7 @@ class UpdateEntryTypeRequest extends FormRequest
 
     public function rules(): array
     {
-        $entryTypeId = $this->route('entry_type');
+        $entryTypeId = $this->route('entryType');
         
         return [
             'name' => ['required', 'string', 'max:255', Rule::unique('entry_types', 'name')->ignore($entryTypeId)->where('company_id', $this->user()->company_id)],

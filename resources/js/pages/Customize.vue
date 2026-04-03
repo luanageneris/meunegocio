@@ -6,7 +6,6 @@ import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import EntryTypeFormModal from '@/components/modals/EntryTypeFormModal.vue';
 import ExitTypeFormModal from '@/components/modals/ExitTypeFormModal.vue';
-import ServiceTypeFormModal from '@/components/modals/ServiceTypeFormModal.vue';
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
@@ -38,6 +37,20 @@ interface ServiceType {
     created_at?: string;
     deleted_at?: string | null;
 }
+
+type ServiceTypeFormData = Pick<
+    ServiceType,
+    'name' | 'unit' | 'service_value' | 'commission_percentage' | 'commission_value' | 'resource_value'
+>;
+
+const createEmptyServiceTypeForm = (): ServiceTypeFormData => ({
+    name: '',
+    unit: '',
+    service_value: '',
+    commission_percentage: '',
+    commission_value: '',
+    resource_value: '',
+});
 
 const auth = useAuth();
 const toast = useToast();
@@ -93,16 +106,24 @@ const newExitTypeInput = ref<HTMLInputElement | null>(null);
 // Service Types
 const serviceTypes = ref<ServiceType[]>([]);
 const serviceTypeSearch = ref('');
-const showServiceTypeModal = ref(false);
-const showServiceTypeDeleteModal = ref(false);
-const serviceTypeModalMode = ref<'create' | 'edit'>('create');
+const showNewServiceTypeInline = ref(false);
+const showEditServiceTypeInline = ref(false);
+const showDeleteConfirmServiceTypeInline = ref(false);
 const editingServiceType = ref<ServiceType | null>(null);
+const newServiceTypeForm = ref<ServiceTypeFormData>(createEmptyServiceTypeForm());
+const newServiceTypeErrors = ref<Record<string, string[]>>({});
+const editingServiceTypeInlineForm = ref<ServiceTypeFormData>(createEmptyServiceTypeForm());
+const editingServiceTypeInlineErrors = ref<Record<string, string[]>>({});
 const deletingServiceType = ref<ServiceType | null>(null);
 const restoringServiceType = ref<ServiceType | null>(null);
+const newServiceTypeInputRef = ref<HTMLInputElement | null>(null);
+const editingServiceTypeInputRef = ref<HTMLInputElement | null>(null);
+const serviceTypeDeleteConfirmButtonRef = ref<HTMLButtonElement | null>(null);
 const isServiceTypeModalLoading = ref(false);
 const isServiceTypeDeleteLoading = ref(false);
 const isServiceTypeRestoreLoading = ref(false);
 const showServiceTypeRemoved = ref(false);
+const clearServiceTypeSearchOnSave = ref(false);
 
 const isLoading = ref(false);
 const errorMessage = ref('');
@@ -133,6 +154,71 @@ const sortByCreatedAtDesc = <T extends { created_at?: string }>(items: T[]) => (
 const applyRestoreLocally = <T extends { id: number; deleted_at?: string | null }>(items: T[], itemId: number) => (
     items.map((item) => (item.id === itemId ? { ...item, deleted_at: null } : item))
 );
+const validateServiceTypeForm = (form: ServiceTypeFormData) => {
+    const errors: Record<string, string[]> = {};
+
+    if (!form.name?.trim()) {
+        errors.name = ['O nome é obrigatório'];
+    }
+
+    if (!form.unit?.trim()) {
+        errors.unit = ['A unidade é obrigatória'];
+    }
+
+    if (form.service_value === '' || form.service_value === null || form.service_value === undefined) {
+        errors.service_value = ['O valor do serviço é obrigatório'];
+    } else if (Number(form.service_value) < 0) {
+        errors.service_value = ['O valor deve ser positivo'];
+    }
+
+    if (form.commission_percentage === '' || form.commission_percentage === null || form.commission_percentage === undefined) {
+        errors.commission_percentage = ['O percentual de comissão é obrigatório'];
+    } else if (Number(form.commission_percentage) < 0 || Number(form.commission_percentage) > 100) {
+        errors.commission_percentage = ['O percentual deve ser entre 0 e 100'];
+    }
+
+    if (form.commission_value !== '' && form.commission_value !== null && form.commission_value !== undefined && Number(form.commission_value) < 0) {
+        errors.commission_value = ['O valor deve ser positivo'];
+    }
+
+    if (form.resource_value !== '' && form.resource_value !== null && form.resource_value !== undefined && Number(form.resource_value) < 0) {
+        errors.resource_value = ['O valor deve ser positivo'];
+    }
+
+    return errors;
+};
+const buildServiceTypePayload = (form: ServiceTypeFormData) => ({
+    name: form.name.trim(),
+    unit: form.unit.trim(),
+    service_value: form.service_value,
+    commission_percentage: form.commission_percentage,
+    commission_value: form.commission_value || 0,
+    resource_value: form.resource_value || 0,
+});
+const syncCommissionValueFromPercentage = (form: ServiceTypeFormData) => {
+    const serviceValue = Number(form.service_value);
+    const percentage = Number(form.commission_percentage);
+
+    if (serviceValue > 0 && !Number.isNaN(percentage)) {
+        form.commission_value = (serviceValue * (percentage / 100)).toFixed(2);
+    }
+};
+const syncCommissionPercentageFromValue = (form: ServiceTypeFormData) => {
+    const serviceValue = Number(form.service_value);
+    const commissionValue = Number(form.commission_value);
+
+    if (serviceValue > 0 && !Number.isNaN(commissionValue)) {
+        form.commission_percentage = ((commissionValue / serviceValue) * 100).toFixed(2);
+    }
+};
+const syncCommissionValueFromServiceValue = (form: ServiceTypeFormData) => {
+    const serviceValue = Number(form.service_value);
+    const percentage = Number(form.commission_percentage);
+
+    if (serviceValue > 0 && !Number.isNaN(percentage) && percentage > 0) {
+        form.commission_value = (serviceValue * (percentage / 100)).toFixed(2);
+    }
+};
 
 watch(entryTypeSearch, (value) => {
     if (value === null || value === undefined) {
@@ -241,6 +327,18 @@ const filteredServiceTypes = computed(() => {
     return types.filter((t) => t.name.toLowerCase().includes(q));
 });
 
+const canSuggestCreateServiceTypeFromSearch = computed(() => {
+    const query = serviceTypeSearch.value.trim();
+
+    return Boolean(
+        serviceModeOn.value &&
+        query &&
+        !showServiceTypeRemoved.value &&
+        !showNewServiceTypeInline.value &&
+        filteredServiceTypes.value.length === 0
+    );
+});
+
 const fetchCompany = async () => {
     const companyRes = await axios.get('/api/company');
     company.value = companyRes.data?.data ?? companyRes.data ?? null;
@@ -303,17 +401,37 @@ const toggleServiceMode = async () => {
 };
 
 // Entry Type handlers
-const handleNewEntryType = () => {
-    if (showNewEntryTypeInline.value) {
-        nextTick(() => newEntryTypeInput.value?.focus());
-        return;
-    }
-
-    showNewEntryTypeInline.value = true;
+const closeAllInlineForms = () => {
+    // Entry type
+    showNewEntryTypeInline.value = false;
     newEntryTypeName.value = '';
     newEntryTypeError.value = '';
-    entryTypeModalMode.value = 'create';
+    showEditEntryTypeInline.value = false;
     editingEntryType.value = null;
+    editingEntryTypeInlineName.value = '';
+    editingEntryTypeInlineError.value = '';
+    // Exit type
+    showNewExitTypeInline.value = false;
+    newExitTypeName.value = '';
+    newExitTypeError.value = '';
+    showEditExitTypeInline.value = false;
+    editingExitType.value = null;
+    editingExitTypeInlineName.value = '';
+    editingExitTypeInlineError.value = '';
+    // Service type
+    showNewServiceTypeInline.value = false;
+    newServiceTypeForm.value = createEmptyServiceTypeForm();
+    newServiceTypeErrors.value = {};
+    showEditServiceTypeInline.value = false;
+    editingServiceType.value = null;
+    editingServiceTypeInlineForm.value = createEmptyServiceTypeForm();
+    editingServiceTypeInlineErrors.value = {};
+};
+
+const handleNewEntryType = () => {
+    closeAllInlineForms();
+    showNewEntryTypeInline.value = true;
+    entryTypeModalMode.value = 'create';
     nextTick(() => newEntryTypeInput.value?.focus());
 };
 
@@ -372,9 +490,9 @@ const saveEntryTypeFromSearch = async () => {
 
 const handleEditEntryType = (type: EntryType) => {
     if (type.deleted_at) return;
+    closeAllInlineForms();
     editingEntryType.value = { ...type };
     editingEntryTypeInlineName.value = type.name;
-    editingEntryTypeInlineError.value = '';
     showEditEntryTypeInline.value = true;
     nextTick(() => editingEntryTypeInputRef.value?.focus());
 };
@@ -494,16 +612,9 @@ const handleSaveEntryType = async (payload: Partial<EntryType>) => {
 
 // Exit Type handlers
 const handleNewExitType = () => {
-    if (showNewExitTypeInline.value) {
-        nextTick(() => newExitTypeInput.value?.focus());
-        return;
-    }
-
+    closeAllInlineForms();
     showNewExitTypeInline.value = true;
-    newExitTypeName.value = '';
-    newExitTypeError.value = '';
     exitTypeModalMode.value = 'create';
-    editingExitType.value = null;
     nextTick(() => newExitTypeInput.value?.focus());
 };
 
@@ -562,9 +673,9 @@ const saveExitTypeFromSearch = async () => {
 
 const handleEditExitType = (type: ExitType) => {
     if (type.deleted_at) return;
+    closeAllInlineForms();
     editingExitType.value = { ...type };
     editingExitTypeInlineName.value = type.name;
-    editingExitTypeInlineError.value = '';
     showEditExitTypeInline.value = true;
     nextTick(() => editingExitTypeInputRef.value?.focus());
 };
@@ -683,49 +794,134 @@ const toggleExitTypeRemoved = async () => {
 };
 
 // Service Type handlers
-const handleNewServiceType = () => {
-    serviceTypeModalMode.value = 'create';
-    editingServiceType.value = null;
-    showServiceTypeModal.value = true;
+const handleNewServiceType = (prefilledName = '', clearSearchAfterSave = false) => {
+    if (!serviceModeOn.value) return;
+    closeAllInlineForms();
+    clearServiceTypeSearchOnSave.value = clearSearchAfterSave;
+    showNewServiceTypeInline.value = true;
+    newServiceTypeForm.value = {
+        ...createEmptyServiceTypeForm(),
+        name: prefilledName.trim(),
+    };
+    nextTick(() => newServiceTypeInputRef.value?.focus());
+};
+
+const cancelNewServiceType = () => {
+    showNewServiceTypeInline.value = false;
+    clearServiceTypeSearchOnSave.value = false;
+    newServiceTypeForm.value = createEmptyServiceTypeForm();
+    newServiceTypeErrors.value = {};
+};
+
+const saveNewServiceType = async () => {
+    const errors = validateServiceTypeForm(newServiceTypeForm.value);
+
+    if (Object.keys(errors).length > 0) {
+        newServiceTypeErrors.value = errors;
+        nextTick(() => newServiceTypeInputRef.value?.focus());
+        return;
+    }
+
+    if (isServiceTypeModalLoading.value) return;
+
+    isServiceTypeModalLoading.value = true;
+    newServiceTypeErrors.value = {};
+
+    try {
+        const payload = buildServiceTypePayload(newServiceTypeForm.value);
+        const { data } = await axios.post('/api/personalizar/service-types', payload);
+
+        if (showServiceTypeRemoved.value) {
+            showServiceTypeRemoved.value = false;
+            await fetchServiceTypes(false);
+        } else {
+            serviceTypes.value = [data, ...serviceTypes.value];
+        }
+
+        if (clearServiceTypeSearchOnSave.value) {
+            serviceTypeSearch.value = '';
+        }
+
+        cancelNewServiceType();
+    } catch (error: any) {
+        const message = error?.response?.data?.message || 'Erro ao salvar tipo de serviço';
+        toast.error('Erro ao salvar', { description: message });
+        nextTick(() => newServiceTypeInputRef.value?.focus());
+    } finally {
+        isServiceTypeModalLoading.value = false;
+    }
 };
 
 const handleEditServiceType = (type: ServiceType) => {
-    if (type.deleted_at) return;
-    serviceTypeModalMode.value = 'edit';
+    if (type.deleted_at || !serviceModeOn.value) return;
+    closeAllInlineForms();
     editingServiceType.value = { ...type };
-    showServiceTypeModal.value = true;
+    showEditServiceTypeInline.value = true;
+    editingServiceTypeInlineForm.value = {
+        name: type.name,
+        unit: type.unit,
+        service_value: type.service_value,
+        commission_percentage: type.commission_percentage,
+        commission_value: type.commission_value,
+        resource_value: type.resource_value,
+    };
+    nextTick(() => editingServiceTypeInputRef.value?.focus());
+};
+
+const cancelEditServiceType = () => {
+    showEditServiceTypeInline.value = false;
+    editingServiceType.value = null;
+    editingServiceTypeInlineForm.value = createEmptyServiceTypeForm();
+    editingServiceTypeInlineErrors.value = {};
+};
+
+const saveEditServiceType = async () => {
+    if (!editingServiceType.value) return;
+
+    const errors = validateServiceTypeForm(editingServiceTypeInlineForm.value);
+
+    if (Object.keys(errors).length > 0) {
+        editingServiceTypeInlineErrors.value = errors;
+        nextTick(() => editingServiceTypeInputRef.value?.focus());
+        return;
+    }
+
+    if (isServiceTypeModalLoading.value) return;
+
+    isServiceTypeModalLoading.value = true;
+    editingServiceTypeInlineErrors.value = {};
+
+    try {
+        const payload = buildServiceTypePayload(editingServiceTypeInlineForm.value);
+        const { data } = await axios.put(`/api/personalizar/service-types/${editingServiceType.value.id}`, payload);
+        serviceTypes.value = serviceTypes.value.map((t) => (t.id === editingServiceType.value!.id ? data : t));
+        cancelEditServiceType();
+    } catch (error: any) {
+        const message = error?.response?.data?.message || 'Erro ao salvar tipo de serviço';
+        editingServiceTypeInlineErrors.value = { name: [message] };
+        toast.error('Erro ao salvar', { description: message });
+        nextTick(() => editingServiceTypeInputRef.value?.focus());
+    } finally {
+        isServiceTypeModalLoading.value = false;
+    }
 };
 
 const handleDeleteServiceType = (type: ServiceType) => {
     if (type.deleted_at) return;
     deletingServiceType.value = type;
-    showServiceTypeDeleteModal.value = true;
+    showDeleteConfirmServiceTypeInline.value = true;
+    nextTick(() => serviceTypeDeleteConfirmButtonRef.value?.focus());
+};
+
+const cancelDeleteServiceType = () => {
+    showDeleteConfirmServiceTypeInline.value = false;
+    deletingServiceType.value = null;
 };
 
 const handleRestoreServiceType = async (type: ServiceType) => {
     if (!type.deleted_at || isServiceTypeRestoreLoading.value) return;
     restoringServiceType.value = type;
     await confirmRestoreServiceType();
-};
-
-const handleSaveServiceType = async (payload: Partial<ServiceType>) => {
-    isServiceTypeModalLoading.value = true;
-    try {
-        if (serviceTypeModalMode.value === 'edit' && editingServiceType.value) {
-            const { data } = await axios.put(`/api/personalizar/service-types/${editingServiceType.value.id}`, payload);
-            serviceTypes.value = serviceTypes.value.map((t) => (t.id === editingServiceType.value!.id ? data : t));
-        } else {
-            const { data } = await axios.post('/api/personalizar/service-types', payload);
-            serviceTypes.value = [data, ...serviceTypes.value];
-        }
-        showServiceTypeModal.value = false;
-        editingServiceType.value = null;
-    } catch (error: any) {
-        const message = error?.response?.data?.message || 'Erro ao salvar tipo de serviço';
-        toast.error('Erro ao salvar', { description: message });
-    } finally {
-        isServiceTypeModalLoading.value = false;
-    }
 };
 
 const confirmDeleteServiceType = async () => {
@@ -735,7 +931,7 @@ const confirmDeleteServiceType = async () => {
         const serviceTypeId = deletingServiceType.value.id;
         await axios.delete(`/api/personalizar/service-types/${serviceTypeId}`);
         serviceTypes.value = applySoftDeleteLocally(serviceTypes.value, serviceTypeId, showServiceTypeRemoved.value);
-        showServiceTypeDeleteModal.value = false;
+        showDeleteConfirmServiceTypeInline.value = false;
         deletingServiceType.value = null;
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao remover tipo de serviço';
@@ -1319,7 +1515,7 @@ onMounted(fetchData);
 
                             <div class="flex flex-wrap items-center gap-2 mb-4">
                                 <button
-                                    @click="handleNewServiceType"
+                                    @click="handleNewServiceType()"
                                     :disabled="!serviceModeOn"
                                     :class="[
                                         'px-5 py-2 rounded-lg font-medium transition-all',
@@ -1357,14 +1553,224 @@ onMounted(fetchData);
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
                                 <div
+                                    v-if="showNewServiceTypeInline"
+                                    class="col-span-full self-start border-2 border-blue-300 rounded-lg p-4 shadow-sm bg-blue-50/60"
+                                >
+                                    <div class="space-y-4" @keydown.esc.prevent="cancelNewServiceType">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1">Nome do serviço</label>
+                                            <input
+                                                ref="newServiceTypeInputRef"
+                                                v-model="newServiceTypeForm.name"
+                                                type="text"
+                                                placeholder="Nome do tipo de serviço"
+                                                class="w-full bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                                :disabled="isServiceTypeModalLoading"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1">Unidade</label>
+                                            <input
+                                                v-model="newServiceTypeForm.unit"
+                                                type="text"
+                                                placeholder="Ex: Folha, Hora, Serviço"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                :disabled="isServiceTypeModalLoading"
+                                            />
+                                        </div>
+
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor do serviço (R$)</label>
+                                                <input
+                                                    v-model="newServiceTypeForm.service_value"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    placeholder="0,00"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    :disabled="isServiceTypeModalLoading"
+                                                    @input="syncCommissionValueFromServiceValue(newServiceTypeForm)"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor do recurso (R$)</label>
+                                                <input
+                                                    v-model="newServiceTypeForm.resource_value"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    placeholder="0,00"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    :disabled="isServiceTypeModalLoading"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1">Comissão (%)</label>
+                                                <input
+                                                    v-model="newServiceTypeForm.commission_percentage"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    max="100"
+                                                    placeholder="0"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    :disabled="isServiceTypeModalLoading"
+                                                    @input="syncCommissionValueFromPercentage(newServiceTypeForm)"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1">Comissão (R$)</label>
+                                                <input
+                                                    v-model="newServiceTypeForm.commission_value"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    placeholder="0,00"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    :disabled="isServiceTypeModalLoading"
+                                                    @input="syncCommissionPercentageFromValue(newServiceTypeForm)"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div v-if="Object.keys(newServiceTypeErrors).length > 0" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+                                            <div v-for="(messages, field) in newServiceTypeErrors" :key="field">
+                                                <div v-for="msg in messages" :key="msg">{{ msg }}</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex justify-end gap-2 pt-1">
+                                            <button
+                                                @click="cancelNewServiceType"
+                                                :disabled="isServiceTypeModalLoading"
+                                                class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                            >Cancelar</button>
+                                            <button
+                                                @click="saveNewServiceType"
+                                                :disabled="isServiceTypeModalLoading"
+                                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                                            >Salvar</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
                                     v-for="type in filteredServiceTypes"
                                     :key="type.id"
                                     :class="[
-                                        'border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow',
-                                        type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                        'self-start border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow',
+                                        editingServiceType?.id === type.id && showEditServiceTypeInline
+                                            ? 'col-span-full border-2 border-blue-300 bg-blue-50/60'
+                                            : (type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md')
                                     ]"
                                 >
-                                    <div class="flex justify-between items-start">
+                                    <div v-if="editingServiceType?.id === type.id && showEditServiceTypeInline" class="space-y-4" @keydown.esc.prevent="cancelEditServiceType">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1">Nome do serviço</label>
+                                            <input
+                                                ref="editingServiceTypeInputRef"
+                                                v-model="editingServiceTypeInlineForm.name"
+                                                type="text"
+                                                class="w-full bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                                :disabled="isServiceTypeModalLoading"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1">Unidade</label>
+                                            <input
+                                                v-model="editingServiceTypeInlineForm.unit"
+                                                type="text"
+                                                placeholder="Ex: Folha, Hora, Serviço"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                :disabled="isServiceTypeModalLoading"
+                                            />
+                                        </div>
+
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor do serviço (R$)</label>
+                                                <input
+                                                    v-model="editingServiceTypeInlineForm.service_value"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    placeholder="0,00"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    :disabled="isServiceTypeModalLoading"
+                                                    @input="syncCommissionValueFromServiceValue(editingServiceTypeInlineForm)"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor do recurso (R$)</label>
+                                                <input
+                                                    v-model="editingServiceTypeInlineForm.resource_value"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    placeholder="0,00"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    :disabled="isServiceTypeModalLoading"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1">Comissão (%)</label>
+                                                <input
+                                                    v-model="editingServiceTypeInlineForm.commission_percentage"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    max="100"
+                                                    placeholder="0"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    :disabled="isServiceTypeModalLoading"
+                                                    @input="syncCommissionValueFromPercentage(editingServiceTypeInlineForm)"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1">Comissão (R$)</label>
+                                                <input
+                                                    v-model="editingServiceTypeInlineForm.commission_value"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    placeholder="0,00"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    :disabled="isServiceTypeModalLoading"
+                                                    @input="syncCommissionPercentageFromValue(editingServiceTypeInlineForm)"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div v-if="Object.keys(editingServiceTypeInlineErrors).length > 0" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+                                            <div v-for="(messages, field) in editingServiceTypeInlineErrors" :key="field">
+                                                <div v-for="msg in messages" :key="msg">{{ msg }}</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex justify-end gap-2 pt-1">
+                                            <button
+                                                @click="cancelEditServiceType"
+                                                :disabled="isServiceTypeModalLoading"
+                                                class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                            >Cancelar</button>
+                                            <button
+                                                @click="saveEditServiceType"
+                                                :disabled="isServiceTypeModalLoading"
+                                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                                            >Salvar</button>
+                                        </div>
+                                    </div>
+
+                                    <div v-else class="flex justify-between items-start">
                                         <div>
                                             <p class="font-semibold text-gray-800">{{ type.name }}</p>
                                             <p class="text-xs text-gray-500 mt-1">
@@ -1429,6 +1835,56 @@ onMounted(fetchData);
                                             </button>
                                         </div>
                                     </div>
+
+                                    <div
+                                        v-if="deletingServiceType?.id === type.id && showDeleteConfirmServiceTypeInline"
+                                        class="border-l-4 border-blue-500 bg-blue-50/80 p-4 rounded mt-2 space-y-3"
+                                    >
+                                        <p class="text-sm font-semibold text-gray-800">
+                                            Tem certeza que deseja remover "<span class="text-blue-600">{{ type.name }}</span>"?
+                                        </p>
+                                        <div class="flex gap-2 justify-end">
+                                            <button
+                                                @click="cancelDeleteServiceType"
+                                                :disabled="isServiceTypeDeleteLoading"
+                                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                ref="serviceTypeDeleteConfirmButtonRef"
+                                                @click="confirmDeleteServiceType"
+                                                :disabled="isServiceTypeDeleteLoading"
+                                                class="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                            >
+                                                {{ isServiceTypeDeleteLoading ? 'Removendo...' : 'Remover' }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                v-if="canSuggestCreateServiceTypeFromSearch"
+                                class="mt-4 rounded-lg border border-dashed border-blue-300 bg-blue-50 p-4"
+                            >
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800">
+                                            Nenhum tipo encontrado para "{{ serviceTypeSearch.trim() }}".
+                                        </p>
+                                        <p class="text-sm text-gray-600">
+                                            Abrir cadastro inline com este nome preenchido.
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        @click="handleNewServiceType(serviceTypeSearch, true)"
+                                        :disabled="isServiceTypeModalLoading"
+                                        class="inline-flex items-center justify-center rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+                                    >
+                                        Criar "{{ serviceTypeSearch.trim() }}"
+                                    </button>
                                 </div>
                             </div>
 
@@ -1461,15 +1917,6 @@ onMounted(fetchData);
             @save="handleSaveExitType"
         />
 
-        <ServiceTypeFormModal
-            :show="showServiceTypeModal"
-            :service-type="editingServiceType"
-            :mode="serviceTypeModalMode"
-            :is-loading="isServiceTypeModalLoading"
-            @close="showServiceTypeModal = false; editingServiceType = null"
-            @save="handleSaveServiceType"
-        />
-
         <DeleteConfirmModal
             :show="showEntryTypeDeleteModal"
             :record="deletingEntryType"
@@ -1486,15 +1933,6 @@ onMounted(fetchData);
             item-type="exit-type"
             @close="showExitTypeDeleteModal = false; deletingExitType = null"
             @confirm="confirmDeleteExitType"
-        />
-
-        <DeleteConfirmModal
-            :show="showServiceTypeDeleteModal"
-            :record="deletingServiceType"
-            :is-loading="isServiceTypeDeleteLoading"
-            item-type="service-type"
-            @close="showServiceTypeDeleteModal = false; deletingServiceType = null"
-            @confirm="confirmDeleteServiceType"
         />
 
     </div>
