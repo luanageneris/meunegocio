@@ -7,6 +7,7 @@ use App\Models\FinancialRecord;
 use App\Http\Requests\StoreFinancialRecordRequest;
 use App\Http\Requests\UpdateFinancialRecordRequest;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class FinancialRecordController
@@ -16,18 +17,30 @@ class FinancialRecordController
      */
     public function index(Request $request)
     {
-        $query = FinancialRecord::forCompany()
-            ->with('collaborator', 'entryType', 'exitType', 'serviceType');
+        $baseQuery = FinancialRecord::forCompany();
+        $this->applyTrashFilter($baseQuery, $request);
 
-        if ($request->boolean('only_deleted')) {
-            $query->onlyTrashed();
-        } elseif ($request->boolean('include_deleted')) {
-            $query->withTrashed();
-        }
+        $records = (clone $baseQuery)
+            ->with('collaborator', 'entryType', 'exitType', 'serviceType')
+            ->orderBy('date', 'desc')
+            ->paginate(15);
 
-        $records = $query->orderBy('date', 'desc')->paginate(15);
+        $totals = $this->calculateFinancialTotals(clone $baseQuery);
 
-        return response()->json(['data' => $records->items(), 'pagination' => ['total' => $records->total(), 'per_page' => $records->perPage(), 'current_page' => $records->currentPage()]]);
+        $commissionQuery = Commission::forCompany();
+        $this->applyTrashFilter($commissionQuery, $request);
+        $totals['commissions'] = (float) $commissionQuery->sum('amount');
+        $totals['final_total'] = $totals['entries'] - $totals['exits'] + $totals['commissions'];
+
+        return response()->json([
+            'data' => $records->items(),
+            'pagination' => [
+                'total' => $records->total(),
+                'per_page' => $records->perPage(),
+                'current_page' => $records->currentPage(),
+            ],
+            'totals' => $totals,
+        ]);
     }
 
     /**
@@ -131,17 +144,22 @@ class FinancialRecordController
             'end_date' => 'required|date|after_or_equal:start_date',
         ]);
 
-        $query = FinancialRecord::forCompany()
-            ->whereBetween('date', [$request->start_date, $request->end_date])
-            ->with('collaborator', 'entryType', 'exitType', 'serviceType');
+        $baseQuery = FinancialRecord::forCompany()
+            ->whereBetween('date', [$request->start_date, $request->end_date]);
+        $this->applyTrashFilter($baseQuery, $request);
 
-        if ($request->boolean('only_deleted')) {
-            $query->onlyTrashed();
-        } elseif ($request->boolean('include_deleted')) {
-            $query->withTrashed();
-        }
+        $records = (clone $baseQuery)
+            ->with('collaborator', 'entryType', 'exitType', 'serviceType')
+            ->orderBy('date', 'desc')
+            ->paginate(50);
 
-        $records = $query->orderBy('date', 'desc')->paginate(50);
+        $totals = $this->calculateFinancialTotals(clone $baseQuery);
+
+        $commissionQuery = Commission::forCompany()
+            ->whereBetween('date', [$request->start_date, $request->end_date]);
+        $this->applyTrashFilter($commissionQuery, $request);
+        $totals['commissions'] = (float) $commissionQuery->sum('amount');
+        $totals['final_total'] = $totals['entries'] - $totals['exits'] + $totals['commissions'];
 
         return response()->json([
             'data' => $records->items(),
@@ -150,7 +168,28 @@ class FinancialRecordController
                 'per_page' => $records->perPage(),
                 'current_page' => $records->currentPage(),
             ],
+            'totals' => $totals,
         ]);
+    }
+
+    private function applyTrashFilter(Builder $query, Request $request): void
+    {
+        if ($request->boolean('only_deleted')) {
+            $query->onlyTrashed();
+        } elseif ($request->boolean('include_deleted')) {
+            $query->withTrashed();
+        }
+    }
+
+    private function calculateFinancialTotals(Builder $query): array
+    {
+        $entries = (float) (clone $query)->where('type', 'entry')->sum('amount');
+        $exits = (float) (clone $query)->where('type', 'exit')->sum('amount');
+
+        return [
+            'entries' => $entries,
+            'exits' => $exits,
+        ];
     }
 
     /**

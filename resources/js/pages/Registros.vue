@@ -37,6 +37,12 @@ const pagination = ref<{ total: number; per_page: number; current_page: number }
     per_page: 7,
     current_page: 1,
 });
+const resumoTotais = ref<{ entries: number; exits: number; commissions: number; final_total: number }>({
+    entries: 0,
+    exits: 0,
+    commissions: 0,
+    final_total: 0,
+});
 
 // Inline form state
 const showNewEntryInline = ref(false);
@@ -235,17 +241,13 @@ const hasMorePages = computed(() => currentPage.value < totalPages.value);
 const infiniteScrollTrigger = ref<HTMLElement | null>(null);
 let infiniteScrollObserver: IntersectionObserver | null = null;
 
-const totalEntradas = computed(() => {
-    return filteredRegistros.value
-        .filter(r => r.tipo === 'entrada')
-        .reduce((sum, r) => sum + r.valor, 0);
-});
+const totalEntradas = computed(() => Number(resumoTotais.value.entries ?? 0));
 
-const totalSaidas = computed(() => {
-    return filteredRegistros.value
-        .filter(r => r.tipo === 'saida')
-        .reduce((sum, r) => sum + r.valor, 0);
-});
+const totalSaidas = computed(() => Number(resumoTotais.value.exits ?? 0));
+
+const totalComissoes = computed(() => Number(resumoTotais.value.commissions ?? 0));
+
+const totalFinal = computed(() => Number(resumoTotais.value.final_total ?? 0));
 
 const fetchRegistros = async (page = 1, showPageLoading = false, append = false) => {
     if (append && (isLoading.value || isListLoading.value || isLoadingMore.value)) {
@@ -315,6 +317,12 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
             total: json.data?.length ?? 0,
             per_page: json.data?.length || 1,
             current_page: page,
+        };
+        resumoTotais.value = {
+            entries: Number(json?.totals?.entries ?? 0),
+            exits: Number(json?.totals?.exits ?? 0),
+            commissions: Number(json?.totals?.commissions ?? 0),
+            final_total: Number(json?.totals?.final_total ?? 0),
         };
         currentPage.value = pagination.value.current_page || page;
     } catch (error) {
@@ -1163,6 +1171,8 @@ onBeforeUnmount(() => {
                         <p>Total de registros: <span class="font-semibold">{{ totalRegistros }}</span></p>
                         <p>Valor Total de Entrada: <span class="font-semibold text-yellow-600">{{ formatCurrency(totalEntradas) }}</span></p>
                         <p>Valor Total de Saída: <span class="font-semibold text-orange-600">{{ formatCurrency(totalSaidas) }}</span></p>
+                        <p>Total de Comissões: <span class="font-semibold text-blue-600">{{ formatCurrency(totalComissoes) }}</span></p>
+                        <p>Total Final (comissões - saída + entrada): <span class="font-semibold text-emerald-600">{{ formatCurrency(totalFinal) }}</span></p>
                     </div>
 
                     <!-- Search -->
