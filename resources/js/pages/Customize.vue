@@ -1128,7 +1128,7 @@ onMounted(fetchData);
                                         <div class="flex gap-2" v-if="!type.deleted_at">
                                             <button
                                                 @click="handleEditEntryType(type)"
-                                                class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
+                                                class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
                                                 title="Editar"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1370,7 +1370,7 @@ onMounted(fetchData);
                                         <div class="flex gap-2" v-if="!type.deleted_at">
                                             <button
                                                 @click="handleEditExitType(type)"
-                                                class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
                                                 title="Editar"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1777,7 +1777,10 @@ onMounted(fetchData);
                                                 Unidade: <span class="font-semibold">{{ type.unit }}</span>
                                             </p>
                                             <p class="text-xs text-gray-500 mt-1">
-                                                Valor: R$ <span class="font-semibold">{{ parseFloat(String(type.service_value || '0')).toFixed(2) }}</span>
+                                                Valor do serviço: R$ <span class="font-semibold">{{ parseFloat(String(type.service_value || '0')).toFixed(2) }}</span>
+                                            </p>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                Valor do Recurso: R$ <span class="font-semibold">{{ parseFloat(String(type.resource_value || '0')).toFixed(2) }}</span>
                                             </p>
                                             <p class="text-xs text-gray-500 mt-1">
                                                 Comissão: <span class="font-semibold">{{ type.commission_percentage }}%</span>
@@ -1790,7 +1793,7 @@ onMounted(fetchData);
                                                 :disabled="!serviceModeOn"
                                                 :class="[
                                                     'p-2 rounded-lg transition-colors',
-                                                    serviceModeOn ? 'text-blue-500 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'
+                                                    serviceModeOn ? 'text-orange-500 hover:bg-orange-50' : 'text-gray-400 cursor-not-allowed'
                                                 ]"
                                                 title="Editar"
                                             >
