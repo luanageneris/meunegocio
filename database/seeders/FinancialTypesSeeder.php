@@ -21,6 +21,7 @@ class FinancialTypesSeeder extends Seeder
 
         // Tipos de Entrada
         $entryTypes = [
+            ['name' => 'Não definido'],
             ['name' => 'Serviço'],
             ['name' => 'Doação'],
             ['name' => 'Investimento'],
@@ -36,6 +37,7 @@ class FinancialTypesSeeder extends Seeder
 
         // Tipos de Saída
         $exitTypes = [
+            ['name' => 'Não definido'],
             ['name' => 'Comissão'],
             ['name' => 'Material'],
             ['name' => 'Energia'],

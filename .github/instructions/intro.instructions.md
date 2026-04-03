@@ -392,3 +392,4 @@ Antes de criar Controller/Factory/Tests:
 
 
 
+Nunca usar emojis em interfaces; usar icons svg

@@ -4,10 +4,15 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use App\Models\Company;
+use App\Services\CompanyDefaultsService;
 use Illuminate\Database\Seeder;
 
 class UserSeeder extends Seeder
 {
+    public function __construct(private CompanyDefaultsService $companyDefaultsService)
+    {
+    }
+
     public function run(): void
     {
         // Criar empresa Xerografia & Cia
@@ -38,5 +43,7 @@ class UserSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
+
+        $this->companyDefaultsService->ensureForCompany((int) $company->id);
     }
 }

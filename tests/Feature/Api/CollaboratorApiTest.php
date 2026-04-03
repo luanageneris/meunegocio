@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Models\Collaborator;
 use App\Models\User;
 use App\Models\Company;
+use App\Services\CompanyDefaultsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -187,5 +188,29 @@ class CollaboratorApiTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('cpf');
+    }
+
+    public function test_cannot_update_or_delete_default_collaborator(): void
+    {
+        $default = Collaborator::create([
+            'name' => CompanyDefaultsService::DEFAULT_LABEL,
+            'cpf' => '000.000.000-01',
+            'active' => true,
+            'company_id' => $this->company->id,
+        ]);
+
+        $updateResponse = $this->actingAs($this->rootUser, 'sanctum')
+            ->putJson("/api/personalizar/collaborators/{$default->id}", [
+                'name' => 'Outro nome',
+                'cpf' => $default->cpf,
+            ]);
+
+        $updateResponse->assertStatus(422);
+
+        $deleteResponse = $this->actingAs($this->rootUser, 'sanctum')
+            ->deleteJson("/api/personalizar/collaborators/{$default->id}");
+
+        $deleteResponse->assertStatus(422);
+        $this->assertDatabaseHas('collaborators', ['id' => $default->id, 'deleted_at' => null]);
     }
 }

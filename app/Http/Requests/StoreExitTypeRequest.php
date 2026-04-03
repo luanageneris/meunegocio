@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreExitTypeRequest extends FormRequest
 {
@@ -14,7 +15,12 @@ class StoreExitTypeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255|unique:exit_types,name',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('exit_types', 'name')->where('company_id', $this->user()->company_id),
+            ],
         ];
     }
 

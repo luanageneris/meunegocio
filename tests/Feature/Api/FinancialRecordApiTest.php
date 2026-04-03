@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Commission;
 use App\Models\Company;
 use App\Models\User;
 use App\Models\Collaborator;
@@ -77,6 +78,7 @@ class FinancialRecordApiTest extends TestCase
 
         $response = $this->actingAs($this->rootUser, 'sanctum')
             ->postJson('/api/registros/financial-records', [
+                'type' => 'entry',
                 'date' => '2025-01-15',
                 'amount' => 150.50,
                 'description' => 'Test entry',
@@ -103,6 +105,7 @@ class FinancialRecordApiTest extends TestCase
 
         $response = $this->actingAs($this->rootUser, 'sanctum')
             ->putJson("/api/registros/financial-records/{$record->id}", [
+                'type' => 'entry',
                 'date' => $record->date,
                 'amount' => 200.00,
                 'description' => 'Updated',
@@ -199,6 +202,49 @@ class FinancialRecordApiTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonPath('data.entries', '100.00')
             ->assertJsonPath('data.exits', '30.00')
-            ->assertJsonPath('data.profit', '70.00');
+            ->assertJsonPath('data.profit', 70);
+    }
+
+    public function test_root_can_clear_financial_records_and_imported_commissions(): void
+    {
+        FinancialRecord::factory(2)->for($this->company)->create();
+
+        Commission::factory()->create([
+            'company_id' => $this->company->id,
+            'collaborator_id' => Collaborator::factory()->for($this->company)->create()->id,
+            'financial_record_id' => null,
+            'date' => '2025-01-15',
+            'amount' => 50,
+            'notes' => 'Comissão importada de planilha',
+        ]);
+
+        Commission::factory()->create([
+            'company_id' => $this->company->id,
+            'collaborator_id' => Collaborator::factory()->for($this->company)->create()->id,
+            'financial_record_id' => null,
+            'date' => '2025-01-16',
+            'amount' => 70,
+            'notes' => 'Comissão manual',
+        ]);
+
+        $response = $this->actingAs($this->rootUser, 'sanctum')
+            ->deleteJson('/api/registros/financial-records/clear-all');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Todos os registros e comissões importadas foram removidos com sucesso')
+            ->assertJsonPath('financial_records_count', 2)
+            ->assertJsonPath('imported_commissions_count', 1)
+            ->assertJsonPath('count', 3);
+
+        $this->assertSoftDeleted('financial_records', ['company_id' => $this->company->id]);
+        $this->assertSoftDeleted('commissions', [
+            'company_id' => $this->company->id,
+            'notes' => 'Comissão importada de planilha',
+        ]);
+        $this->assertDatabaseHas('commissions', [
+            'company_id' => $this->company->id,
+            'notes' => 'Comissão manual',
+            'deleted_at' => null,
+        ]);
     }
 }

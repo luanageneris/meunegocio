@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreEntryTypeRequest extends FormRequest
 {
@@ -14,7 +15,12 @@ class StoreEntryTypeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255|unique:entry_types,name',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('entry_types', 'name')->where('company_id', $this->user()->company_id),
+            ],
         ];
     }
 

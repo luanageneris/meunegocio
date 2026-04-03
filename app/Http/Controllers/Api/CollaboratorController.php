@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCollaboratorRequest;
 use App\Http\Requests\UpdateCollaboratorRequest;
 use App\Models\Collaborator;
+use App\Services\CompanyDefaultsService;
 use Illuminate\Http\Request;
 
 class CollaboratorController extends Controller
@@ -101,6 +102,10 @@ class CollaboratorController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        if ($this->isProtectedDefault($collaborator->name)) {
+            return response()->json(['message' => 'O colaborador padrão "Não definido" não pode ser renomeado'], 422);
+        }
+
         $collaborator->update($request->validated());
 
         return response()->json($collaborator);
@@ -111,9 +116,17 @@ class CollaboratorController extends Controller
      */
     public function destroy(Request $request, Collaborator $collaborator)
     {
-        // Validar isolamento (qualquer usuário pode deletar colaborador de sua empresa)
+        // Validar isolamento
         if ($collaborator->company_id !== $request->user()->company_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (!$request->user()->isRoot()) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        if ($this->isProtectedDefault($collaborator->name)) {
+            return response()->json(['message' => 'O colaborador padrão "Não definido" não pode ser removido'], 422);
         }
 
         // Inativar antes de deletar
@@ -147,5 +160,13 @@ class CollaboratorController extends Controller
             'message' => 'Colaborador restaurado com sucesso',
             'data' => $collaborator,
         ]);
+    }
+
+    private function isProtectedDefault(string $name): bool
+    {
+        $normalized = mb_strtolower(trim($name));
+        $defaultName = mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL);
+
+        return $normalized === $defaultName || $normalized === 'nao definido';
     }
 }

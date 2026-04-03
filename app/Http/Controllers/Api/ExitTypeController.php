@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreExitTypeRequest;
 use App\Http\Requests\UpdateExitTypeRequest;
 use App\Models\ExitType;
+use App\Services\CompanyDefaultsService;
 use Illuminate\Http\Request;
 
 class ExitTypeController extends Controller
@@ -44,6 +45,10 @@ class ExitTypeController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        if ($this->isProtectedDefault($exitType->name)) {
+            return response()->json(['message' => 'O tipo padrão "Não definido" não pode ser renomeado'], 422);
+        }
+
         $exitType->update($request->validated());
 
         return response()->json($exitType);
@@ -57,6 +62,10 @@ class ExitTypeController extends Controller
 
         if (!$request->user()->isRoot()) {
             return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        if ($this->isProtectedDefault($exitType->name)) {
+            return response()->json(['message' => 'O tipo padrão "Não definido" não pode ser removido'], 422);
         }
 
         $exitType->delete();
@@ -98,5 +107,13 @@ class ExitTypeController extends Controller
             'message' => 'Tipo de saída restaurado com sucesso',
             'data' => $type,
         ]);
+    }
+
+    private function isProtectedDefault(string $name): bool
+    {
+        $normalized = mb_strtolower(trim($name));
+        $defaultName = mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL);
+
+        return $normalized === $defaultName || $normalized === 'nao definido';
     }
 }

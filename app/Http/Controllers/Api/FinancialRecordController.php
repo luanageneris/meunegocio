@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Models\Commission;
 use App\Models\FinancialRecord;
 use App\Http\Requests\StoreFinancialRecordRequest;
 use App\Http\Requests\UpdateFinancialRecordRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class FinancialRecordController
 {
@@ -193,16 +195,27 @@ class FinancialRecordController
         }
 
         $companyId = $request->user()->company_id;
-        
-        // Count records before deletion
-        $count = FinancialRecord::where('company_id', $companyId)->count();
-        
-        // Delete all records (soft delete)
-        FinancialRecord::where('company_id', $companyId)->delete();
+
+        $financialRecordsCount = FinancialRecord::where('company_id', $companyId)->count();
+        $importedCommissionsCount = Commission::where('company_id', $companyId)
+            ->whereNull('financial_record_id')
+            ->where('notes', 'Comissão importada de planilha')
+            ->count();
+
+        DB::transaction(function () use ($companyId) {
+            FinancialRecord::where('company_id', $companyId)->delete();
+
+            Commission::where('company_id', $companyId)
+                ->whereNull('financial_record_id')
+                ->where('notes', 'Comissão importada de planilha')
+                ->delete();
+        });
 
         return response()->json([
-            'message' => 'Todos os registros foram removidos com sucesso',
-            'count' => $count,
+            'message' => 'Todos os registros e comissões importadas foram removidos com sucesso',
+            'count' => $financialRecordsCount + $importedCommissionsCount,
+            'financial_records_count' => $financialRecordsCount,
+            'imported_commissions_count' => $importedCommissionsCount,
         ]);
     }
 }

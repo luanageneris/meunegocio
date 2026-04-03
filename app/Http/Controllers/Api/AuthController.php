@@ -7,6 +7,7 @@ use App\Http\Requests\LoginGoogleRequest;
 use App\Http\Requests\RegisterGoogleRequest;
 use App\Models\User;
 use App\Models\Company;
+use App\Services\CompanyDefaultsService;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
@@ -15,6 +16,10 @@ use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
+    public function __construct(private CompanyDefaultsService $companyDefaultsService)
+    {
+    }
+
     /**
      * Redirecionar para Google OAuth
      */
@@ -143,7 +148,7 @@ class AuthController extends Controller
 
         try {
             $pending = json_decode(decrypt($cookie), true);
-        } catch (DecryptException $e) {
+        } catch (DecryptException | \Exception $e) {
             Cookie::queue(Cookie::forget('pending_registration'));
             return response()->json([
                 'message' => 'Registro pendente inválido ou expirado.',
@@ -213,6 +218,8 @@ class AuthController extends Controller
                 'role' => 'root',
                 'email_verified_at' => now(),
             ]);
+
+            $this->companyDefaultsService->ensureForCompany((int) $company->id);
 
             Cookie::queue(Cookie::forget('pending_registration'));
 

@@ -55,6 +55,18 @@ const tiposSaida = ref<any[]>([]);
 const tiposServico = ref<any[]>([]);
 const colaboradoresOptions = ref<any[]>([]);
 const optionsLoaded = ref(false);
+const importFileInput = ref<HTMLInputElement | null>(null);
+const showImportPanel = ref(false);
+const selectedImportFile = ref<File | null>(null);
+const importError = ref('');
+const importSuccess = ref('');
+const isImportLoading = ref(false);
+const importSummary = ref<any | null>(null);
+const importDefaults = ref({
+    default_entry_type_id: null as number | null,
+    default_exit_type_id: null as number | null,
+    default_collaborator_id: null as number | null,
+});
 
 interface EntryForm {
     entry_type_id: number | null;
@@ -139,6 +151,22 @@ const formatDate = (dateString: string) => {
         month: '2-digit',
         year: 'numeric',
     });
+};
+
+const formatFileSize = (size: number) => {
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+};
+
+const findDefaultOptionId = (items: any[]) => {
+    const normalized = (v: string) => (v || '').trim().toLowerCase();
+    const found = items.find((item: any) => {
+        const name = normalized(item?.name || '');
+        return name === 'não definido' || name === 'nao definido';
+    });
+
+    return found?.id ?? null;
 };
 
 const viewRegistros = computed(() => registros.value.map((r: any) => ({
@@ -440,6 +468,114 @@ const fetchOptions = async () => {
     }
 };
 
+const openImportPicker = async () => {
+    await fetchOptions();
+    showImportPanel.value = true;
+    importError.value = '';
+    importSuccess.value = '';
+    importSummary.value = null;
+    selectedImportFile.value = null;
+    importDefaults.value = {
+        default_entry_type_id: findDefaultOptionId(tiposEntrada.value),
+        default_exit_type_id: findDefaultOptionId(tiposSaida.value),
+        default_collaborator_id: findDefaultOptionId(colaboradoresOptions.value),
+    };
+    importFileInput.value?.click();
+};
+
+const onImportFileSelected = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0] ?? null;
+    selectedImportFile.value = file;
+    importError.value = '';
+    importSuccess.value = '';
+};
+
+const cancelImport = () => {
+    showImportPanel.value = false;
+    selectedImportFile.value = null;
+    importError.value = '';
+    importSuccess.value = '';
+    importSummary.value = null;
+    importDefaults.value = {
+        default_entry_type_id: null,
+        default_exit_type_id: null,
+        default_collaborator_id: null,
+    };
+    if (importFileInput.value) {
+        importFileInput.value.value = '';
+    }
+};
+
+const clearImportFile = () => {
+    selectedImportFile.value = null;
+    importError.value = '';
+    importSuccess.value = '';
+    importSummary.value = null;
+    if (importFileInput.value) {
+        importFileInput.value.value = '';
+    }
+};
+
+const confirmImport = async () => {
+    if (!selectedImportFile.value) {
+        importError.value = 'Selecione um arquivo Excel para continuar.';
+        return;
+    }
+
+    if (!importDefaults.value.default_entry_type_id || !importDefaults.value.default_exit_type_id || !importDefaults.value.default_collaborator_id) {
+        importError.value = 'Selecione os valores padrão para entrada, saída e comissão.';
+        return;
+    }
+
+    isImportLoading.value = true;
+    importError.value = '';
+    importSuccess.value = '';
+    importSummary.value = null;
+
+    try {
+        const formData = new FormData();
+        formData.append('file', selectedImportFile.value);
+        formData.append('default_entry_type_id', String(importDefaults.value.default_entry_type_id));
+        formData.append('default_exit_type_id', String(importDefaults.value.default_exit_type_id));
+        formData.append('default_collaborator_id', String(importDefaults.value.default_collaborator_id));
+
+        const response = await fetch('/api/import', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${auth.token.value}`,
+                'Accept': 'application/json',
+            },
+            body: formData,
+        });
+
+        const json = await response.json();
+        if (!response.ok) {
+            // Mostrar erro com detalhes
+            let errorMessage = json?.message || 'Erro ao importar o arquivo.';
+            if (json?.error) {
+                errorMessage += ` (${json.error})`;
+            }
+            importError.value = errorMessage;
+            return;
+        }
+
+        // Sucesso - mostrar mensagem e resumo
+        importSuccess.value = json?.message || 'Importação concluída com sucesso.';
+        importSummary.value = json?.summary ?? null;
+        
+        // Aguardar 2 segundos e recarregar registros
+        setTimeout(async () => {
+            await fetchRegistros(1, false, false);
+        }, 2000);
+    } catch (error) {
+        console.error(error);
+        importError.value = 'Não foi possível concluir a importação. Verifique sua conexão e tente novamente.';
+    } finally {
+        isImportLoading.value = false;
+    }
+};
+
 const closeAllForms = () => {
     showNewEntryInline.value = false;
     showNewExitInline.value = false;
@@ -734,6 +870,19 @@ onBeforeUnmount(() => {
                 <div class="bg-white rounded-lg shadow-lg p-6 ">
                     <!-- Action Buttons -->
                     <div class="flex flex-col sm:flex-row flex-wrap gap-3 mb-6">
+                        <input
+                            ref="importFileInput"
+                            type="file"
+                            accept=".xlsx,.xls"
+                            class="hidden"
+                            @change="onImportFileSelected"
+                        />
+                        <button
+                            @click="openImportPicker"
+                            class="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                        >
+                            Importar Entradas e Saídas
+                        </button>
                         <button
                             @click="openCreateEntry"
                             class="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
@@ -757,6 +906,149 @@ onBeforeUnmount(() => {
                         >
                             {{ showRemoved ? 'Ver ativos' : 'Ver removidos' }}
                         </button>
+                    </div>
+
+                    <!-- Import Panel -->
+                    <div v-if="showImportPanel" class="mb-6 border-2 border-emerald-200 rounded-lg p-6 bg-emerald-50/60">
+                        <div class="flex items-center gap-3 mb-5">
+                            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <h3 class="text-base font-semibold text-emerald-700">Importar Entradas e Saídas</h3>
+                        </div>
+
+                        <div v-if="selectedImportFile" class="mb-5 p-4 bg-white border border-emerald-200 rounded-lg flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-700">{{ selectedImportFile.name }}</p>
+                                    <p class="text-xs text-gray-500">{{ formatFileSize(selectedImportFile.size) }}</p>
+                                </div>
+                            </div>
+                            <button @click="clearImportFile" class="px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Trocar arquivo
+                            </button>
+                        </div>
+
+                        <div v-else class="mb-5 p-4 bg-white border-2 border-dashed border-emerald-300 rounded-lg text-center">
+                            <p class="text-sm text-gray-600">Nenhum arquivo selecionado</p>
+                            <button @click="openImportPicker" class="mt-2 text-xs text-emerald-600 hover:text-emerald-700 font-medium underline">
+                                Clique aqui para escolher um Excel
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Entrada padrão</label>
+                                <select v-model="importDefaults.default_entry_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Saída padrão</label>
+                                <select v-model="importDefaults.default_exit_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Colaborador padrão da Comissão</label>
+                                <select v-model="importDefaults.default_collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div v-if="isImportLoading" class="mt-5 p-6 bg-white border border-blue-200 rounded-lg text-center">
+                            <div class="inline-block mb-3">
+                                <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </div>
+                            <p class="text-sm font-medium text-gray-700">Processando arquivo...</p>
+                            <p class="text-xs text-gray-500 mt-2">Isto pode levar alguns segundos</p>
+                        </div>
+
+                        <!-- Error State -->
+                        <div v-if="importError" class="mt-5 p-4 bg-red-50 border border-red-300 rounded-lg">
+                            <div class="flex items-center gap-2 mb-2">
+                                <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                </svg>
+                                <p class="text-sm font-medium text-red-700">Erro na importação</p>
+                            </div>
+                            <p class="text-sm text-red-600">{{ importError }}</p>
+                        </div>
+
+                        <!-- Success State -->
+                        <div v-if="importSuccess && !isImportLoading" class="mt-5 p-4 bg-emerald-50 border border-emerald-300 rounded-lg">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                                <p class="text-sm font-medium text-emerald-700">{{ importSuccess }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Summary Cards -->
+                        <div v-if="importSummary && !isImportLoading" class="mt-5 grid grid-cols-2 md:grid-cols-5 gap-3">
+                            <div class="bg-white border border-emerald-200 rounded-lg p-3 text-center">
+                                <p class="text-2xl font-bold text-emerald-600">{{ importSummary.sheets_processed }}</p>
+                                <p class="text-xs text-gray-600 mt-1">Abas</p>
+                            </div>
+                            <div class="bg-white border border-blue-200 rounded-lg p-3 text-center">
+                                <p class="text-2xl font-bold text-blue-600">{{ importSummary.rows_processed }}</p>
+                                <p class="text-xs text-gray-600 mt-1">Linhas</p>
+                            </div>
+                            <div class="bg-white border border-yellow-200 rounded-lg p-3 text-center">
+                                <p class="text-2xl font-bold text-yellow-600">{{ importSummary.entries_created }}</p>
+                                <p class="text-xs text-gray-600 mt-1">Entradas</p>
+                            </div>
+                            <div class="bg-white border border-orange-200 rounded-lg p-3 text-center">
+                                <p class="text-2xl font-bold text-orange-600">{{ importSummary.exits_created }}</p>
+                                <p class="text-xs text-gray-600 mt-1">Saídas</p>
+                            </div>
+                            <div class="bg-white border border-purple-200 rounded-lg p-3 text-center">
+                                <p class="text-2xl font-bold text-purple-600">{{ importSummary.commissions_created }}</p>
+                                <p class="text-xs text-gray-600 mt-1">Comissões</p>
+                            </div>
+                        </div>
+
+                        <div v-if="!importSuccess || importError" class="flex justify-end gap-2 mt-6">
+                            <button @click="cancelImport" :disabled="isImportLoading" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50">
+                                Cancelar
+                            </button>
+                            <button @click="confirmImport" :disabled="isImportLoading || !selectedImportFile" class="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                                <svg v-if="!isImportLoading" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                                <span v-if="!isImportLoading">Confirmar importação</span>
+                                <span v-else class="flex items-center gap-2">
+                                    <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Importando...
+                                </span>
+                            </button>
+                        </div>
+                        <div v-if="importSuccess && !importError" class="flex justify-end mt-6">
+                            <button @click="cancelImport" class="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg hover:shadow-md transition-all flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                                Fechar
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Inline Create Entry Form -->

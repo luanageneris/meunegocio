@@ -216,7 +216,9 @@ const handleClearRecordsConfirm = async () => {
             throw new Error(payload?.message || 'Erro ao limpar registros');
         }
 
-        toast.success('Registros limpos', { description: `${payload.count} registros foram removidos com sucesso.` });
+        toast.success('Registros limpos', {
+            description: `${payload.financial_records_count} registros financeiros e ${payload.imported_commissions_count} comissões importadas foram removidos com sucesso.`,
+        });
         closeClearRecordsModal();
     } catch (error: any) {
         clearRecordsError.value = error?.message || 'Erro ao limpar registros. Tente novamente.';
@@ -585,13 +587,14 @@ onMounted(async () => {
                     </div>
                     <div class="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 space-y-4 sm:space-y-6">
                         <p class="text-gray-700 text-base sm:text-lg leading-relaxed sm:leading-7">
-                            Você está prestes a limpar todos os registros financeiros (entradas e saídas) da sua empresa. Esta ação é permanente e não pode ser desfeita.
+                            Você está prestes a limpar todos os registros financeiros e as comissões importadas da sua empresa. Esta ação é permanente e não pode ser desfeita.
                         </p>
 
                         <ul class="list-disc list-inside text-gray-700 space-y-2">
                             <li>Todos os registros de entradas serão removidos.</li>
                             <li>Todos os registros de saídas serão removidos.</li>
-                            <li>Comissões, turnos e fechamentos diários permanecerão intactos.</li>
+                            <li>Comissões importadas por planilha serão removidas.</li>
+                            <li>Comissões normais, turnos e fechamentos diários permanecerão intactos.</li>
                             <li>Colaboradores e tipos (entrada/saída/serviço) não serão afetados.</li>
                             <li>Não será possível recuperar os dados após a confirmação.</li>
                         </ul>

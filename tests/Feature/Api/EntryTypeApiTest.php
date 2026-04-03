@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Models\EntryType;
 use App\Models\User;
 use App\Models\Company;
+use App\Services\CompanyDefaultsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -119,5 +120,26 @@ class EntryTypeApiTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('name');
+    }
+
+    public function test_cannot_update_or_delete_default_entry_type(): void
+    {
+        $default = EntryType::create([
+            'name' => CompanyDefaultsService::DEFAULT_LABEL,
+            'company_id' => $this->company->id,
+        ]);
+
+        $updateResponse = $this->actingAs($this->rootUser, 'sanctum')
+            ->putJson("/api/personalizar/entry-types/{$default->id}", [
+                'name' => 'Outro nome',
+            ]);
+
+        $updateResponse->assertStatus(422);
+
+        $deleteResponse = $this->actingAs($this->rootUser, 'sanctum')
+            ->deleteJson("/api/personalizar/entry-types/{$default->id}");
+
+        $deleteResponse->assertStatus(422);
+        $this->assertDatabaseHas('entry_types', ['id' => $default->id, 'deleted_at' => null]);
     }
 }

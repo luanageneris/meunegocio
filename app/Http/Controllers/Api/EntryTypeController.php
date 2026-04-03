@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreEntryTypeRequest;
 use App\Http\Requests\UpdateEntryTypeRequest;
 use App\Models\EntryType;
+use App\Services\CompanyDefaultsService;
 use Illuminate\Http\Request;
 
 class EntryTypeController extends Controller
@@ -44,6 +45,10 @@ class EntryTypeController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        if ($this->isProtectedDefault($entryType->name)) {
+            return response()->json(['message' => 'O tipo padrão "Não definido" não pode ser renomeado'], 422);
+        }
+
         $entryType->update($request->validated());
 
         return response()->json($entryType);
@@ -57,6 +62,10 @@ class EntryTypeController extends Controller
 
         if (!$request->user()->isRoot()) {
             return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        if ($this->isProtectedDefault($entryType->name)) {
+            return response()->json(['message' => 'O tipo padrão "Não definido" não pode ser removido'], 422);
         }
 
         $entryType->delete();
@@ -98,5 +107,13 @@ class EntryTypeController extends Controller
             'message' => 'Tipo de entrada restaurado com sucesso',
             'data' => $type,
         ]);
+    }
+
+    private function isProtectedDefault(string $name): bool
+    {
+        $normalized = mb_strtolower(trim($name));
+        $defaultName = mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL);
+
+        return $normalized === $defaultName || $normalized === 'nao definido';
     }
 }
