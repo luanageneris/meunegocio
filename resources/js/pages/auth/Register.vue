@@ -45,9 +45,9 @@ const fetchPendingRegistration = async () => {
 };
 
 onMounted(() => {
-    // Se usuário já está autenticado, redirecionar para painel
+    // Se usuário já está autenticado, redirecionar para registros
     if (auth.isAuthenticated.value) {
-        window.location.href = '/painel';
+        window.location.href = '/registros';
         return;
     }
 
@@ -99,9 +99,9 @@ const handleSubmit = async () => {
             description: `Bem-vindo, ${result.data.user.name}!`,
         });
 
-        // Redirecionar para painel
+        // Redirecionar para registros
         setTimeout(() => {
-            window.location.href = '/painel';
+            window.location.href = '/registros';
         }, 500);
     } catch (error: any) {
         toast.error('Erro ao registrar', {

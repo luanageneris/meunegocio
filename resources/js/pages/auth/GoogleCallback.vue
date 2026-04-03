@@ -28,7 +28,7 @@ onMounted(async () => {
                 if (needsSetup) {
                     window.location.href = '/setup-empresa';
                 } else {
-                    window.location.href = '/painel';
+                    window.location.href = '/registros';
                 }
             }, 800);
         } catch (error) {

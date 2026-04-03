@@ -3,6 +3,12 @@ import { Head } from '@inertiajs/vue3';
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import Footer from '@/components/Footer.vue';
@@ -14,6 +20,7 @@ const isLoading = ref(false);
 const isListLoading = ref(false);
 const isLoadingMore = ref(false);
 const activeTab = ref<'hoje' | 'ultimos7dias' | 'mensal' | 'todos'>('hoje');
+const isChartsView = ref(false);
 const selectedYear = ref<number>(new Date().getFullYear());
 const selectedMonth = ref<number>(new Date().getMonth() + 1); // 1-12
 const monthOptions = [
@@ -129,6 +136,117 @@ const registros = ref<any[]>([]);
 const sortKey = ref<'valor' | 'categoria' | 'colaborador' | 'descricao' | 'dataOperacao' | 'registradoEm' | 'tipo'>('registradoEm');
 const sortDir = ref<'asc' | 'desc'>('desc');
 
+const validTabs = ['hoje', 'ultimos7dias', 'mensal', 'todos'] as const;
+const validSortKeys = ['valor', 'categoria', 'colaborador', 'descricao', 'dataOperacao', 'registradoEm', 'tipo'] as const;
+
+const applyFiltersFromQueryString = () => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+
+    const tab = params.get('tab');
+    if (tab && validTabs.includes(tab as typeof validTabs[number])) {
+        activeTab.value = tab as 'hoje' | 'ultimos7dias' | 'mensal' | 'todos';
+    }
+
+    const month = Number(params.get('month'));
+    if (Number.isInteger(month) && month >= 1 && month <= 12) {
+        selectedMonth.value = month;
+    }
+
+    const year = Number(params.get('year'));
+    if (Number.isInteger(year) && year >= 2000 && year <= 2100) {
+        selectedYear.value = year;
+    }
+
+    const page = Number(params.get('page'));
+    if (Number.isInteger(page) && page >= 1) {
+        currentPage.value = page;
+    }
+
+    const search = params.get('search');
+    if (search !== null) {
+        searchQuery.value = search;
+    }
+
+    const sortKeyParam = params.get('sort_key');
+    if (sortKeyParam && validSortKeys.includes(sortKeyParam as typeof validSortKeys[number])) {
+        sortKey.value = sortKeyParam as typeof sortKey.value;
+    }
+
+    const sortDirParam = params.get('sort_dir');
+    if (sortDirParam === 'asc' || sortDirParam === 'desc') {
+        sortDir.value = sortDirParam;
+    }
+
+    showRemoved.value = params.get('removed') === '1';
+    isChartsView.value = params.get('charts') === '1';
+};
+
+const syncFiltersToQueryString = () => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams();
+
+    if (activeTab.value !== 'hoje') {
+        params.set('tab', activeTab.value);
+    }
+
+    if (selectedMonth.value !== new Date().getMonth() + 1) {
+        params.set('month', String(selectedMonth.value));
+    }
+
+    if (selectedYear.value !== new Date().getFullYear()) {
+        params.set('year', String(selectedYear.value));
+    }
+
+    if (currentPage.value > 1) {
+        params.set('page', String(currentPage.value));
+    }
+
+    if (searchQuery.value.trim()) {
+        params.set('search', searchQuery.value.trim());
+    }
+
+    if (sortKey.value !== 'registradoEm') {
+        params.set('sort_key', sortKey.value);
+    }
+
+    if (sortDir.value !== 'desc') {
+        params.set('sort_dir', sortDir.value);
+    }
+
+    if (showRemoved.value) {
+        params.set('removed', '1');
+    }
+
+    if (isChartsView.value) {
+        params.set('charts', '1');
+    }
+
+    const queryString = params.toString();
+    const nextUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+    window.history.replaceState({}, '', nextUrl);
+};
+
+type RangeKey = 'hoje' | 'ultimos7dias' | 'mensal';
+
+const rangeTotals = ref<Record<RangeKey, { entradas: number; saidas: number; lucro: number }>>({
+    hoje: { entradas: 0, saidas: 0, lucro: 0 },
+    ultimos7dias: { entradas: 0, saidas: 0, lucro: 0 },
+    mensal: { entradas: 0, saidas: 0, lucro: 0 },
+});
+
+const commissionsByRange = ref<Record<RangeKey, Array<{ collaborator_id: number; collaborator_name: string; total: number }>>>({
+    hoje: [],
+    ultimos7dias: [],
+    mensal: [],
+});
+
+const dailyBreakdown = ref<Array<{ date: string; entradas: number; saidas: number; lucro: number }>>([]);
+
+const monthlyBreakdown = ref<Array<{ month: string; monthNum: number; entradas: number; saidas: number; lucro: number; comissoes: number }>>([]);
+
 const formatCurrency = (value: number) => {
     if (isPrivacyMode.value) {
         return 'R$ •••••';
@@ -163,6 +281,46 @@ const formatFileSize = (size: number) => {
     if (size < 1024) return `${size} B`;
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
     return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+};
+
+const chartValueTitle = (label: string, value: number) => `${label}: ${formatCurrency(Number(value || 0))}`;
+
+const chartMonthlyTitle = (month: string, label: string, value: number) => `${month} - ${label}: ${formatCurrency(Number(value || 0))}`;
+
+const chartBarHeight = (value: number, max: number): string => {
+    const safeValue = toFiniteAmount(value);
+    const safeMax = toFiniteAmount(max);
+
+    if (safeValue <= 0 || safeMax <= 0) {
+        return '0%';
+    }
+
+    const percentage = (safeValue / safeMax) * 100;
+    return `${Math.max(percentage, 2)}%`;
+};
+
+const toFiniteAmount = (value: unknown): number => {
+    if (value === null || value === undefined) return 0;
+
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : 0;
+    }
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return 0;
+
+        const raw = trimmed.replace(/[R$\s]/g, '');
+        const normalized = raw.includes(',')
+            ? raw.replace(/\./g, '').replace(',', '.')
+            : raw;
+
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
 };
 
 const findDefaultOptionId = (items: any[]) => {
@@ -249,6 +407,304 @@ const totalComissoes = computed(() => Number(resumoTotais.value.commissions ?? 0
 
 const totalFinal = computed(() => Number(resumoTotais.value.final_total ?? 0));
 
+const chartRangeKey = computed<RangeKey>(() => {
+    if (activeTab.value === 'hoje' || activeTab.value === 'ultimos7dias' || activeTab.value === 'mensal') {
+        return activeTab.value;
+    }
+
+    return 'mensal';
+});
+
+const currentChartTotals = computed(() => rangeTotals.value[chartRangeKey.value]);
+const currentCommissions = computed(() => commissionsByRange.value[chartRangeKey.value]);
+
+const commissionsTotal = computed(() => currentCommissions.value.reduce((sum, c) => sum + toFiniteAmount(c.total), 0));
+
+const maxValueComissoes = computed(() => {
+    const values = currentCommissions.value.map((c) => toFiniteAmount(c.total));
+    return values.length ? Math.max(...values) : 0;
+});
+
+const maxValueDaily = computed(() => {
+    if (!dailyBreakdown.value.length) return 0;
+    const values = dailyBreakdown.value
+        .flatMap((d) => [toFiniteAmount(d.entradas), toFiniteAmount(d.saidas), toFiniteAmount(d.lucro)])
+        .filter((v) => Number.isFinite(v));
+
+    return values.length ? Math.max(...values) : 0;
+});
+
+const maxValueMonthly = computed(() => {
+    if (!monthlyBreakdown.value.length) return 0;
+    const values = monthlyBreakdown.value
+        .flatMap((m) => [toFiniteAmount(m.entradas), toFiniteAmount(m.saidas), toFiniteAmount(m.lucro), toFiniteAmount(m.comissoes)])
+        .filter((v) => Number.isFinite(v));
+
+    return values.length ? Math.max(...values) : 0;
+});
+
+const formatDayLabel = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+};
+
+const formatDateForApi = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const parseRecordDate = (rawDate: unknown): Date | null => {
+    if (!rawDate) return null;
+
+    const raw = String(rawDate).trim();
+    if (!raw) return null;
+
+    const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) {
+        return parsed;
+    }
+
+    const dateOnly = raw.split(' ')[0]?.split('T')[0];
+    if (!dateOnly || !dateOnly.includes('-')) {
+        return null;
+    }
+
+    const [y, m, d] = dateOnly.split('-').map(Number);
+    if (!y || !m || !d) {
+        return null;
+    }
+
+    const fallback = new Date(y, m - 1, d);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+};
+
+const makeRange = (range: RangeKey) => {
+    const today = new Date();
+
+    if (range === 'hoje') {
+        const ymd = formatDateForApi(today);
+        return { start: ymd, end: ymd };
+    }
+
+    if (range === 'ultimos7dias') {
+        const past = new Date(today);
+        past.setDate(today.getDate() - 6);
+        return { start: formatDateForApi(past), end: formatDateForApi(today) };
+    }
+
+    const first = new Date(selectedYear.value, 0, 1);
+    const last = new Date(selectedYear.value, 11, 31);
+    return { start: formatDateForApi(first), end: formatDateForApi(last) };
+};
+
+const fetchRangeData = async (range: RangeKey) => {
+    const { start, end } = makeRange(range);
+
+    try {
+        const fetchRangePage = async (page: number) => {
+            const res = await fetch(`/api/registros/financial-records/between-dates?page=${page}&only_deleted=${showRemoved.value ? 1 : 0}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${auth.token.value}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ start_date: start, end_date: end }),
+            });
+
+            if (!res.ok) {
+                throw new Error('Erro ao carregar registros para gráficos');
+            }
+
+            return res.json();
+        };
+
+        const firstPageJson = await fetchRangePage(1);
+        const firstPageItems = Array.isArray(firstPageJson?.data) ? firstPageJson.data : [];
+        const total = Number(firstPageJson?.pagination?.total ?? firstPageItems.length ?? 0);
+        const perPage = Number((firstPageJson?.pagination?.per_page ?? firstPageItems.length) || 1);
+        const totalPages = Math.max(1, Math.ceil(total / Math.max(1, perPage)));
+
+        const items = [...firstPageItems];
+
+        for (let page = 2; page <= totalPages; page++) {
+            const pageJson = await fetchRangePage(page);
+            const pageItems = Array.isArray(pageJson?.data) ? pageJson.data : [];
+            items.push(...pageItems);
+        }
+
+        const entradasFromApi = toFiniteAmount(firstPageJson?.totals?.entries ?? 0);
+        const saidasFromApi = toFiniteAmount(firstPageJson?.totals?.exits ?? 0);
+        const entradas = Number.isFinite(entradasFromApi)
+            ? entradasFromApi
+            : items
+                .filter((r: any) => r.type === 'entry' || r.entry_type_id)
+                .reduce((s: number, r: any) => s + toFiniteAmount(r.amount), 0);
+        const saidas = Number.isFinite(saidasFromApi)
+            ? saidasFromApi
+            : items
+                .filter((r: any) => r.type === 'exit' || r.exit_type_id)
+                .reduce((s: number, r: any) => s + toFiniteAmount(r.amount), 0);
+
+        rangeTotals.value[range] = { entradas, saidas, lucro: entradas - saidas };
+
+        const commRes = await fetch('/api/registros/commissions/summary-by-collaborator', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${auth.token.value}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ start_date: start, end_date: end }),
+        });
+
+        if (!commRes.ok) {
+            throw new Error('Erro ao carregar comissões para gráficos');
+        }
+
+        const commJson = await commRes.json();
+        const commissionsRaw = Array.isArray(commJson?.data)
+            ? commJson.data
+            : Array.isArray(commJson)
+                ? commJson
+                : [];
+
+        commissionsByRange.value[range] = commissionsRaw.map((c: any) => ({
+            collaborator_id: c.collaborator_id,
+            collaborator_name: c.collaborator_name,
+            total: toFiniteAmount(c.total),
+        }));
+
+        if (range === 'ultimos7dias') {
+            const dailyMap = new Map<string, { entradas: number; saidas: number }>();
+
+            items.forEach((r: any) => {
+                const parsedDate = parseRecordDate(r.date);
+                if (!parsedDate) return;
+                const date = formatDateForApi(parsedDate);
+
+                if (!dailyMap.has(date)) {
+                    dailyMap.set(date, { entradas: 0, saidas: 0 });
+                }
+
+                const day = dailyMap.get(date)!;
+                if (r.type === 'entry' || r.entry_type_id) {
+                    day.entradas += toFiniteAmount(r.amount);
+                } else {
+                    day.saidas += toFiniteAmount(r.amount);
+                }
+            });
+
+            const breakdown: Array<{ date: string; entradas: number; saidas: number; lucro: number }> = [];
+            const today = new Date();
+
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(today.getDate() - i);
+                const dateStr = formatDateForApi(d);
+                const data = dailyMap.get(dateStr) || { entradas: 0, saidas: 0 };
+
+                breakdown.push({
+                    date: dateStr,
+                    entradas: data.entradas,
+                    saidas: data.saidas,
+                    lucro: data.entradas - data.saidas,
+                });
+            }
+
+            dailyBreakdown.value = breakdown;
+        }
+
+        if (range === 'mensal') {
+            const monthlyMap = new Map<number, { entradas: number; saidas: number; comissoes: number }>();
+
+            for (let m = 0; m < 12; m++) {
+                monthlyMap.set(m, { entradas: 0, saidas: 0, comissoes: 0 });
+            }
+
+            // Agregar entradas e saídas por mês
+            items.forEach((r: any) => {
+                const date = parseRecordDate(r.date);
+                if (!date) return;
+                const monthNum = date.getMonth();
+                const month = monthlyMap.get(monthNum)!;
+
+                if (r.type === 'entry' || r.entry_type_id) {
+                    month.entradas += toFiniteAmount(r.amount);
+                } else {
+                    month.saidas += toFiniteAmount(r.amount);
+                }
+            });
+
+            // Carregar comissões agregadas por mês
+            try {
+                const currentYear = new Date().getFullYear();
+                const commMonthRes = await fetch('/api/registros/commissions/summary-by-month', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${auth.token.value}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        start_date: `${currentYear}-01-01`, 
+                        end_date: `${currentYear}-12-31` 
+                    }),
+                });
+
+                if (commMonthRes.ok) {
+                    const commMonthData = await commMonthRes.json();
+                    const commissionsMonthly = Array.isArray(commMonthData?.data) ? commMonthData.data : (Array.isArray(commMonthData) ? commMonthData : []);
+                    
+                    commissionsMonthly.forEach((cm: any) => {
+                        const month = monthlyMap.get(cm.monthNum);
+                        if (month) {
+                            month.comissoes = toFiniteAmount(cm.total);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar comissões por mês:', error);
+            }
+
+            const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Maio', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const breakdown: Array<{ month: string; monthNum: number; entradas: number; saidas: number; lucro: number; comissoes: number }> = [];
+
+            for (let m = 0; m < 12; m++) {
+                const data = monthlyMap.get(m) || { entradas: 0, saidas: 0, comissoes: 0 };
+                breakdown.push({
+                    month: monthNames[m],
+                    monthNum: m,
+                    entradas: data.entradas,
+                    saidas: data.saidas,
+                    lucro: data.entradas - data.saidas,
+                    comissoes: data.comissoes,
+                });
+            }
+
+            monthlyBreakdown.value = breakdown;
+        }
+    } catch (error) {
+        console.error('Erro ao carregar dados de gráficos:', error);
+    }
+};
+
+const toggleChartsView = async () => {
+    isChartsView.value = !isChartsView.value;
+
+    if (isChartsView.value) {
+        if (activeTab.value !== 'todos') {
+            await fetchRangeData(chartRangeKey.value);
+        }
+    } else if (activeTab.value === 'todos') {
+        currentPage.value = 1;
+        await fetchRegistros(1);
+    }
+};
+
 const fetchRegistros = async (page = 1, showPageLoading = false, append = false) => {
     if (append && (isLoading.value || isListLoading.value || isLoadingMore.value)) {
         return;
@@ -264,7 +720,6 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
     try {
         // Decide endpoint based on activeTab
         const today = new Date();
-        const formatYMD = (d: Date) => d.toISOString().split('T')[0];
         let response: Response;
 
         if (activeTab.value === 'hoje' || activeTab.value === 'ultimos7dias' || activeTab.value === 'mensal') {
@@ -272,20 +727,20 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
             let end: string;
 
             if (activeTab.value === 'hoje') {
-                end = formatYMD(today);
+                end = formatDateForApi(today);
                 start = end;
             } else if (activeTab.value === 'ultimos7dias') {
                 const past = new Date(today);
                 past.setDate(today.getDate() - 6);
-                start = formatYMD(past);
-                end = formatYMD(today);
+                start = formatDateForApi(past);
+                end = formatDateForApi(today);
             } else { // mensal
                 const year = selectedYear.value;
                 const monthIdx = selectedMonth.value - 1; // 0-based
                 const first = new Date(year, monthIdx, 1);
                 const last = new Date(year, monthIdx + 1, 0);
-                start = formatYMD(first);
-                end = formatYMD(last);
+                start = formatDateForApi(first);
+                end = formatDateForApi(last);
             }
 
             response = await fetch(`/api/registros/financial-records/between-dates?page=${page}&only_deleted=${showRemoved.value ? 1 : 0}` , {
@@ -325,6 +780,10 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
             final_total: Number(json?.totals?.final_total ?? 0),
         };
         currentPage.value = pagination.value.current_page || page;
+
+        if (activeTab.value !== 'todos') {
+            await fetchRangeData(activeTab.value as RangeKey);
+        }
     } catch (error) {
         console.error('Erro ao carregar registros:', error);
     } finally {
@@ -374,6 +833,10 @@ const cleanupInfiniteScroll = () => {
 };
 
 const changeTab = (tab: 'hoje' | 'ultimos7dias' | 'mensal' | 'todos') => {
+    if (tab === 'todos' && isChartsView.value) {
+        isChartsView.value = false;
+    }
+
     activeTab.value = tab;
     currentPage.value = 1;
     fetchRegistros(1);
@@ -756,6 +1219,13 @@ watch(infiniteScrollTrigger, (newEl, oldEl) => {
     }
 });
 
+watch(
+    [activeTab, selectedMonth, selectedYear, searchQuery, sortKey, sortDir, showRemoved, currentPage, isChartsView],
+    () => {
+        syncFiltersToQueryString();
+    }
+);
+
 onMounted(async () => {
     if (!auth.isAuthenticated.value) {
         window.location.href = '/login';
@@ -779,7 +1249,12 @@ onMounted(async () => {
         isLoading.value = false;
     }
 
-    await fetchRegistros(1, true);
+    applyFiltersFromQueryString();
+
+    await fetchRegistros(currentPage.value, true);
+
+    syncFiltersToQueryString();
+
     setupInfiniteScroll();
 });
 
@@ -877,7 +1352,8 @@ onBeforeUnmount(() => {
                 <!-- Content Card -->
                 <div class="bg-white rounded-lg shadow-lg p-6 ">
                     <!-- Action Buttons -->
-                    <div class="flex flex-col sm:flex-row flex-wrap gap-3 mb-6">
+                    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div class="flex flex-col sm:flex-row flex-wrap gap-3">
                         <input
                             ref="importFileInput"
                             type="file"
@@ -885,12 +1361,6 @@ onBeforeUnmount(() => {
                             class="hidden"
                             @change="onImportFileSelected"
                         />
-                        <button
-                            @click="openImportPicker"
-                            class="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
-                        >
-                            Importar Entradas e Saídas
-                        </button>
                         <button
                             @click="openCreateEntry"
                             class="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
@@ -903,31 +1373,83 @@ onBeforeUnmount(() => {
                         >
                             Nova Saída
                         </button>
-                        <button
-                            @click="handleVerRemovidos"
-                            :class="[
-                                'w-full sm:w-auto px-6 py-2 rounded-lg font-medium transition-all border-2',
-                                showRemoved
-                                    ? 'border-orange-400 text-orange-600 bg-orange-50'
-                                    : 'border-yellow-400 text-yellow-600 hover:bg-yellow-50'
-                            ]"
-                        >
-                            {{ showRemoved ? 'Ver ativos' : 'Ver removidos' }}
-                        </button>
+                        </div>
+
+                        <div class="self-end sm:self-start">
+                            <!-- Botão de troca para sair do modo gráfico -->
+                            <button
+                                v-if="isChartsView"
+                                @click="toggleChartsView"
+                                class="h-10 w-10 inline-flex items-center justify-center rounded-lg border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors"
+                                title="Voltar para listagem"
+                                aria-label="Voltar para listagem"
+                            >
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m10 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                            </button>
+
+                            <!-- Menu de 3 pontos para outras opções -->
+                            <DropdownMenu v-else>
+                                <DropdownMenuTrigger :as-child="true">
+                                    <button
+                                        type="button"
+                                        class="h-10 w-10 inline-flex items-center justify-center rounded-lg border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors"
+                                        aria-label="Abrir configurações"
+                                    >
+                                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                            <circle cx="12" cy="5" r="1.75" />
+                                            <circle cx="12" cy="12" r="1.75" />
+                                            <circle cx="12" cy="19" r="1.75" />
+                                        </svg>
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" class="w-56">
+                                    <DropdownMenuItem :as-child="true">
+                                        <button
+                                            type="button"
+                                            class="w-full text-left"
+                                            @click="openImportPicker"
+                                        >
+                                            Importar Entradas e Saídas
+                                        </button>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem :as-child="true">
+                                        <button
+                                            type="button"
+                                            class="w-full text-left"
+                                            @click="handleVerRemovidos"
+                                        >
+                                            {{ showRemoved ? 'Ver ativos' : 'Ver removidos' }}
+                                        </button>
+                                    </DropdownMenuItem>
+                                    <!-- Opção de gráfico apenas no modo Mensal -->
+                                    <DropdownMenuItem v-if="activeTab === 'mensal'" :as-child="true">
+                                        <button
+                                            type="button"
+                                            class="w-full text-left"
+                                            @click="toggleChartsView"
+                                        >
+                                            Visualizar gráficos
+                                        </button>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     </div>
 
                     <!-- Import Panel -->
-                    <div v-if="showImportPanel" class="mb-6 border-2 border-emerald-200 rounded-lg p-6 bg-emerald-50/60">
+                    <div v-if="showImportPanel" class="mb-6 border-2 border-orange-200 rounded-lg p-6 bg-orange-50/60">
                         <div class="flex items-center gap-3 mb-5">
-                            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
-                            <h3 class="text-base font-semibold text-emerald-700">Importar Entradas e Saídas</h3>
+                            <h3 class="text-base font-semibold text-orange-700">Importar Entradas e Saídas</h3>
                         </div>
 
-                        <div v-if="selectedImportFile" class="mb-5 p-4 bg-white border border-emerald-200 rounded-lg flex items-center justify-between">
+                        <div v-if="selectedImportFile" class="mb-5 p-4 bg-white border border-orange-200 rounded-lg flex items-center justify-between">
                             <div class="flex items-center gap-3">
-                                <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                                 <div>
@@ -943,9 +1465,9 @@ onBeforeUnmount(() => {
                             </button>
                         </div>
 
-                        <div v-else class="mb-5 p-4 bg-white border-2 border-dashed border-emerald-300 rounded-lg text-center">
+                        <div v-else class="mb-5 p-4 bg-white border-2 border-dashed border-orange-300 rounded-lg text-center">
                             <p class="text-sm text-gray-600">Nenhum arquivo selecionado</p>
-                            <button @click="openImportPicker" class="mt-2 text-xs text-emerald-600 hover:text-emerald-700 font-medium underline">
+                            <button @click="openImportPicker" class="mt-2 text-xs text-orange-600 hover:text-orange-700 font-medium underline">
                                 Clique aqui para escolher um Excel
                             </button>
                         </div>
@@ -953,21 +1475,21 @@ onBeforeUnmount(() => {
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Entrada padrão</label>
-                                <select v-model="importDefaults.default_entry_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-sm">
+                                <select v-model="importDefaults.default_entry_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Saída padrão</label>
-                                <select v-model="importDefaults.default_exit_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-sm">
+                                <select v-model="importDefaults.default_exit_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Colaborador padrão da Comissão</label>
-                                <select v-model="importDefaults.default_collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white text-sm">
+                                <select v-model="importDefaults.default_collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
@@ -998,19 +1520,19 @@ onBeforeUnmount(() => {
                         </div>
 
                         <!-- Success State -->
-                        <div v-if="importSuccess && !isImportLoading" class="mt-5 p-4 bg-emerald-50 border border-emerald-300 rounded-lg">
+                        <div v-if="importSuccess && !isImportLoading" class="mt-5 p-4 bg-orange-50 border border-orange-300 rounded-lg">
                             <div class="flex items-center gap-2">
-                                <svg class="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                <svg class="w-5 h-5 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                                 </svg>
-                                <p class="text-sm font-medium text-emerald-700">{{ importSuccess }}</p>
+                                <p class="text-sm font-medium text-orange-700">{{ importSuccess }}</p>
                             </div>
                         </div>
 
                         <!-- Summary Cards -->
                         <div v-if="importSummary && !isImportLoading" class="mt-5 grid grid-cols-2 md:grid-cols-5 gap-3">
-                            <div class="bg-white border border-emerald-200 rounded-lg p-3 text-center">
-                                <p class="text-2xl font-bold text-emerald-600">{{ importSummary.sheets_processed }}</p>
+                            <div class="bg-white border border-orange-200 rounded-lg p-3 text-center">
+                                <p class="text-2xl font-bold text-orange-600">{{ importSummary.sheets_processed }}</p>
                                 <p class="text-xs text-gray-600 mt-1">Abas</p>
                             </div>
                             <div class="bg-white border border-blue-200 rounded-lg p-3 text-center">
@@ -1035,7 +1557,7 @@ onBeforeUnmount(() => {
                             <button @click="cancelImport" :disabled="isImportLoading" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50">
                                 Cancelar
                             </button>
-                            <button @click="confirmImport" :disabled="isImportLoading || !selectedImportFile" class="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            <button @click="confirmImport" :disabled="isImportLoading || !selectedImportFile" class="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                                 <svg v-if="!isImportLoading" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                                 </svg>
@@ -1166,6 +1688,7 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
+                    <template v-if="!isChartsView">
                     <!-- Summary -->
                     <div class="mb-6 space-y-1 text-sm text-gray-600">
                         <p>Total de registros: <span class="font-semibold">{{ totalRegistros }}</span></p>
@@ -1523,6 +2046,233 @@ onBeforeUnmount(() => {
                             Próxima
                         </button>
                     </div>
+                    </template>
+
+                    <template v-else>
+                        <div class="space-y-6">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div class="bg-white border border-orange-100 rounded-lg p-4 text-center shadow-sm">
+                                    <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(currentChartTotals.entradas) }}</p>
+                                    <p class="text-sm text-gray-600">Entradas</p>
+                                </div>
+                                <div class="bg-white border border-orange-100 rounded-lg p-4 text-center shadow-sm">
+                                    <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(currentChartTotals.saidas) }}</p>
+                                    <p class="text-sm text-gray-600">Saídas</p>
+                                </div>
+                                <div class="bg-white border border-orange-100 rounded-lg p-4 text-center shadow-sm">
+                                    <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(currentChartTotals.lucro) }}</p>
+                                    <p class="text-sm text-gray-600">Lucro</p>
+                                </div>
+                                <div class="bg-white border border-orange-100 rounded-lg p-4 text-center shadow-sm">
+                                    <p class="text-2xl font-bold text-orange-500">{{ formatCurrency(commissionsTotal) }}</p>
+                                    <p class="text-sm text-gray-600">Comissões</p>
+                                </div>
+                            </div>
+
+                            <div v-if="activeTab === 'hoje'" class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
+                                <h3 class="text-xl font-bold text-orange-600 text-center mb-6">{{ formatCurrency(commissionsTotal) }}</h3>
+                                <p class="text-center text-gray-600 mb-6">Comissões</p>
+
+                                <div v-if="currentCommissions.length === 0" class="flex items-center justify-center h-64">
+                                    <div class="text-center text-gray-400">
+                                        <svg class="mx-auto h-12 w-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <p class="text-lg font-medium">Nenhum registro hoje</p>
+                                        <p class="text-sm mt-1">Não há comissões registradas para este período</p>
+                                    </div>
+                                </div>
+
+                                <div v-else class="flex items-end justify-center gap-8 h-64">
+                                    <div v-for="item in currentCommissions" :key="item.collaborator_id" class="flex flex-col items-center gap-2">
+                                        <div class="flex items-end h-48">
+                                            <div class="w-16 bg-orange-500 rounded-t-lg transition-all hover:bg-orange-600" :style="{ height: `${maxValueComissoes > 0 ? (item.total / maxValueComissoes) * 100 : 0}%` }" :title="chartValueTitle(item.collaborator_name, item.total)"></div>
+                                        </div>
+                                        <span class="text-sm text-gray-600">{{ item.collaborator_name }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-if="activeTab === 'ultimos7dias'" class="space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
+                                        <h3 class="text-lg font-bold text-gray-800 mb-4">Entradas vs Saídas</h3>
+                                        <div class="flex justify-end gap-4 mb-4 text-sm">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-3 h-3 bg-yellow-400 rounded"></div>
+                                                <span class="text-gray-600">Entradas</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-3 h-3 bg-orange-500 rounded"></div>
+                                                <span class="text-gray-600">Saídas</span>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-3">
+                                            <div v-for="day in dailyBreakdown" :key="day.date" class="space-y-1">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-sm text-gray-600 w-16 text-right">{{ formatDayLabel(day.date) }}</span>
+                                                    <div class="flex-1 flex items-center gap-1">
+                                                        <div class="h-6 bg-yellow-400 rounded" :style="{ width: `${maxValueDaily > 0 ? (day.entradas / maxValueDaily) * 100 : 0}%` }" :title="chartMonthlyTitle(formatDayLabel(day.date), 'Entradas', day.entradas)"></div>
+                                                        <span class="text-xs text-gray-500 whitespace-nowrap">{{ formatCurrency(day.entradas) }}</span>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="w-16"></span>
+                                                    <div class="flex-1 flex items-center gap-1">
+                                                        <div class="h-6 bg-orange-500 rounded" :style="{ width: `${maxValueDaily > 0 ? (day.saidas / maxValueDaily) * 100 : 0}%` }" :title="chartMonthlyTitle(formatDayLabel(day.date), 'Saídas', day.saidas)"></div>
+                                                        <span class="text-xs text-gray-500 whitespace-nowrap">{{ formatCurrency(day.saidas) }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
+                                        <h3 class="text-lg font-bold text-gray-800 mb-4">Lucros vs Investimentos</h3>
+                                        <div class="flex justify-end gap-4 mb-4 text-sm">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-3 h-3 bg-green-500 rounded"></div>
+                                                <span class="text-gray-600">Lucros</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-3 h-3 bg-blue-500 rounded"></div>
+                                                <span class="text-gray-600">Investimentos</span>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-3">
+                                            <div v-for="day in dailyBreakdown" :key="`lucro-${day.date}`" class="space-y-1">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-sm text-gray-600 w-16 text-right">{{ formatDayLabel(day.date) }}</span>
+                                                    <div class="flex-1 flex items-center gap-1">
+                                                        <div class="h-6 bg-green-500 rounded" :style="{ width: `${maxValueDaily > 0 ? (Math.max(day.lucro, 0) / maxValueDaily) * 100 : 0}%` }" :title="chartMonthlyTitle(formatDayLabel(day.date), 'Lucro', day.lucro)"></div>
+                                                        <span class="text-xs text-gray-500 whitespace-nowrap">{{ formatCurrency(day.lucro) }}</span>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="w-16"></span>
+                                                    <div class="flex-1 flex items-center gap-1">
+                                                        <div class="h-6 bg-blue-500 rounded" :style="{ width: `${maxValueDaily > 0 ? (day.saidas / maxValueDaily) * 100 : 0}%` }" :title="chartMonthlyTitle(formatDayLabel(day.date), 'Investimentos', day.saidas)"></div>
+                                                        <span class="text-xs text-gray-500 whitespace-nowrap">{{ formatCurrency(day.saidas) }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
+                                    <h3 class="text-xl font-bold text-orange-600 text-center mb-2">{{ formatCurrency(commissionsTotal) }}</h3>
+                                    <p class="text-center text-gray-600 mb-6">Comissões</p>
+
+                                    <div v-if="currentCommissions.length === 0" class="flex items-center justify-center h-48">
+                                        <div class="text-center text-gray-400">
+                                            <svg class="mx-auto h-12 w-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <p class="text-lg font-medium">Nenhum registro</p>
+                                            <p class="text-sm mt-1">Não há comissões registradas para este período</p>
+                                        </div>
+                                    </div>
+
+                                    <div v-else class="flex items-end justify-center gap-8 h-48">
+                                        <div v-for="item in currentCommissions" :key="`commission-7-${item.collaborator_id}`" class="flex flex-col items-center gap-2">
+                                            <div class="flex items-end h-32">
+                                                <div class="w-16 bg-orange-500 rounded-t-lg transition-all hover:bg-orange-600" :style="{ height: `${maxValueComissoes > 0 ? (item.total / maxValueComissoes) * 100 : 0}%` }" :title="chartValueTitle(item.collaborator_name, item.total)"></div>
+                                            </div>
+                                            <span class="text-sm text-gray-600">{{ item.collaborator_name }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-if="activeTab === 'mensal'" class="space-y-6">
+                                <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
+                                    <!-- 4 Totais Anuais -->
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                        <div class="text-center">
+                                            <h3 class="text-lg font-bold text-yellow-600">{{ formatCurrency(currentChartTotals.entradas) }}</h3>
+                                            <p class="text-xs text-gray-600 mt-1">Entrada Anual</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <h3 class="text-lg font-bold text-orange-600">{{ formatCurrency(currentChartTotals.saidas) }}</h3>
+                                            <p class="text-xs text-gray-600 mt-1">Saída Anual</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <h3 class="text-lg font-bold text-green-600">{{ formatCurrency(currentChartTotals.lucro) }}</h3>
+                                            <p class="text-xs text-gray-600 mt-1">Lucro Anual</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <h3 class="text-lg font-bold text-blue-600">{{ formatCurrency(commissionsTotal) }}</h3>
+                                            <p class="text-xs text-gray-600 mt-1">Comissão Anual</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Legenda -->
+                                    <div class="flex flex-wrap justify-center gap-6 mb-6 text-sm">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-3 h-3 bg-yellow-400 rounded"></div>
+                                            <span class="text-gray-600">Entrada</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-3 h-3 bg-orange-500 rounded"></div>
+                                            <span class="text-gray-600">Saída</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-3 h-3 bg-green-500 rounded"></div>
+                                            <span class="text-gray-600">Lucro</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-3 h-3 bg-blue-500 rounded"></div>
+                                            <span class="text-gray-600">Comissão</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Gráfico com régua Y e 4 barras por mês -->
+                                    <div class="flex gap-4">
+                                        <!-- Eixo Y (Escala de valores) -->
+                                        <div class="relative pt-2 pb-8">
+                                            <div class="w-16 h-48 flex flex-col justify-between text-right">
+                                                <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthly) }}</span>
+                                                <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthly * 0.75) }}</span>
+                                                <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthly * 0.5) }}</span>
+                                                <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthly * 0.25) }}</span>
+                                                <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(0) }}</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Área do Gráfico -->
+                                        <div class="flex-1 relative">
+                                            <!-- Linhas horizontais de grade -->
+                                            <div class="absolute inset-0 flex flex-col pt-2 pb-8 pointer-events-none">
+                                                <div class="flex-1 border-t border-gray-200"></div>
+                                                <div class="flex-1 border-t border-gray-200"></div>
+                                                <div class="flex-1 border-t border-gray-200"></div>
+                                                <div class="flex-1 border-t border-gray-200"></div>
+                                                <div class="flex-1 border-t border-gray-200"></div>
+                                            </div>
+
+                                            <!-- Barras do gráfico -->
+                                            <div class="flex items-end justify-around gap-2 h-64 px-4 relative z-10">
+                                                <div v-for="month in monthlyBreakdown" :key="month.monthNum" class="flex flex-col items-center gap-1 flex-1">
+                                                    <div class="flex items-end gap-0.5 h-48 w-full max-w-[48px]">
+                                                        <div class="flex-1 bg-yellow-400 rounded-t transition-all hover:bg-yellow-500" :style="{ height: chartBarHeight(month.entradas, maxValueMonthly) }" :title="chartMonthlyTitle(month.month, 'Entrada', month.entradas)"></div>
+                                                        <div class="flex-1 bg-orange-500 rounded-t transition-all hover:bg-orange-600" :style="{ height: chartBarHeight(month.saidas, maxValueMonthly) }" :title="chartMonthlyTitle(month.month, 'Saída', month.saidas)"></div>
+                                                        <div class="flex-1 bg-green-500 rounded-t transition-all hover:bg-green-600" :style="{ height: chartBarHeight(month.lucro, maxValueMonthly) }" :title="chartMonthlyTitle(month.month, 'Lucro', month.lucro)"></div>
+                                                        <div class="flex-1 bg-blue-500 rounded-t transition-all hover:bg-blue-600" :style="{ height: chartBarHeight(month.comissoes, maxValueMonthly) }" :title="chartMonthlyTitle(month.month, 'Comissão', month.comissoes)"></div>
+                                                    </div>
+                                                    <span class="text-xs text-gray-600 mt-2">{{ month.month }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-if="activeTab === 'todos'" class="bg-amber-50 border border-amber-200 rounded-lg p-5 text-center text-amber-700">
+                                Selecione Hoje, Últimos 7 dias ou Mensal para visualizar os gráficos.
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </main>
             <Footer />

@@ -28,7 +28,6 @@ onMounted(() => {
 const companyName = computed(() => auth.getCompanyName.value || 'Empresa');
 
 const menuItems = [
-    { name: 'Painel', icon: 'dashboard', route: '/painel', key: 'painel' },
     { name: 'Personalizar', icon: 'settings', route: '/personalizar', key: 'personalizar' },
     { name: 'Registros', icon: 'list', route: '/registros', key: 'registros' },
     { name: 'Colaboradores', icon: 'people', route: '/colaboradores', key: 'colaboradores' },

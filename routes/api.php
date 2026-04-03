@@ -183,6 +183,7 @@ Route::middleware(['auth:sanctum', 'company.isolation', 'track.changes'])->group
         Route::post('commissions/generate-from-date', [CommissionController::class, 'generateFromDate']);
         Route::post('commissions/mark-as-paid', [CommissionController::class, 'markAsPaid']);
         Route::post('commissions/summary-by-collaborator', [CommissionController::class, 'summaryByCollaborator']);
+        Route::post('commissions/summary-by-month', [CommissionController::class, 'summaryByMonth']);
         Route::post('commissions', [CommissionController::class, 'store']);
         Route::put('commissions/{id}', [CommissionController::class, 'update']);
         Route::delete('commissions/{id}', [CommissionController::class, 'destroy']);

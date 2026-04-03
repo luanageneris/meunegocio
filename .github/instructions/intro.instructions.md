@@ -393,3 +393,72 @@ Antes de criar Controller/Factory/Tests:
 
 
 Nunca usar emojis em interfaces; usar icons svg
+
+Quero importar dados de entrada e saida de um excel que será carregado na pagina "Registros".
+ 
+ O usuario precisa  carregar esse ficheiro no botão "Importar Entradas e SAidas"
+ Ao clicar neste botão deve abrir o explorer para selecionar o excel;
+ apos confirmar o excel, deve ser possivel ver o nome do ficheiro selecionado, o tamanho dele e um botão para confirmar importação ou cancelar submissão. Alem disso, o usuario pode alterar o default qu ederá usado durante a importação para os dados que nao contem no excel: o tipo de saida para todos; usar o tipo de entrada para todos; a comissão para todos; por default o tipo de entrada chamado "Não definido" que já existe no sistema;usar por default o tipo de saida chamado "Não definido" que já existe no sistema; usar por default o colaborador chamado "Não definido" que já existe no sistema. e enviar o que for seleiconado (o user pode alterar para outro valor presente em sua lista) para o backend processar com esses valores.
+
+ se cancelar, deve sumir tudo de improtação que apreceu ao clicar no botão importar;
+ se confirmar, deve ler o ficheiro e persistir os dados;
+ o fichiero excel pode conter varias abas, devem ser lida todas elas seguinda a seguinte estrutura:
+ o header deve ser em 6 colunas:
+ - Data (A)
+ - Total de Entrada (B)	
+ - Total de Comissões (C)
+ - Pagamentos (Saida) (D)	
+ - Total Final (E)	
+ - motivo da saida (F)
+
+Depois do header começam os dados e termina a leitura quando a coluna A conter o valor "Total", esta é a ultima linha com dados totais que nao será necessario registar.
+
+## Detalhes sobre cada campo e como registar:
+- Data: é um campo de data d/m/Y que pode nao ter todos os dias do mes, apenas o dia que há registo.
+- Total de Entrada: é o valor que entrou naquele dia; deve ser registada uma entrada 
+ - Total de Comissões: é o valor da comissão que foi paga para alguem
+ - Pagamentos (Saida):  é o valor que saiu naquele dia; deve ser registada uma saida 
+ - Total Final (E)	: ignorar
+ - motivo da saida (F): usar este campo para descrição ao registar saidas
+
+Todos os valores são no formato definido na celula:
+pro exemplo R$ 198,00
+
+ ## Se todos os campos desta linha forem preenchidos, significa que teremos 3 registos:
+ - uma entrada (como nao temos identificação do tipo de entrada, usar por default o tipo de entrada chamado "Não definido" que já existe no sistema)
+ - uma saida (como nao temos identificação do tipo de saida, usar por default o tipo de saida chamado "Não definido" que já existe no sistema)
+ - uma comissão (como nao temos identificação de quem foi, usar por default o colaborador chamado "Não definido" que já existe no sistema)
+
+
+
+Outras questões; não permitir deletar os valores de listas com nome "Não definidos". todo usuario tem que ter estes itens, ao criar um a conta por padrão criar os dados "Não definido". 
+
+
+Se na linha vier só a coluna C (comissão) preenchida, devo criar apenas comissão, mesmo sem entrada/saída? SIM
+Valores 0, vazio ou texto inválido em B/C/D devem ser ignorados (não criar registro), certo? SIM
+
+Reimportação do mesmo arquivo: pode duplicar lançamentos ou devo bloquear por combinação data+valor+tipo/descrição? Pode duplicar
+
+Datas no Excel podem vir como data serial do Excel além de d/m/Y; quer que eu suporte os dois formatos? Por enquanto apenas d/m/Y, mas pdoe ser uam emlhoria futura;
+
+A regra de “Não definido” vale para 3 entidades: tipo de entrada, tipo de saída e colaborador. Confirma que também devo proteger contra exclusão/renomeação desses itens? SIm
+
+
+Na criação de nova empresa/conta, esses itens padrão devem ser criados automaticamente no onboarding (seed/service), correto?SIM
+
+
+## pode haver muitos registos para prcoessar, deve aparecer umloading de processando e no final, quando sucesso informar o total de:
+  "entries_created"
+        "exits_created"
+        "commissions_created"
+        "rows_processed"
+        "sheets_processed"
+
+
+e quando der alguma falha, que seja indicado o erro.
+
+E se o usuario quiser trocar de ficheiro, ele deve poder remover o ficheiro atual (adicioanr um icon para atualizar o ficheiro carregado no formualrio de importação)
+
+a mensagem de erro e textos visuveis para o usuaruio tem que estar em portugues. e o codigo desenvolvido deve ser em ingles.
+
+

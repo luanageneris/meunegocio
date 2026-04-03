@@ -224,4 +224,44 @@ class CommissionController
 
         return response()->json($summary);
     }
+
+    /**
+     * Get commission summary by month for a date range
+     */
+    public function summaryByMonth(Request $request)
+    {
+        $request->validate([
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $commissions = Commission::forCompany()
+            ->whereBetween('date', [$request->start_date, $request->end_date])
+            ->get();
+
+        $monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Maio', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        
+        $summary = [];
+        for ($m = 0; $m < 12; $m++) {
+            $summary[$m] = [
+                'month' => $monthNames[$m],
+                'monthNum' => $m,
+                'total' => 0,
+                'paid' => 0,
+                'unpaid' => 0,
+            ];
+        }
+
+        $commissions->each(function($commission) use (&$summary) {
+            $monthNum = $commission->date->month - 1;
+            $summary[$monthNum]['total'] += $commission->amount;
+            if ($commission->paid_at) {
+                $summary[$monthNum]['paid'] += $commission->amount;
+            } else {
+                $summary[$monthNum]['unpaid'] += $commission->amount;
+            }
+        });
+
+        return response()->json(array_values($summary));
+    }
 }

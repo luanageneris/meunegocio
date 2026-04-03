@@ -36,10 +36,8 @@ Route::get('/setup-empresa', function () {
     return Inertia::render('SetupCompany');
 })->name('setup.company');
 
-// Painel Principal
-Route::get('/painel', function () {
-    return Inertia::render('Painel');
-})->name('painel');
+// Painel Principal (legado -> redireciona para Registros)
+Route::redirect('/painel', '/registros')->name('painel');
 
 // Registros
 Route::get('/registros', function () {

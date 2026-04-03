@@ -39,9 +39,9 @@ const handleSubmit = async () => {
         auth.setUser(data.data);
         success.value = true;
 
-        // Redirecionar para dashboard após 1 segundo
+        // Redirecionar para registros após 1 segundo
         setTimeout(() => {
-            window.location.href = '/painel';
+            window.location.href = '/registros';
         }, 1000);
     } catch (err) {
         error.value = err instanceof Error ? err.message : 'Erro desconhecido';

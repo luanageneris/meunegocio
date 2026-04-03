@@ -32,9 +32,9 @@ const closeCookieBanner = () => {
 
 // Check if cookies were already accepted and if user is authenticated
 onMounted(() => {
-    // Se o usuário já está autenticado, redirecionar para o painel
+    // Se o usuário já está autenticado, redirecionar para registros
     if (auth.isAuthenticated.value) {
-        window.location.href = '/painel';
+        window.location.href = '/registros';
         return;
     }
 
