@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import Sidebar from '@/components/Sidebar.vue';
@@ -12,7 +12,8 @@ const { isPrivacyMode } = usePrivacy();
 const company = ref<any>(null);
 const isLoading = ref(false);
 const isListLoading = ref(false);
-const activeTab = ref<'hoje' | 'ultimos7dias' | 'mensal'>('hoje');
+const isLoadingMore = ref(false);
+const activeTab = ref<'hoje' | 'ultimos7dias' | 'mensal' | 'todos'>('hoje');
 const selectedYear = ref<number>(new Date().getFullYear());
 const selectedMonth = ref<number>(new Date().getMonth() + 1); // 1-12
 const monthOptions = [
@@ -201,6 +202,11 @@ const totalPages = computed(() => {
 
 const totalRegistros = computed(() => pagination.value?.total ?? filteredRegistros.value.length);
 
+const hasMorePages = computed(() => currentPage.value < totalPages.value);
+
+const infiniteScrollTrigger = ref<HTMLElement | null>(null);
+let infiniteScrollObserver: IntersectionObserver | null = null;
+
 const totalEntradas = computed(() => {
     return filteredRegistros.value
         .filter(r => r.tipo === 'entrada')
@@ -213,9 +219,15 @@ const totalSaidas = computed(() => {
         .reduce((sum, r) => sum + r.valor, 0);
 });
 
-const fetchRegistros = async (page = 1, showPageLoading = false) => {
+const fetchRegistros = async (page = 1, showPageLoading = false, append = false) => {
+    if (append && (isLoading.value || isListLoading.value || isLoadingMore.value)) {
+        return;
+    }
+
     if (showPageLoading) {
         isLoading.value = true;
+    } else if (append) {
+        isLoadingMore.value = true;
     } else {
         isListLoading.value = true;
     }
@@ -269,7 +281,8 @@ const fetchRegistros = async (page = 1, showPageLoading = false) => {
         }
 
         const json = await response.json();
-        registros.value = (json?.data) ?? [];
+        const incomingData = (json?.data) ?? [];
+        registros.value = append ? [...registros.value, ...incomingData] : incomingData;
         pagination.value = json.pagination || {
             total: json.data?.length ?? 0,
             per_page: json.data?.length || 1,
@@ -281,10 +294,53 @@ const fetchRegistros = async (page = 1, showPageLoading = false) => {
     } finally {
         if (showPageLoading) {
             isLoading.value = false;
+        } else if (append) {
+            isLoadingMore.value = false;
         } else {
             isListLoading.value = false;
         }
     }
+};
+
+const loadMoreRegistros = async () => {
+    if (activeTab.value !== 'todos') return;
+    if (!hasMorePages.value) return;
+    await fetchRegistros(currentPage.value + 1, false, true);
+};
+
+const setupInfiniteScroll = () => {
+    if (typeof window === 'undefined') return;
+
+    if (!infiniteScrollObserver) {
+        infiniteScrollObserver = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    loadMoreRegistros();
+                }
+            },
+            {
+                root: null,
+                rootMargin: '220px 0px',
+                threshold: 0,
+            }
+        );
+    }
+
+    if (infiniteScrollTrigger.value) {
+        infiniteScrollObserver.observe(infiniteScrollTrigger.value);
+    }
+};
+
+const cleanupInfiniteScroll = () => {
+    if (infiniteScrollObserver) {
+        infiniteScrollObserver.disconnect();
+    }
+};
+
+const changeTab = (tab: 'hoje' | 'ultimos7dias' | 'mensal' | 'todos') => {
+    activeTab.value = tab;
+    currentPage.value = 1;
+    fetchRegistros(1);
 };
 
 const handleDelete = (id: number) => {
@@ -539,11 +595,22 @@ const handleVerRemovidos = () => {
 };
 
 const goToPage = (page: number) => {
+    if (activeTab.value === 'todos') return;
     if (page >= 1 && page <= totalPages.value) {
         currentPage.value = page;
         fetchRegistros(page);
     }
 };
+
+watch(infiniteScrollTrigger, (newEl, oldEl) => {
+    if (!infiniteScrollObserver) return;
+    if (oldEl) {
+        infiniteScrollObserver.unobserve(oldEl);
+    }
+    if (newEl) {
+        infiniteScrollObserver.observe(newEl);
+    }
+});
 
 onMounted(async () => {
     if (!auth.isAuthenticated.value) {
@@ -569,6 +636,11 @@ onMounted(async () => {
     }
 
     await fetchRegistros(1, true);
+    setupInfiniteScroll();
+});
+
+onBeforeUnmount(() => {
+    cleanupInfiniteScroll();
 });
 </script>
 
@@ -591,7 +663,7 @@ onMounted(async () => {
                 <!-- Tabs -->
                 <div class="flex justify-center gap-2 mb-8">
                     <button
-                        @click="(activeTab = 'hoje', currentPage = 1, fetchRegistros(1))"
+                        @click="changeTab('hoje')"
                         :class="[
                             'px-6 py-2 rounded-full font-medium transition-all',
                             activeTab === 'hoje' 
@@ -602,7 +674,7 @@ onMounted(async () => {
                         Hoje
                     </button>
                     <button
-                        @click="(activeTab = 'ultimos7dias', currentPage = 1, fetchRegistros(1))"
+                        @click="changeTab('ultimos7dias')"
                         :class="[
                             'px-6 py-2 rounded-full font-medium transition-all',
                             activeTab === 'ultimos7dias' 
@@ -613,7 +685,7 @@ onMounted(async () => {
                         Últimos 7 dias
                     </button>
                     <button
-                        @click="(activeTab = 'mensal', currentPage = 1, fetchRegistros(1))"
+                        @click="changeTab('mensal')"
                         :class="[
                             'px-6 py-2 rounded-full font-medium transition-all',
                             activeTab === 'mensal' 
@@ -622,6 +694,17 @@ onMounted(async () => {
                         ]"
                     >
                         Mensal
+                    </button>
+                    <button
+                        @click="changeTab('todos')"
+                        :class="[
+                            'px-6 py-2 rounded-full font-medium transition-all',
+                            activeTab === 'todos'
+                                ? 'bg-orange-500 text-white shadow-lg'
+                                : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                        ]"
+                    >
+                        Todos
                     </button>
                 </div>
 
@@ -1088,8 +1171,26 @@ onMounted(async () => {
                         </div>
                     </div>
 
+                    <div
+                        v-if="activeTab === 'todos'"
+                        ref="infiniteScrollTrigger"
+                        class="h-10"
+                        aria-hidden="true"
+                    ></div>
+
+                    <div v-if="activeTab === 'todos' && isLoadingMore" class="mt-2 text-sm text-gray-500 text-center">
+                        Carregando mais registros...
+                    </div>
+
+                    <div
+                        v-if="activeTab === 'todos' && !isLoadingMore && !hasMorePages && paginatedRegistros.length > 0"
+                        class="mt-2 text-sm text-gray-500 text-center"
+                    >
+                        Todos os registros foram carregados.
+                    </div>
+
                     <!-- Pagination -->
-                    <div v-if="!isLoading && !isListLoading && totalPages > 1" class="flex items-center justify-center gap-2 mt-6">
+                    <div v-if="activeTab !== 'todos' && !isLoading && !isListLoading && totalPages > 1" class="flex items-center justify-center gap-2 mt-6">
                         <button
                             @click="goToPage(currentPage - 1)"
                             :disabled="currentPage === 1"
