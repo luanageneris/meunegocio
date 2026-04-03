@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
@@ -31,10 +31,10 @@ interface ServiceType {
     id: number;
     name: string;
     unit: string;
-    service_value: string;
-    commission_percentage: string;
-    commission_value: string;
-    resource_value: string;
+    service_value: string | number;
+    commission_percentage: string | number;
+    commission_value: string | number;
+    resource_value: string | number;
     created_at?: string;
     deleted_at?: string | null;
 }
@@ -48,6 +48,7 @@ const entryTypeSearch = ref('');
 const showEntryTypeModal = ref(false);
 const showEntryTypeDeleteModal = ref(false);
 const showEntryTypeRestoreModal = ref(false);
+const showNewEntryTypeInline = ref(false);
 const entryTypeModalMode = ref<'create' | 'edit'>('create');
 const editingEntryType = ref<EntryType | null>(null);
 const deletingEntryType = ref<EntryType | null>(null);
@@ -56,6 +57,9 @@ const isEntryTypeModalLoading = ref(false);
 const isEntryTypeDeleteLoading = ref(false);
 const isEntryTypeRestoreLoading = ref(false);
 const showEntryTypeRemoved = ref(false);
+const newEntryTypeName = ref('');
+const newEntryTypeError = ref('');
+const newEntryTypeInput = ref<HTMLInputElement | null>(null);
 
 // Exit Types
 const exitTypes = ref<ExitType[]>([]);
@@ -98,6 +102,17 @@ const filteredEntryTypes = computed(() => {
     if (!entryTypeSearch.value) return entryTypes.value;
     const q = entryTypeSearch.value.toLowerCase();
     return entryTypes.value.filter((t) => t.name.toLowerCase().includes(q));
+});
+
+const canSuggestCreateEntryTypeFromSearch = computed(() => {
+    const query = entryTypeSearch.value.trim();
+
+    return Boolean(
+        query &&
+        !showEntryTypeRemoved.value &&
+        !showNewEntryTypeInline.value &&
+        filteredEntryTypes.value.length === 0
+    );
 });
 
 const filteredExitTypes = computed(() => {
@@ -161,9 +176,67 @@ const toggleServiceMode = async () => {
 
 // Entry Type handlers
 const handleNewEntryType = () => {
+    if (showNewEntryTypeInline.value) {
+        nextTick(() => newEntryTypeInput.value?.focus());
+        return;
+    }
+
+    showNewEntryTypeInline.value = true;
+    newEntryTypeName.value = '';
+    newEntryTypeError.value = '';
     entryTypeModalMode.value = 'create';
     editingEntryType.value = null;
-    showEntryTypeModal.value = true;
+    nextTick(() => newEntryTypeInput.value?.focus());
+};
+
+const cancelNewEntryType = () => {
+    showNewEntryTypeInline.value = false;
+    newEntryTypeName.value = '';
+    newEntryTypeError.value = '';
+};
+
+const persistNewEntryType = async (name: string) => {
+    const normalizedName = name.trim();
+
+    if (!normalizedName) {
+        newEntryTypeError.value = 'O nome é obrigatório';
+        nextTick(() => newEntryTypeInput.value?.focus());
+        return;
+    }
+
+    if (isEntryTypeModalLoading.value) return;
+
+    isEntryTypeModalLoading.value = true;
+    newEntryTypeError.value = '';
+
+    try {
+        const { data } = await axios.post('/api/personalizar/entry-types', { name: normalizedName });
+
+        if (showEntryTypeRemoved.value) {
+            showEntryTypeRemoved.value = false;
+            await fetchData();
+        } else {
+            entryTypes.value = [data, ...entryTypes.value];
+        }
+
+        toast.success('Tipo criado!', { description: `Tipo de entrada "${data.name}" foi adicionado.` });
+        cancelNewEntryType();
+    } catch (error: any) {
+        const message = error?.response?.data?.message || 'Erro ao salvar tipo de entrada';
+        newEntryTypeError.value = message;
+        toast.error('Erro ao salvar', { description: message });
+        nextTick(() => newEntryTypeInput.value?.focus());
+    } finally {
+        isEntryTypeModalLoading.value = false;
+    }
+};
+
+const saveNewEntryType = async () => {
+    await persistNewEntryType(newEntryTypeName.value);
+};
+
+const saveEntryTypeFromSearch = async () => {
+    await persistNewEntryType(entryTypeSearch.value);
 };
 
 const handleEditEntryType = (type: EntryType) => {
@@ -488,6 +561,49 @@ onMounted(fetchData);
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div
+                                    v-if="showNewEntryTypeInline"
+                                    class="border-2 border-green-300 rounded-lg p-4 shadow-sm bg-green-50/60"
+                                >
+                                    <div class="flex items-center gap-3">
+                                        <input
+                                            ref="newEntryTypeInput"
+                                            v-model="newEntryTypeName"
+                                            type="text"
+                                            placeholder="Digite o nome do novo tipo de entrada"
+                                            class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none"
+                                            :disabled="isEntryTypeModalLoading"
+                                            @keydown.enter.prevent="saveNewEntryType"
+                                            @keydown.esc.prevent="cancelNewEntryType"
+                                        />
+
+                                        <div class="flex items-center gap-2">
+                                            <button
+                                                @click="saveNewEntryType"
+                                                :disabled="isEntryTypeModalLoading"
+                                                class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
+                                                title="Salvar"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                @click="cancelNewEntryType"
+                                                :disabled="isEntryTypeModalLoading"
+                                                class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                                title="Cancelar"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <p v-if="newEntryTypeError" class="mt-2 text-sm text-red-600">{{ newEntryTypeError }}</p>
+                                </div>
+
+                                <div
                                     v-for="type in filteredEntryTypes"
                                     :key="type.id"
                                     :class="[
@@ -532,6 +648,30 @@ onMounted(fetchData);
                                             </button>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+
+                            <div
+                                v-if="canSuggestCreateEntryTypeFromSearch"
+                                class="mt-4 rounded-lg border border-dashed border-green-300 bg-green-50 p-4"
+                            >
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800">
+                                            Nenhum tipo encontrado para "{{ entryTypeSearch.trim() }}".
+                                        </p>
+                                        <p class="text-sm text-gray-600">
+                                            Criar este tipo de entrada com um clique.
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        @click="saveEntryTypeFromSearch"
+                                        :disabled="isEntryTypeModalLoading"
+                                        class="inline-flex items-center justify-center rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600 disabled:opacity-50"
+                                    >
+                                        {{ isEntryTypeModalLoading ? 'Criando...' : `Criar "${entryTypeSearch.trim()}"` }}
+                                    </button>
                                 </div>
                             </div>
 
