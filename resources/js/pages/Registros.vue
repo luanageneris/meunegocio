@@ -5,15 +5,13 @@ import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
-import EntryModal from '@/components/modals/EntryModal.vue';
-import ExitModal from '@/components/modals/ExitModal.vue';
-import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
 import Footer from '@/components/Footer.vue';
 
 const auth = useAuth();
 const { isPrivacyMode } = usePrivacy();
 const company = ref<any>(null);
 const isLoading = ref(false);
+const isListLoading = ref(false);
 const activeTab = ref<'hoje' | 'ultimos7dias' | 'mensal'>('hoje');
 const selectedYear = ref<number>(new Date().getFullYear());
 const selectedMonth = ref<number>(new Date().getMonth() + 1); // 1-12
@@ -39,16 +37,74 @@ const pagination = ref<{ total: number; per_page: number; current_page: number }
     current_page: 1,
 });
 
-// Modal states
-const showEntryModal = ref(false);
-const showExitModal = ref(false);
-const showDeleteModal = ref(false);
-const editingRecord = ref<any>(null);
-const deletingRecord = ref<any>(null);
-const modalMode = ref<'create' | 'edit'>('create');
-const exitErrors = ref<{ message?: string; fields?: Record<string, string[]> }>({});
-const entryErrors = ref<{ message?: string; fields?: Record<string, string[]> }>({});
+// Inline form state
+const showNewEntryInline = ref(false);
+const showNewExitInline = ref(false);
+const editingRegistroId = ref<number | null>(null);
+const editingRegistroType = ref<'entrada' | 'saida' | null>(null);
+const deletingRecordId = ref<number | null>(null);
+const isDeleteLoading = ref(false);
+const isRestoreLoading = ref(false);
+const restoringRecordId = ref<number | null>(null);
 const showRemoved = ref(false);
+
+// Dropdown options
+const tiposEntrada = ref<any[]>([]);
+const tiposSaida = ref<any[]>([]);
+const tiposServico = ref<any[]>([]);
+const colaboradoresOptions = ref<any[]>([]);
+const optionsLoaded = ref(false);
+
+interface EntryForm {
+    entry_type_id: number | null;
+    service_type_id: number | null;
+    collaborator_id: number | null;
+    date: string;
+    amount: number | string;
+    quantity: number;
+    discount: number;
+    description: string;
+}
+
+interface ExitForm {
+    exit_type_id: number | null;
+    collaborator_id: number | null;
+    date: string;
+    amount: number | string;
+    quantity: number;
+    discount: number;
+    description: string;
+}
+
+const createEmptyEntryForm = (): EntryForm => ({
+    entry_type_id: null,
+    service_type_id: null,
+    collaborator_id: null,
+    date: new Date().toISOString().split('T')[0],
+    amount: '',
+    quantity: 1,
+    discount: 0,
+    description: '',
+});
+
+const createEmptyExitForm = (): ExitForm => ({
+    exit_type_id: null,
+    collaborator_id: null,
+    date: new Date().toISOString().split('T')[0],
+    amount: '',
+    quantity: 1,
+    discount: 0,
+    description: '',
+});
+
+const entryForm = ref<EntryForm>(createEmptyEntryForm());
+const exitForm = ref<ExitForm>(createEmptyExitForm());
+const entryFormErrors = ref<Record<string, string[]>>({});
+const exitFormErrors = ref<Record<string, string[]>>({});
+const isEntryLoading = ref(false);
+const isExitLoading = ref(false);
+
+const useServiceTypes = computed(() => company.value?.use_service_types !== false);
 
 const registros = ref<any[]>([]);
 const sortKey = ref<'valor' | 'categoria' | 'colaborador' | 'descricao' | 'dataOperacao' | 'registradoEm' | 'tipo'>('registradoEm');
@@ -157,8 +213,12 @@ const totalSaidas = computed(() => {
         .reduce((sum, r) => sum + r.valor, 0);
 });
 
-const fetchRegistros = async (page = 1) => {
-    isLoading.value = true;
+const fetchRegistros = async (page = 1, showPageLoading = false) => {
+    if (showPageLoading) {
+        isLoading.value = true;
+    } else {
+        isListLoading.value = true;
+    }
     try {
         // Decide endpoint based on activeTab
         const today = new Date();
@@ -219,23 +279,29 @@ const fetchRegistros = async (page = 1) => {
     } catch (error) {
         console.error('Erro ao carregar registros:', error);
     } finally {
-        isLoading.value = false;
+        if (showPageLoading) {
+            isLoading.value = false;
+        } else {
+            isListLoading.value = false;
+        }
     }
 };
 
 const handleDelete = (id: number) => {
-    const registro = viewRegistros.value.find(r => r.id === id);
-    if (registro) {
-        deletingRecord.value = registro;
-        showDeleteModal.value = true;
-    }
+    deletingRecordId.value = id;
+};
+
+const cancelDelete = () => {
+    deletingRecordId.value = null;
 };
 
 const confirmDelete = async () => {
-    if (!deletingRecord.value) return;
+    if (!deletingRecordId.value) return;
 
+    const id = deletingRecordId.value;
+    isDeleteLoading.value = true;
     try {
-        const response = await fetch(`/api/registros/financial-records/${deletingRecord.value.id}`, {
+        const response = await fetch(`/api/registros/financial-records/${id}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${auth.token.value}`,
@@ -247,16 +313,25 @@ const confirmDelete = async () => {
             throw new Error('Erro ao remover registro');
         }
 
-        await fetchRegistros(currentPage.value);
+        if (showRemoved.value) {
+            registros.value = registros.value.map(r =>
+                r.id === id ? { ...r, deleted_at: new Date().toISOString() } : r
+            );
+        } else {
+            registros.value = registros.value.filter(r => r.id !== id);
+        }
     } catch (error) {
         console.error('Erro ao remover registro:', error);
     } finally {
-        showDeleteModal.value = false;
-        deletingRecord.value = null;
+        isDeleteLoading.value = false;
+        deletingRecordId.value = null;
     }
 };
 
 const handleRestore = async (id: number) => {
+    if (isRestoreLoading.value) return;
+    isRestoreLoading.value = true;
+    restoringRecordId.value = id;
     try {
         const response = await fetch(`/api/registros/financial-records/${id}/restore`, {
             method: 'POST',
@@ -271,95 +346,123 @@ const handleRestore = async (id: number) => {
             throw new Error('Erro ao restaurar registro: ' + err);
         }
 
-        await fetchRegistros(1);
+        registros.value = registros.value.filter(r => r.id !== id);
     } catch (error) {
         console.error(error);
+    } finally {
+        isRestoreLoading.value = false;
+        restoringRecordId.value = null;
     }
 };
 
-const handleEdit = (id: number) => {
+const fetchOptions = async () => {
+    if (optionsLoaded.value) return;
+    try {
+        const headers: HeadersInit = {
+            'Authorization': `Bearer ${auth.token.value}`,
+            'Accept': 'application/json',
+        };
+        const [entryRes, exitRes, collabRes, serviceRes] = await Promise.all([
+            fetch('/api/personalizar/entry-types', { headers }),
+            fetch('/api/personalizar/exit-types', { headers }),
+            fetch('/api/personalizar/collaborators', { headers }),
+            fetch('/api/personalizar/service-types', { headers }),
+        ]);
+        const [entryData, exitData, collabData, serviceData] = await Promise.all([
+            entryRes.json(),
+            exitRes.json(),
+            collabRes.json(),
+            serviceRes.json(),
+        ]);
+        tiposEntrada.value = entryData?.data ?? entryData ?? [];
+        tiposSaida.value = exitData?.data ?? exitData ?? [];
+        colaboradoresOptions.value = collabData?.data ?? collabData ?? [];
+        tiposServico.value = serviceData?.data ?? serviceData ?? [];
+        optionsLoaded.value = true;
+    } catch (e) {
+        console.error('Erro ao carregar opções:', e);
+    }
+};
+
+const closeAllForms = () => {
+    showNewEntryInline.value = false;
+    showNewExitInline.value = false;
+    editingRegistroId.value = null;
+    editingRegistroType.value = null;
+    entryForm.value = createEmptyEntryForm();
+    exitForm.value = createEmptyExitForm();
+    entryFormErrors.value = {};
+    exitFormErrors.value = {};
+};
+
+const openCreateEntry = async () => {
+    closeAllForms();
+    await fetchOptions();
+    entryForm.value = createEmptyEntryForm();
+    showNewEntryInline.value = true;
+};
+
+const openCreateExit = async () => {
+    closeAllForms();
+    await fetchOptions();
+    exitForm.value = createEmptyExitForm();
+    showNewExitInline.value = true;
+};
+
+const openEditRecord = async (id: number) => {
     const raw = registros.value.find((r: any) => r.id === id);
     if (!raw) return;
-
+    closeAllForms();
+    await fetchOptions();
+    editingRegistroId.value = id;
     const isEntry = raw.type === 'entry';
+    editingRegistroType.value = isEntry ? 'entrada' : 'saida';
     if (isEntry) {
-        const [datePart, timePart] = (raw.date || '').split('T');
-        editingRecord.value = {
-            id: raw.id,
-            tipo: 'entrada',
-            tipoEntrada: raw.entry_type?.name || '',
-            tipoServico: raw.service_type?.name || '',
-            responsavel: raw.collaborator?.name || '',
-            descricao: raw.description || '',
-            data: datePart || raw.date,
-            hora: (timePart || '').slice(0, 5),
-            valor: Number(raw.amount || 0),
-            quantidade: raw.quantity || 1,
-            desconto: Number(raw.discount || 0),
-            observacao: '',
-            entry_type_id: raw.entry_type_id,
-            service_type_id: raw.service_type_id,
-            collaborator_id: raw.collaborator_id,
+        const [datePart] = (raw.date || '').split('T');
+        entryForm.value = {
+            entry_type_id: raw.entry_type_id ?? null,
+            service_type_id: raw.service_type_id ?? null,
+            collaborator_id: raw.collaborator_id ?? null,
+            date: datePart || raw.date,
+            amount: Number(raw.amount || 0),
+            quantity: raw.quantity || 1,
+            discount: Number(raw.discount || 0),
+            description: raw.description || '',
         };
-        modalMode.value = 'edit';
-        showEntryModal.value = true;
     } else {
-        const [datePart, timePart] = (raw.date || '').split('T');
-        editingRecord.value = {
-            id: raw.id,
-            tipo: 'saida',
-            tipoSaida: raw.exit_type?.name || '',
-            categoria: raw.exit_type?.name || '',
-            descricao: raw.description || '',
-            data: datePart || raw.date,
-            hora: (timePart || '').slice(0, 5),
-            valor: Number(raw.amount || 0),
-            quantidade: raw.quantity || 1,
-            desconto: Number(raw.discount || 0),
-            colaborador: raw.collaborator?.name || '',
-            observacao: '',
-            exit_type_id: raw.exit_type_id,
-            collaborator_id: raw.collaborator_id,
+        const [datePart] = (raw.date || '').split('T');
+        exitForm.value = {
+            exit_type_id: raw.exit_type_id ?? null,
+            collaborator_id: raw.collaborator_id ?? null,
+            date: datePart || raw.date,
+            amount: Number(raw.amount || 0),
+            quantity: raw.quantity || 1,
+            discount: Number(raw.discount || 0),
+            description: raw.description || '',
         };
-        modalMode.value = 'edit';
-        showExitModal.value = true;
     }
 };
 
-const handleNovaEntrada = () => {
-    editingRecord.value = null;
-    modalMode.value = 'create';
-    entryErrors.value = {};
-    showEntryModal.value = true;
-};
-
-const handleNovaSaida = () => {
-    editingRecord.value = null;
-    modalMode.value = 'create';
-    exitErrors.value = {};
-    showExitModal.value = true;
-};
-
-const handleSaveEntry = async (entry: any) => {
-    // Montar payload conforme API
+const saveEntry = async () => {
+    if (isEntryLoading.value) return;
+    entryFormErrors.value = {};
     const payload = {
-        date: entry.data,
-        amount: entry.valor,
-        quantity: entry.quantidade,
-        discount: entry.desconto,
-        description: entry.descricao,
+        date: entryForm.value.date,
+        amount: entryForm.value.amount,
+        quantity: entryForm.value.quantity,
+        discount: entryForm.value.discount,
+        description: entryForm.value.description,
         type: 'entry',
-        entry_type_id: entry.entry_type_id ?? null,
-        service_type_id: entry.service_type_id ?? null,
-        collaborator_id: entry.collaborator_id ?? null,
+        entry_type_id: entryForm.value.entry_type_id,
+        service_type_id: entryForm.value.service_type_id,
+        collaborator_id: entryForm.value.collaborator_id,
     };
-
-    const isEdit = modalMode.value === 'edit' && editingRecord.value?.id;
+    const isEdit = editingRegistroId.value !== null;
     const url = isEdit
-        ? `/api/registros/financial-records/${editingRecord.value.id}`
+        ? `/api/registros/financial-records/${editingRegistroId.value}`
         : '/api/registros/financial-records';
     const method = isEdit ? 'PUT' : 'POST';
-
+    isEntryLoading.value = true;
     try {
         const response = await fetch(url, {
             method,
@@ -370,54 +473,40 @@ const handleSaveEntry = async (entry: any) => {
             },
             body: JSON.stringify(payload),
         });
-
         if (!response.ok) {
-            let payload: any = null;
-            try { payload = await response.json(); } catch (e) { /* ignore */ }
-            entryErrors.value = {
-                message: payload?.message || 'Erro ao salvar entrada',
-                fields: payload?.errors || {},
-            };
+            let errData: any = null;
+            try { errData = await response.json(); } catch {}
+            entryFormErrors.value = errData?.errors || { _: [errData?.message || 'Erro ao salvar entrada'] };
             return;
         }
-
-        // Atualizar lista a partir do backend
         await fetchRegistros(currentPage.value);
-        showEntryModal.value = false;
-        editingRecord.value = null;
-        entryErrors.value = {};
+        closeAllForms();
     } catch (error) {
         console.error(error);
+    } finally {
+        isEntryLoading.value = false;
     }
 };
 
-const handleSaveEntryAndReference = (entry: any) => {
-    handleSaveEntry(entry);
-    // Reabrir modal para criar outro registro
-    setTimeout(() => {
-        handleNovaEntrada();
-    }, 100);
-};
-
-const handleSaveExit = async (exit: any) => {
-    exitErrors.value = {};
+const saveExit = async () => {
+    if (isExitLoading.value) return;
+    exitFormErrors.value = {};
     const payload = {
-        date: exit.data,
-        amount: exit.valor,
-        quantity: exit.quantidade,
-        discount: exit.desconto,
-        description: exit.descricao,
+        date: exitForm.value.date,
+        amount: exitForm.value.amount,
+        quantity: exitForm.value.quantity,
+        discount: exitForm.value.discount,
+        description: exitForm.value.description,
         type: 'exit',
-        exit_type_id: exit.exit_type_id ?? null,
-        collaborator_id: exit.collaborator_id ?? null,
+        exit_type_id: exitForm.value.exit_type_id,
+        collaborator_id: exitForm.value.collaborator_id,
     };
-
-    const isEdit = modalMode.value === 'edit' && editingRecord.value?.id;
+    const isEdit = editingRegistroId.value !== null;
     const url = isEdit
-        ? `/api/registros/financial-records/${editingRecord.value.id}`
+        ? `/api/registros/financial-records/${editingRegistroId.value}`
         : '/api/registros/financial-records';
     const method = isEdit ? 'PUT' : 'POST';
-
+    isExitLoading.value = true;
     try {
         const response = await fetch(url, {
             method,
@@ -428,35 +517,19 @@ const handleSaveExit = async (exit: any) => {
             },
             body: JSON.stringify(payload),
         });
-
         if (!response.ok) {
-            let payload: any = null;
-            try {
-                payload = await response.json();
-            } catch (e) {
-                // ignore
-            }
-            exitErrors.value = {
-                message: payload?.message || 'Erro ao salvar saída',
-                fields: payload?.errors || {},
-            };
+            let errData: any = null;
+            try { errData = await response.json(); } catch {}
+            exitFormErrors.value = errData?.errors || { _: [errData?.message || 'Erro ao salvar saída'] };
             return;
         }
-
         await fetchRegistros(currentPage.value);
-        showExitModal.value = false;
-        editingRecord.value = null;
+        closeAllForms();
     } catch (error) {
         console.error(error);
+    } finally {
+        isExitLoading.value = false;
     }
-};
-
-const handleSaveExitAndReference = (exit: any) => {
-    handleSaveExit(exit);
-    // Reabrir modal para criar outro registro
-    setTimeout(() => {
-        handleNovaSaida();
-    }, 100);
 };
 
 const handleVerRemovidos = () => {
@@ -495,7 +568,7 @@ onMounted(async () => {
         isLoading.value = false;
     }
 
-    await fetchRegistros();
+    await fetchRegistros(1, true);
 });
 </script>
 
@@ -579,13 +652,13 @@ onMounted(async () => {
                     <!-- Action Buttons -->
                     <div class="flex flex-col sm:flex-row flex-wrap gap-3 mb-6">
                         <button
-                            @click="handleNovaEntrada"
+                            @click="openCreateEntry"
                             class="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
                         >
                             Nova Entrada
                         </button>
                         <button
-                            @click="handleNovaSaida"
+                            @click="openCreateExit"
                             class="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
                         >
                             Nova Saída
@@ -601,6 +674,113 @@ onMounted(async () => {
                         >
                             {{ showRemoved ? 'Ver ativos' : 'Ver removidos' }}
                         </button>
+                    </div>
+
+                    <!-- Inline Create Entry Form -->
+                    <div v-if="showNewEntryInline" class="mb-6 border-2 border-yellow-300 rounded-lg p-4 bg-yellow-50/50">
+                        <h3 class="text-sm font-semibold text-yellow-700 mb-4">Nova Entrada</h3>
+                        <div v-if="Object.keys(entryFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p v-for="(errs, field) in entryFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Entrada</label>
+                                <select v-model="entryForm.entry_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                </select>
+                            </div>
+                            <div v-if="useServiceTypes">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Serviço</label>
+                                <select v-model="entryForm.service_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="s in tiposServico" :key="s.id" :value="s.id">{{ s.name }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
+                                <select v-model="entryForm.collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
+                                <input type="date" v-model="entryForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
+                                <input type="number" step="0.01" min="0" v-model="entryForm.amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                            </div>
+                            <div v-if="useServiceTypes">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
+                                <input type="number" min="1" v-model="entryForm.quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
+                            </div>
+                            <div v-if="useServiceTypes">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
+                                <input type="number" step="0.01" min="0" v-model="entryForm.discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
+                                <input type="text" v-model="entryForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="Opcional" />
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2 mt-4">
+                            <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
+                                {{ isEntryLoading ? 'Salvando...' : 'Salvar' }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Inline Create Exit Form -->
+                    <div v-if="showNewExitInline" class="mb-6 border-2 border-orange-300 rounded-lg p-4 bg-orange-50/50">
+                        <h3 class="text-sm font-semibold text-orange-700 mb-4">Nova Saída</h3>
+                        <div v-if="Object.keys(exitFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p v-for="(errs, field) in exitFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Saída</label>
+                                <select v-model="exitForm.exit_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
+                                <select v-model="exitForm.collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
+                                <input type="date" v-model="exitForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
+                                <input type="number" step="0.01" min="0" v-model="exitForm.amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
+                                <input type="number" min="1" v-model="exitForm.quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
+                                <input type="number" step="0.01" min="0" v-model="exitForm.discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
+                                <input type="text" v-model="exitForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="Opcional" />
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2 mt-4">
+                            <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
+                                {{ isExitLoading ? 'Salvando...' : 'Salvar' }}
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Summary -->
@@ -650,12 +830,158 @@ onMounted(async () => {
                     </div>
 
                     <!-- Records List -->
-                    <div class="space-y-3">
+                    <div class="space-y-3 min-h-[320px] w-full">
+                        <template v-if="isLoading || isListLoading">
+                            <div
+                                v-for="n in 5"
+                                :key="`registro-skeleton-${n}`"
+                                class="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                            >
+                                <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
+                                    <div class="md:w-24 h-5 bg-gray-200 rounded animate-pulse"></div>
+                                    <div class="md:w-32 h-5 bg-gray-200 rounded animate-pulse"></div>
+                                    <div class="md:w-40 h-5 bg-gray-200 rounded animate-pulse"></div>
+                                    <div class="w-full md:flex-1 h-5 bg-gray-200 rounded animate-pulse"></div>
+                                    <div class="w-full md:w-64 space-y-2">
+                                        <div class="h-4 bg-gray-200 rounded animate-pulse"></div>
+                                        <div class="h-4 bg-gray-200 rounded animate-pulse"></div>
+                                    </div>
+                                    <div class="md:w-24 h-5 bg-gray-200 rounded animate-pulse"></div>
+                                </div>
+                            </div>
+                        </template>
+
                         <div
+                            v-else-if="paginatedRegistros.length === 0"
+                            class="border border-gray-200 rounded-lg"
+                        >
+                            <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 p-4 text-sm text-gray-500">
+                                <div class="md:w-24 flex-shrink-0">-</div>
+                                <div class="md:w-32 flex-shrink-0">-</div>
+                                <div class="md:w-40 flex-shrink-0">-</div>
+                                <div class="w-full md:flex-1 font-medium text-gray-500">Nenhum registro encontrado</div>
+                                <div class="w-full md:w-24 flex-shrink-0 md:text-right">-</div>
+                                <div class="md:w-24 flex-shrink-0"></div>
+                            </div>
+                        </div>
+
+                        <div
+                            v-else
                             v-for="registro in paginatedRegistros"
                             :key="registro.id"
-                            class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                            class="border border-gray-200 rounded-lg transition-shadow"
+                            :class="editingRegistroId === registro.id ? 'ring-2 ring-yellow-300 shadow-md' : 'hover:shadow-md'"
                         >
+                            <!-- Inline edit form for Entry -->
+                            <div v-if="editingRegistroId === registro.id && editingRegistroType === 'entrada'" class="p-4">
+                                <h3 class="text-sm font-semibold text-yellow-700 mb-4">Editar Entrada</h3>
+                                <div v-if="Object.keys(entryFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <p v-for="(errs, field) in entryFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Entrada</label>
+                                        <select v-model="entryForm.entry_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                            <option :value="null">Selecione</option>
+                                            <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                        </select>
+                                    </div>
+                                    <div v-if="useServiceTypes">
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Serviço</label>
+                                        <select v-model="entryForm.service_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                            <option :value="null">Selecione</option>
+                                            <option v-for="s in tiposServico" :key="s.id" :value="s.id">{{ s.name }}</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
+                                        <select v-model="entryForm.collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                            <option :value="null">Selecione</option>
+                                            <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
+                                        <input type="date" v-model="entryForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
+                                        <input type="number" step="0.01" min="0" v-model="entryForm.amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                                    </div>
+                                    <div v-if="useServiceTypes">
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
+                                        <input type="number" min="1" v-model="entryForm.quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
+                                    </div>
+                                    <div v-if="useServiceTypes">
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
+                                        <input type="number" step="0.01" min="0" v-model="entryForm.discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
+                                        <input type="text" v-model="entryForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="Opcional" />
+                                    </div>
+                                </div>
+                                <div class="flex justify-end gap-2 mt-4">
+                                    <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                                    <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
+                                        {{ isEntryLoading ? 'Salvando...' : 'Salvar' }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Inline edit form for Exit -->
+                            <div v-else-if="editingRegistroId === registro.id && editingRegistroType === 'saida'" class="p-4">
+                                <h3 class="text-sm font-semibold text-orange-700 mb-4">Editar Saída</h3>
+                                <div v-if="Object.keys(exitFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <p v-for="(errs, field) in exitFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Saída</label>
+                                        <select v-model="exitForm.exit_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                            <option :value="null">Selecione</option>
+                                            <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
+                                        <select v-model="exitForm.collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                            <option :value="null">Selecione</option>
+                                            <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
+                                        <input type="date" v-model="exitForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
+                                        <input type="number" step="0.01" min="0" v-model="exitForm.amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
+                                        <input type="number" min="1" v-model="exitForm.quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
+                                        <input type="number" step="0.01" min="0" v-model="exitForm.discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
+                                        <input type="text" v-model="exitForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="Opcional" />
+                                    </div>
+                                </div>
+                                <div class="flex justify-end gap-2 mt-4">
+                                    <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                                    <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
+                                        {{ isExitLoading ? 'Salvando...' : 'Salvar' }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Normal view -->
+                            <template v-else>
+                            <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 p-4">
                             <!-- Valor -->
                             <div class="md:w-24 flex-shrink-0">
                                 <span
@@ -690,14 +1016,25 @@ onMounted(async () => {
                             </div>
 
                             <!-- Actions -->
-                            <div class="flex gap-2 flex-shrink-0 md:ml-auto">
+                            <div class="flex gap-2 flex-shrink-0 md:ml-auto md:w-24 justify-end">
                                 <template v-if="showRemoved">
                                     <button
                                         @click="handleRestore(registro.id)"
-                                        class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
-                                        title="Restaurar"
+                                        :disabled="isRestoreLoading"
+                                        :class="[
+                                            'p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                                            restoringRecordId === registro.id && isRestoreLoading
+                                                ? 'text-green-600 bg-green-50'
+                                                : 'text-green-500 hover:bg-green-50'
+                                        ]"
+                                        :title="restoringRecordId === registro.id && isRestoreLoading ? 'Restaurando...' : 'Restaurar'"
                                     >
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg
+                                            :class="['w-5 h-5', restoringRecordId === registro.id && isRestoreLoading ? 'animate-spin' : '']"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                         </svg>
                                     </button>
@@ -705,7 +1042,7 @@ onMounted(async () => {
                                 <template v-else>
                                     <button
                                         @click="handleDelete(registro.id)"
-                                        class="p-2 text-yellow-500 hover:bg-yellow-50 rounded-lg transition-colors"
+                                        class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                         title="Remover"
                                     >
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -713,8 +1050,8 @@ onMounted(async () => {
                                         </svg>
                                     </button>
                                     <button
-                                        @click="handleEdit(registro.id)"
-                                        class="p-2 text-yellow-500 hover:bg-yellow-50 rounded-lg transition-colors"
+                                        @click="openEditRecord(registro.id)"
+                                        class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
                                         title="Editar"
                                     >
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -723,19 +1060,36 @@ onMounted(async () => {
                                     </button>
                                 </template>
                             </div>
+                            </div>
+
+                            <!-- Inline delete confirmation -->
+                            <div
+                                v-if="deletingRecordId === registro.id"
+                                class="border-t border-red-200 bg-red-50/80 px-4 py-3 rounded-b-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                            >
+                                <p class="text-sm font-medium text-gray-800">
+                                    Tem certeza que deseja remover este registro de
+                                    <span class="font-semibold text-red-600">{{ registro.categoria }}</span>?
+                                </p>
+                                <div class="flex gap-2 justify-end">
+                                    <button
+                                        @click="cancelDelete"
+                                        :disabled="isDeleteLoading"
+                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                    >Cancelar</button>
+                                    <button
+                                        @click="confirmDelete"
+                                        :disabled="isDeleteLoading"
+                                        class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                                    >{{ isDeleteLoading ? 'Removendo...' : 'Remover' }}</button>
+                                </div>
+                            </div>
+                            </template>
                         </div>
                     </div>
 
-                    <!-- Empty State -->
-                    <div v-if="paginatedRegistros.length === 0" class="text-center py-12">
-                        <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <p class="text-gray-500">Nenhum registro encontrado</p>
-                    </div>
-
                     <!-- Pagination -->
-                    <div v-if="totalPages > 1" class="flex items-center justify-center gap-2 mt-6">
+                    <div v-if="!isLoading && !isListLoading && totalPages > 1" class="flex items-center justify-center gap-2 mt-6">
                         <button
                             @click="goToPage(currentPage - 1)"
                             :disabled="currentPage === 1"
@@ -771,34 +1125,5 @@ onMounted(async () => {
             <Footer />
         </div>
 
-        <!-- Modals -->
-        <EntryModal
-            :show="showEntryModal"
-            :entry="editingRecord"
-            :mode="modalMode"
-            :errors="entryErrors"
-            :use-service-types="company?.use_service_types !== false"
-            @close="showEntryModal = false; editingRecord = null"
-            @save="handleSaveEntry"
-            @save-and-reference="handleSaveEntryAndReference"
-        />
-
-        <ExitModal
-            :show="showExitModal"
-            :exit="editingRecord"
-            :mode="modalMode"
-            :errors="exitErrors"
-            :use-service-types="company?.use_service_types !== false"
-            @close="showExitModal = false; editingRecord = null"
-            @save="handleSaveExit"
-            @save-and-reference="handleSaveExitAndReference"
-        />
-
-        <DeleteConfirmModal
-            :show="showDeleteModal"
-            :record="deletingRecord"
-            @close="showDeleteModal = false; deletingRecord = null"
-            @confirm="confirmDelete"
-        />
     </div>
 </template>

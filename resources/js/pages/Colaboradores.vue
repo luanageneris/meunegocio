@@ -28,6 +28,7 @@ const createEmptyCollaboratorForm = (): CollaboratorFormData => ({
 const auth = useAuth();
 const collaborators = ref<Collaborator[]>([]);
 const isLoading = ref(false);
+const isListLoading = ref(false);
 const errorMessage = ref('');
 const search = ref('');
 const showRemoved = ref(false);
@@ -112,13 +113,17 @@ const closeAllInlineForms = () => {
     editCollaboratorError.value = '';
 };
 
-const fetchCollaborators = async () => {
+const fetchCollaborators = async (showPageLoading = false) => {
     if (!auth.isAuthenticated.value) {
         window.location.href = '/login';
         return;
     }
 
-    isLoading.value = true;
+    if (showPageLoading) {
+        isLoading.value = true;
+    } else {
+        isListLoading.value = true;
+    }
     errorMessage.value = '';
 
     try {
@@ -130,7 +135,11 @@ const fetchCollaborators = async () => {
     } catch (error: any) {
         errorMessage.value = error?.response?.data?.message || 'Erro ao carregar colaboradores';
     } finally {
-        isLoading.value = false;
+        if (showPageLoading) {
+            isLoading.value = false;
+        } else {
+            isListLoading.value = false;
+        }
     }
 };
 
@@ -313,7 +322,7 @@ const goToPage = (page: number) => {
     }
 };
 
-onMounted(fetchCollaborators);
+onMounted(() => fetchCollaborators(true));
 </script>
 
 <template>
@@ -369,6 +378,9 @@ onMounted(fetchCollaborators);
                     <LoadingSpinner v-if="isLoading" message="Carregando colaboradores..." />
 
                     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                        <div v-if="isListLoading" class="md:col-span-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                            Atualizando itens...
+                        </div>
                         <div
                             v-if="showNewInline"
                             class="self-start border-2 border-amber-300 rounded-lg p-4 shadow-sm bg-amber-50/60"
@@ -587,11 +599,11 @@ onMounted(fetchCollaborators);
                         </div>
                     </div>
 
-                    <div v-if="!isLoading && filtered.length === 0 && !canSuggestCreateFromSearch" class="text-center text-gray-500 py-8">
+                    <div v-if="!isLoading && !isListLoading && filtered.length === 0 && !canSuggestCreateFromSearch" class="text-center text-gray-500 py-8">
                         Nenhum colaborador encontrado.
                     </div>
 
-                    <div v-if="!isLoading && totalPages > 1" class="flex items-center justify-center gap-2 mt-6">
+                    <div v-if="!isLoading && !isListLoading && totalPages > 1" class="flex items-center justify-center gap-2 mt-6">
                         <button
                             @click="goToPage(currentPage - 1)"
                             :disabled="currentPage === 1"
