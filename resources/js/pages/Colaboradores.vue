@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
-import CollaboratorModal from '@/components/modals/CollaboratorModal.vue';
-import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
 import { useAuth } from '@/composables/useAuth';
-import { useToast } from '@/composables/useToast';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import Footer from '@/components/Footer.vue';
 
@@ -20,33 +17,62 @@ interface Collaborator {
     deleted_at?: string | null;
 }
 
+type CollaboratorFormData = Pick<Collaborator, 'name' | 'cpf' | 'active'>;
+
+const createEmptyCollaboratorForm = (): CollaboratorFormData => ({
+    name: '',
+    cpf: '',
+    active: true,
+});
+
 const auth = useAuth();
-const toast = useToast();
 const collaborators = ref<Collaborator[]>([]);
 const isLoading = ref(false);
 const errorMessage = ref('');
 const search = ref('');
 const showRemoved = ref(false);
-const showModal = ref(false);
-const showDeleteModal = ref(false);
-const showRestoreModal = ref(false);
-const isModalLoading = ref(false);
-const isDeleteLoading = ref(false);
-const isRestoreLoading = ref(false);
-const modalMode = ref<'create' | 'edit'>('create');
 const currentPage = ref(1);
 const itemsPerPage = 8;
-const editing = ref<Collaborator | null>(null);
+
+const showNewInline = ref(false);
+const showEditInline = ref(false);
+const showDeleteConfirmInline = ref(false);
+const editingCollaborator = ref<Collaborator | null>(null);
 const deletingCollaborator = ref<Collaborator | null>(null);
 const restoringCollaborator = ref<Collaborator | null>(null);
-const modalError = ref('');
+
+const newCollaboratorForm = ref<CollaboratorFormData>(createEmptyCollaboratorForm());
+const editCollaboratorForm = ref<CollaboratorFormData>(createEmptyCollaboratorForm());
+const newCollaboratorError = ref('');
+const editCollaboratorError = ref('');
+
+const isFormLoading = ref(false);
+const isDeleteLoading = ref(false);
+const isRestoreLoading = ref(false);
+
+const newNameInputRef = ref<HTMLInputElement | null>(null);
+const editNameInputRef = ref<HTMLInputElement | null>(null);
+const deleteConfirmButtonRef = ref<HTMLButtonElement | null>(null);
+
+const applySoftDeleteLocally = (items: Collaborator[], itemId: number, keepRemovedVisible: boolean) => {
+    if (keepRemovedVisible) {
+        const timestamp = new Date().toISOString();
+        return items.map((item) => (item.id === itemId ? { ...item, deleted_at: item.deleted_at ?? timestamp } : item));
+    }
+
+    return items.filter((item) => item.id !== itemId);
+};
+
+const applyRestoreLocally = (items: Collaborator[], itemId: number) => (
+    items.map((item) => (item.id === itemId ? { ...item, deleted_at: null, active: true } : item))
+);
 
 const filtered = computed(() => {
     if (!search.value) return collaborators.value;
     const q = search.value.toLowerCase();
-    return collaborators.value.filter((c) =>
+    return collaborators.value.filter((c) => (
         c.name.toLowerCase().includes(q) || c.cpf.toLowerCase().includes(q)
-    );
+    ));
 });
 
 const paginatedCollaborators = computed(() => {
@@ -55,21 +81,46 @@ const paginatedCollaborators = computed(() => {
     return filtered.value.slice(start, end);
 });
 
-const totalPages = computed(() => {
-    return Math.ceil(filtered.value.length / itemsPerPage);
+const totalPages = computed(() => Math.ceil(filtered.value.length / itemsPerPage));
+
+const canSuggestCreateFromSearch = computed(() => {
+    const query = search.value.trim();
+    return Boolean(
+        query &&
+        !showRemoved.value &&
+        !showNewInline.value &&
+        filtered.value.length === 0
+    );
 });
 
 const totalAtivos = computed(() => collaborators.value.filter((c) => c.active && !c.deleted_at).length);
 const totalInativos = computed(() => collaborators.value.filter((c) => !c.active && !c.deleted_at).length);
 const totalRemovidos = computed(() => collaborators.value.filter((c) => c.deleted_at).length);
 
+const closeAllInlineForms = () => {
+    showNewInline.value = false;
+    showEditInline.value = false;
+    showDeleteConfirmInline.value = false;
+
+    editingCollaborator.value = null;
+    deletingCollaborator.value = null;
+
+    newCollaboratorForm.value = createEmptyCollaboratorForm();
+    editCollaboratorForm.value = createEmptyCollaboratorForm();
+
+    newCollaboratorError.value = '';
+    editCollaboratorError.value = '';
+};
+
 const fetchCollaborators = async () => {
     if (!auth.isAuthenticated.value) {
         window.location.href = '/login';
         return;
     }
+
     isLoading.value = true;
     errorMessage.value = '';
+
     try {
         const endpoint = showRemoved.value
             ? '/api/personalizar/collaborators/with-trashed'
@@ -84,87 +135,166 @@ const fetchCollaborators = async () => {
 };
 
 const handleNew = () => {
-    modalMode.value = 'create';
-    editing.value = null;
-    modalError.value = '';
-    showModal.value = true;
+    closeAllInlineForms();
+    showNewInline.value = true;
+    nextTick(() => newNameInputRef.value?.focus());
+};
+
+const openNewFromSearch = () => {
+    closeAllInlineForms();
+    newCollaboratorForm.value = { ...createEmptyCollaboratorForm(), name: search.value.trim() };
+    showNewInline.value = true;
+    nextTick(() => newNameInputRef.value?.focus());
+};
+
+const cancelNew = () => {
+    showNewInline.value = false;
+    newCollaboratorForm.value = createEmptyCollaboratorForm();
+    newCollaboratorError.value = '';
+};
+
+const saveNew = async () => {
+    const payload = {
+        name: newCollaboratorForm.value.name.trim(),
+        cpf: newCollaboratorForm.value.cpf.trim(),
+        active: newCollaboratorForm.value.active,
+    };
+
+    if (!payload.name || !payload.cpf) {
+        newCollaboratorError.value = 'Nome e CPF são obrigatórios';
+        nextTick(() => newNameInputRef.value?.focus());
+        return;
+    }
+
+    if (isFormLoading.value) return;
+
+    isFormLoading.value = true;
+    newCollaboratorError.value = '';
+
+    try {
+        const { data } = await axios.post('/api/personalizar/collaborators', payload);
+
+        if (showRemoved.value && data.deleted_at) {
+            await fetchCollaborators();
+        } else {
+            collaborators.value = [data, ...collaborators.value];
+        }
+
+        cancelNew();
+    } catch (error: any) {
+        const message = error?.response?.data?.errors?.cpf?.[0] || error?.response?.data?.message || 'Erro ao salvar colaborador';
+        newCollaboratorError.value = message;
+        nextTick(() => newNameInputRef.value?.focus());
+    } finally {
+        isFormLoading.value = false;
+    }
 };
 
 const handleEdit = (collab: Collaborator) => {
     if (collab.deleted_at) return;
-    modalMode.value = 'edit';
-    editing.value = { ...collab };
-    modalError.value = '';
-    showModal.value = true;
+
+    closeAllInlineForms();
+    editingCollaborator.value = { ...collab };
+    editCollaboratorForm.value = {
+        name: collab.name,
+        cpf: collab.cpf,
+        active: collab.active,
+    };
+    showEditInline.value = true;
+    nextTick(() => editNameInputRef.value?.focus());
 };
 
-const handleSave = async (payload: Partial<Collaborator>) => {
-    isModalLoading.value = true;
+const cancelEdit = () => {
+    showEditInline.value = false;
+    editingCollaborator.value = null;
+    editCollaboratorForm.value = createEmptyCollaboratorForm();
+    editCollaboratorError.value = '';
+};
+
+const saveEdit = async () => {
+    if (!editingCollaborator.value) return;
+
+    const payload = {
+        name: editCollaboratorForm.value.name.trim(),
+        cpf: editCollaboratorForm.value.cpf.trim(),
+        active: editCollaboratorForm.value.active,
+    };
+
+    if (!payload.name || !payload.cpf) {
+        editCollaboratorError.value = 'Nome e CPF são obrigatórios';
+        nextTick(() => editNameInputRef.value?.focus());
+        return;
+    }
+
+    if (isFormLoading.value) return;
+
+    isFormLoading.value = true;
+    editCollaboratorError.value = '';
+
     try {
-        if (modalMode.value === 'edit' && editing.value) {
-            const { data } = await axios.put(`/api/personalizar/collaborators/${editing.value.id}`, payload);
-            collaborators.value = collaborators.value.map((c) => (c.id === editing.value!.id ? data : c));
-            showModal.value = false;
-            editing.value = null;
-            toast.success('Colaborador atualizado!', { description: 'Os dados foram atualizados com sucesso.' });
-        } else {
-            const { data } = await axios.post('/api/personalizar/collaborators', payload);
-            collaborators.value = [data, ...collaborators.value];
-            showModal.value = false;
-            editing.value = null;
-            toast.success('Colaborador criado!', { description: `${data.name} foi adicionado à lista.` });
-        }
+        const { data } = await axios.put(`/api/personalizar/collaborators/${editingCollaborator.value.id}`, payload);
+        collaborators.value = collaborators.value.map((c) => (c.id === editingCollaborator.value!.id ? data : c));
+        cancelEdit();
     } catch (error: any) {
         const message = error?.response?.data?.errors?.cpf?.[0] || error?.response?.data?.message || 'Erro ao salvar colaborador';
-        modalError.value = message;
-        // mantém modal aberto e exibe erro inline
-        showModal.value = true;
+        editCollaboratorError.value = message;
+        nextTick(() => editNameInputRef.value?.focus());
     } finally {
-        isModalLoading.value = false;
+        isFormLoading.value = false;
     }
 };
 
-const handleDelete = async (collab: Collaborator) => {
+const handleDelete = (collab: Collaborator) => {
     if (collab.deleted_at) return;
+
     deletingCollaborator.value = collab;
-    showDeleteModal.value = true;
+    showDeleteConfirmInline.value = true;
+    nextTick(() => deleteConfirmButtonRef.value?.focus());
+};
+
+const cancelDelete = () => {
+    showDeleteConfirmInline.value = false;
+    deletingCollaborator.value = null;
 };
 
 const confirmDelete = async () => {
     if (!deletingCollaborator.value) return;
+
     isDeleteLoading.value = true;
+
     try {
-        await axios.delete(`/api/personalizar/collaborators/${deletingCollaborator.value.id}`);
-        await fetchCollaborators();
-        showDeleteModal.value = false;
-        deletingCollaborator.value = null;
-        toast.success('Removido com sucesso!', { description: 'O colaborador foi movido para removidos.' });
+        const collaboratorId = deletingCollaborator.value.id;
+        await axios.delete(`/api/personalizar/collaborators/${collaboratorId}`);
+        collaborators.value = applySoftDeleteLocally(collaborators.value, collaboratorId, showRemoved.value);
+        cancelDelete();
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao remover colaborador';
-        toast.error('Erro ao remover', { description: message });
+        errorMessage.value = message;
     } finally {
         isDeleteLoading.value = false;
     }
 };
 
 const handleRestore = async (collab: Collaborator) => {
-    if (!collab.deleted_at) return;
+    if (!collab.deleted_at || isRestoreLoading.value) return;
     restoringCollaborator.value = collab;
-    showRestoreModal.value = true;
+    await confirmRestore();
 };
 
 const confirmRestore = async () => {
     if (!restoringCollaborator.value) return;
+
     isRestoreLoading.value = true;
+
     try {
-        await axios.post(`/api/personalizar/collaborators/${restoringCollaborator.value.id}/restore`);
-        await fetchCollaborators();
-        showRestoreModal.value = false;
+        const restoringName = restoringCollaborator.value.name;
+        const collaboratorId = restoringCollaborator.value.id;
+        await axios.post(`/api/personalizar/collaborators/${collaboratorId}/restore`);
+        collaborators.value = applyRestoreLocally(collaborators.value, collaboratorId);
         restoringCollaborator.value = null;
-        toast.success('Restaurado com sucesso!', { description: `${restoringCollaborator.value.name} foi restaurado e ativado.` });
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao restaurar colaborador';
-        toast.error('Erro ao restaurar', { description: message });
+        errorMessage.value = message;
     } finally {
         isRestoreLoading.value = false;
     }
@@ -173,6 +303,7 @@ const confirmRestore = async () => {
 const toggleRemoved = () => {
     showRemoved.value = !showRemoved.value;
     currentPage.value = 1;
+    closeAllInlineForms();
     fetchCollaborators();
 };
 
@@ -192,12 +323,12 @@ onMounted(fetchCollaborators);
         <Sidebar active-route="colaboradores" />
 
         <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
-            <PageHeaderTitle 
-                title="Colaboradores" 
+            <PageHeaderTitle
+                title="Colaboradores"
                 subtitle="Gerencie os colaboradores da sua empresa"
             />
 
-            <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-1 flex flex-col">
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <div class="flex flex-wrap items-center gap-3 mb-4">
                         <button
@@ -237,16 +368,126 @@ onMounted(fetchCollaborators);
 
                     <LoadingSpinner v-if="isLoading" message="Carregando colaboradores..." />
 
-                    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                        <div
+                            v-if="showNewInline"
+                            class="self-start border-2 border-amber-300 rounded-lg p-4 shadow-sm bg-amber-50/60"
+                        >
+                            <div class="space-y-2" @keydown.esc.prevent="cancelNew">
+                                <div class="flex items-center gap-2">
+                                    <input
+                                        ref="newNameInputRef"
+                                        v-model="newCollaboratorForm.name"
+                                        type="text"
+                                        placeholder="Nome do colaborador"
+                                        class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                        :disabled="isFormLoading"
+                                        @keydown.enter.prevent="saveNew"
+                                    />
+                                    <div class="flex items-center gap-1 shrink-0">
+                                        <button
+                                            @click="saveNew"
+                                            :disabled="isFormLoading"
+                                            class="p-2 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors disabled:opacity-50"
+                                            title="Salvar"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            @click="cancelNew"
+                                            :disabled="isFormLoading"
+                                            class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                            title="Cancelar"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input
+                                        v-model="newCollaboratorForm.cpf"
+                                        type="text"
+                                        placeholder="CPF"
+                                        class="flex-1 bg-transparent text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                        :disabled="isFormLoading"
+                                        @keydown.enter.prevent="saveNew"
+                                    />
+                                    <label class="inline-flex items-center gap-1 text-xs text-gray-700 shrink-0">
+                                        <input v-model="newCollaboratorForm.active" type="checkbox" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400" :disabled="isFormLoading" />
+                                        Ativo
+                                    </label>
+                                </div>
+                                <p v-if="newCollaboratorError" class="text-xs text-red-600">{{ newCollaboratorError }}</p>
+                            </div>
+                        </div>
+
                         <div
                             v-for="collab in paginatedCollaborators"
                             :key="collab.id"
                             :class="[
-                                'border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow',
-                                collab.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                'self-start border rounded-lg p-4 shadow-sm transition-shadow',
+                                editingCollaborator?.id === collab.id && showEditInline
+                                    ? 'border-2 border-blue-300 bg-blue-50/60'
+                                    : [
+                                        'border-gray-200',
+                                        collab.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                    ]
                             ]"
                         >
-                            <div class="flex justify-between items-start">
+                            <div v-if="editingCollaborator?.id === collab.id && showEditInline" class="space-y-2" @keydown.esc.prevent="cancelEdit">
+                                <div class="flex items-center gap-2">
+                                    <input
+                                        ref="editNameInputRef"
+                                        v-model="editCollaboratorForm.name"
+                                        type="text"
+                                        class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                        :disabled="isFormLoading"
+                                        @keydown.enter.prevent="saveEdit"
+                                    />
+                                    <div class="flex items-center gap-1 shrink-0">
+                                        <button
+                                            @click="saveEdit"
+                                            :disabled="isFormLoading"
+                                            class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+                                            title="Salvar"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            @click="cancelEdit"
+                                            :disabled="isFormLoading"
+                                            class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                            title="Cancelar"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input
+                                        v-model="editCollaboratorForm.cpf"
+                                        type="text"
+                                        class="flex-1 bg-transparent text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                        :disabled="isFormLoading"
+                                        @keydown.enter.prevent="saveEdit"
+                                    />
+                                    <label class="inline-flex items-center gap-1 text-xs text-gray-700 shrink-0">
+                                        <input v-model="editCollaboratorForm.active" type="checkbox" class="rounded border-gray-300 text-blue-500 focus:ring-blue-400" :disabled="isFormLoading" />
+                                        Ativo
+                                    </label>
+                                </div>
+                                <p v-if="editCollaboratorError" class="text-xs text-red-600">{{ editCollaboratorError }}</p>
+                            </div>
+
+                            <div v-else class="flex justify-between items-start">
                                 <div>
                                     <p class="font-semibold text-gray-800">{{ collab.name }}</p>
                                     <p class="text-xs text-gray-500">CPF: {{ collab.cpf }}</p>
@@ -269,7 +510,7 @@ onMounted(fetchCollaborators);
                                     </button>
                                     <button
                                         @click="handleDelete(collab)"
-                                        class="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+                                        class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                         title="Remover"
                                     >
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -280,8 +521,14 @@ onMounted(fetchCollaborators);
                                 <div v-else class="flex gap-2">
                                     <button
                                         @click="handleRestore(collab)"
-                                        class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
-                                        title="Restaurar"
+                                        :disabled="isRestoreLoading"
+                                        :class="[
+                                            'p-2 rounded-lg transition-colors',
+                                            restoringCollaborator?.id === collab.id && isRestoreLoading
+                                                ? 'text-gray-400 cursor-not-allowed'
+                                                : 'text-green-500 hover:bg-green-50'
+                                        ]"
+                                        :title="restoringCollaborator?.id === collab.id && isRestoreLoading ? 'Restaurando...' : 'Restaurar'"
                                     >
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -289,14 +536,61 @@ onMounted(fetchCollaborators);
                                     </button>
                                 </div>
                             </div>
+
+                            <div
+                                v-if="deletingCollaborator?.id === collab.id && showDeleteConfirmInline"
+                                class="border-l-4 border-red-500 bg-red-50/80 p-4 rounded mt-2 space-y-3"
+                            >
+                                <p class="text-sm font-semibold text-gray-800">
+                                    Tem certeza que deseja remover "<span class="text-red-600">{{ collab.name }}</span>"?
+                                </p>
+                                <div class="flex gap-2 justify-end">
+                                    <button
+                                        @click="cancelDelete"
+                                        :disabled="isDeleteLoading"
+                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        ref="deleteConfirmButtonRef"
+                                        @click="confirmDelete"
+                                        :disabled="isDeleteLoading"
+                                        class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                                    >
+                                        {{ isDeleteLoading ? 'Removendo...' : 'Remover' }}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div v-if="!isLoading && filtered.length === 0" class="text-center text-gray-500 py-8">
+                    <div
+                        v-if="canSuggestCreateFromSearch"
+                        class="mt-4 rounded-lg border border-dashed border-amber-300 bg-amber-50 p-4"
+                    >
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-800">
+                                    Nenhum colaborador encontrado para "{{ search.trim() }}".
+                                </p>
+                                <p class="text-sm text-gray-600">
+                                    Criar novo colaborador com este nome.
+                                </p>
+                            </div>
+                            <button
+                                @click="openNewFromSearch"
+                                class="inline-flex items-center justify-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
+                            >
+                                Criar "{{ search.trim() }}"
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="!isLoading && filtered.length === 0 && !canSuggestCreateFromSearch" class="text-center text-gray-500 py-8">
                         Nenhum colaborador encontrado.
                     </div>
 
-                    <!-- Pagination -->
                     <div v-if="!isLoading && totalPages > 1" class="flex items-center justify-center gap-2 mt-6">
                         <button
                             @click="goToPage(currentPage - 1)"
@@ -328,37 +622,9 @@ onMounted(fetchCollaborators);
                             Próxima
                         </button>
                     </div>
-                </div>
-                <Footer />
+                </div>    
             </main>
+            <Footer />
         </div>
-
-        <CollaboratorModal
-            :show="showModal"
-            :collaborator="editing"
-            :mode="modalMode"
-            :is-loading="isModalLoading"
-            :server-error="modalError"
-            @close="showModal = false; editing = null; modalError = ''"
-            @save="handleSave"
-        />
-
-        <DeleteConfirmModal
-            :show="showDeleteModal"
-            :record="deletingCollaborator"
-            :is-loading="isDeleteLoading"
-            item-type="collaborator"
-            @close="showDeleteModal = false; deletingCollaborator = null"
-            @confirm="confirmDelete"
-        />
-
-        <DeleteConfirmModal
-            :show="showRestoreModal"
-            :record="restoringCollaborator"
-            :is-loading="isRestoreLoading"
-            item-type="restore"
-            @close="showRestoreModal = false; restoringCollaborator = null"
-            @confirm="confirmRestore"
-        />
     </div>
 </template>

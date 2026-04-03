@@ -1777,10 +1777,7 @@ onMounted(fetchData);
                                                 Unidade: <span class="font-semibold">{{ type.unit }}</span>
                                             </p>
                                             <p class="text-xs text-gray-500 mt-1">
-                                                Valor do serviço: R$ <span class="font-semibold">{{ parseFloat(String(type.service_value || '0')).toFixed(2) }}</span>
-                                            </p>
-                                            <p class="text-xs text-gray-500 mt-1">
-                                                Valor do Recurso: R$ <span class="font-semibold">{{ parseFloat(String(type.resource_value || '0')).toFixed(2) }}</span>
+                                                Valor: R$ <span class="font-semibold">{{ parseFloat(String(type.service_value || '0')).toFixed(2) }}</span>
                                             </p>
                                             <p class="text-xs text-gray-500 mt-1">
                                                 Comissão: <span class="font-semibold">{{ type.commission_percentage }}%</span>

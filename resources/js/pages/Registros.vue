@@ -767,8 +767,8 @@ onMounted(async () => {
                         </button>
                     </div>
                 </div>
-            <Footer />
             </main>
+            <Footer />
         </div>
 
         <!-- Modals -->
