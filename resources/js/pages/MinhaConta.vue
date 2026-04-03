@@ -47,6 +47,7 @@ const clearRecordsStep = ref<1 | 2>(1);
 const clearRecordsConfirmInput = ref('');
 const isClearingRecords = ref(false);
 const clearRecordsError = ref<string | null>(null);
+const clearRecordsSuccess = ref<string | null>(null);
 
 const canEdit = computed(() => {
     const role = auth.user.value?.role;
@@ -187,6 +188,7 @@ const closeClearRecordsModal = () => {
 
 const handleClearRecordsConfirm = async () => {
     clearRecordsError.value = null;
+    clearRecordsSuccess.value = null;
 
     if (clearRecordsStep.value === 1) {
         clearRecordsStep.value = 2;
@@ -215,6 +217,8 @@ const handleClearRecordsConfirm = async () => {
         if (!response.ok) {
             throw new Error(payload?.message || 'Erro ao limpar registros');
         }
+
+        clearRecordsSuccess.value = `${payload.financial_records_count} registros financeiros e ${payload.imported_commissions_count} comissões importadas foram removidos com sucesso.`;
 
         toast.success('Registros limpos', {
             description: `${payload.financial_records_count} registros financeiros e ${payload.imported_commissions_count} comissões importadas foram removidos com sucesso.`,
@@ -512,6 +516,10 @@ onMounted(async () => {
                                         Apagar conta
                                     </button>
                                 </div>
+                            </div>
+
+                            <div v-if="clearRecordsSuccess" class="-mt-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+                                <p class="text-sm font-medium text-emerald-700">{{ clearRecordsSuccess }}</p>
                             </div>
                         </div>
                     </div>
