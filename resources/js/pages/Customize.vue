@@ -49,8 +49,12 @@ const showEntryTypeModal = ref(false);
 const showEntryTypeDeleteModal = ref(false);
 const showEntryTypeRestoreModal = ref(false);
 const showNewEntryTypeInline = ref(false);
+const showEditEntryTypeInline = ref(false);
 const entryTypeModalMode = ref<'create' | 'edit'>('create');
 const editingEntryType = ref<EntryType | null>(null);
+const editingEntryTypeInlineName = ref('');
+const editingEntryTypeInlineError = ref('');
+const editingEntryTypeInputRef = ref<HTMLInputElement | null>(null);
 const deletingEntryType = ref<EntryType | null>(null);
 const restoringEntryType = ref<EntryType | null>(null);
 const isEntryTypeModalLoading = ref(false);
@@ -67,14 +71,22 @@ const exitTypeSearch = ref('');
 const showExitTypeModal = ref(false);
 const showExitTypeDeleteModal = ref(false);
 const showExitTypeRestoreModal = ref(false);
+const showNewExitTypeInline = ref(false);
+const showEditExitTypeInline = ref(false);
 const exitTypeModalMode = ref<'create' | 'edit'>('create');
 const editingExitType = ref<ExitType | null>(null);
+const editingExitTypeInlineName = ref('');
+const editingExitTypeInlineError = ref('');
+const editingExitTypeInputRef = ref<HTMLInputElement | null>(null);
 const deletingExitType = ref<ExitType | null>(null);
 const restoringExitType = ref<ExitType | null>(null);
 const isExitTypeModalLoading = ref(false);
 const isExitTypeDeleteLoading = ref(false);
 const isExitTypeRestoreLoading = ref(false);
 const showExitTypeRemoved = ref(false);
+const newExitTypeName = ref('');
+const newExitTypeError = ref('');
+const newExitTypeInput = ref<HTMLInputElement | null>(null);
 
 // Service Types
 const serviceTypes = ref<ServiceType[]>([]);
@@ -121,6 +133,17 @@ const filteredExitTypes = computed(() => {
     return exitTypes.value.filter((t) => t.name.toLowerCase().includes(q));
 });
 
+const canSuggestCreateExitTypeFromSearch = computed(() => {
+    const query = exitTypeSearch.value.trim();
+
+    return Boolean(
+        query &&
+        !showExitTypeRemoved.value &&
+        !showNewExitTypeInline.value &&
+        filteredExitTypes.value.length === 0
+    );
+});
+
 const filteredServiceTypes = computed(() => {
     if (!serviceTypeSearch.value) return serviceTypes.value;
     const q = serviceTypeSearch.value.toLowerCase();
@@ -150,9 +173,15 @@ const fetchData = async () => {
         ]);
 
         company.value = companyRes.data?.data ?? companyRes.data ?? null;
-        entryTypes.value = entryRes.data;
-        exitTypes.value = exitRes.data;
-        serviceTypes.value = serviceRes.data;
+        entryTypes.value = (entryRes.data || []).sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        exitTypes.value = (exitRes.data || []).sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        serviceTypes.value = (serviceRes.data || []).sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
     } catch (error: any) {
         errorMessage.value = error?.response?.data?.message || 'Erro ao carregar dados';
     } finally {
@@ -195,7 +224,7 @@ const cancelNewEntryType = () => {
     newEntryTypeError.value = '';
 };
 
-const persistNewEntryType = async (name: string) => {
+const persistNewEntryType = async (name: string, clearSearch: boolean = false) => {
     const normalizedName = name.trim();
 
     if (!normalizedName) {
@@ -220,6 +249,11 @@ const persistNewEntryType = async (name: string) => {
         }
 
         toast.success('Tipo criado!', { description: `Tipo de entrada "${data.name}" foi adicionado.` });
+        
+        if (clearSearch) {
+            entryTypeSearch.value = '';
+        }
+        
         cancelNewEntryType();
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao salvar tipo de entrada';
@@ -236,14 +270,54 @@ const saveNewEntryType = async () => {
 };
 
 const saveEntryTypeFromSearch = async () => {
-    await persistNewEntryType(entryTypeSearch.value);
+    await persistNewEntryType(entryTypeSearch.value, true);
 };
 
 const handleEditEntryType = (type: EntryType) => {
     if (type.deleted_at) return;
-    entryTypeModalMode.value = 'edit';
     editingEntryType.value = { ...type };
-    showEntryTypeModal.value = true;
+    editingEntryTypeInlineName.value = type.name;
+    editingEntryTypeInlineError.value = '';
+    showEditEntryTypeInline.value = true;
+    nextTick(() => editingEntryTypeInputRef.value?.focus());
+};
+
+const cancelEditEntryType = () => {
+    showEditEntryTypeInline.value = false;
+    editingEntryType.value = null;
+    editingEntryTypeInlineName.value = '';
+    editingEntryTypeInlineError.value = '';
+};
+
+const saveEditEntryType = async () => {
+    if (!editingEntryType.value) return;
+
+    const name = editingEntryTypeInlineName.value.trim();
+
+    if (!name) {
+        editingEntryTypeInlineError.value = 'O nome é obrigatório';
+        nextTick(() => editingEntryTypeInputRef.value?.focus());
+        return;
+    }
+
+    if (isEntryTypeModalLoading.value) return;
+
+    isEntryTypeModalLoading.value = true;
+    editingEntryTypeInlineError.value = '';
+
+    try {
+        const { data } = await axios.put(`/api/personalizar/entry-types/${editingEntryType.value.id}`, { name });
+        entryTypes.value = entryTypes.value.map((t) => (t.id === editingEntryType.value!.id ? data : t));
+        toast.success('Tipo atualizado!', { description: 'Tipo de entrada foi atualizado com sucesso.' });
+        cancelEditEntryType();
+    } catch (error: any) {
+        const message = error?.response?.data?.message || 'Erro ao atualizar tipo de entrada';
+        editingEntryTypeInlineError.value = message;
+        toast.error('Erro ao atualizar', { description: message });
+        nextTick(() => editingEntryTypeInputRef.value?.focus());
+    } finally {
+        isEntryTypeModalLoading.value = false;
+    }
 };
 
 const handleDeleteEntryType = (type: EntryType) => {
@@ -323,16 +397,119 @@ const handleSaveEntryType = async (payload: Partial<EntryType>) => {
 
 // Exit Type handlers
 const handleNewExitType = () => {
+    if (showNewExitTypeInline.value) {
+        nextTick(() => newExitTypeInput.value?.focus());
+        return;
+    }
+
+    showNewExitTypeInline.value = true;
+    newExitTypeName.value = '';
+    newExitTypeError.value = '';
     exitTypeModalMode.value = 'create';
     editingExitType.value = null;
-    showExitTypeModal.value = true;
+    nextTick(() => newExitTypeInput.value?.focus());
+};
+
+const cancelNewExitType = () => {
+    showNewExitTypeInline.value = false;
+    newExitTypeName.value = '';
+    newExitTypeError.value = '';
+};
+
+const persistNewExitType = async (name: string, clearSearch: boolean = false) => {
+    const normalizedName = name.trim();
+
+    if (!normalizedName) {
+        newExitTypeError.value = 'O nome é obrigatório';
+        nextTick(() => newExitTypeInput.value?.focus());
+        return;
+    }
+
+    if (isExitTypeModalLoading.value) return;
+
+    isExitTypeModalLoading.value = true;
+    newExitTypeError.value = '';
+
+    try {
+        const { data } = await axios.post('/api/personalizar/exit-types', { name: normalizedName });
+
+        if (showExitTypeRemoved.value) {
+            showExitTypeRemoved.value = false;
+            await fetchData();
+        } else {
+            exitTypes.value = [data, ...exitTypes.value];
+        }
+
+        toast.success('Tipo criado!', { description: `Tipo de saída "${data.name}" foi adicionado.` });
+        
+        if (clearSearch) {
+            exitTypeSearch.value = '';
+        }
+        
+        cancelNewExitType();
+    } catch (error: any) {
+        const message = error?.response?.data?.message || 'Erro ao salvar tipo de saída';
+        newExitTypeError.value = message;
+        toast.error('Erro ao salvar', { description: message });
+        nextTick(() => newExitTypeInput.value?.focus());
+    } finally {
+        isExitTypeModalLoading.value = false;
+    }
+};
+
+const saveNewExitType = async () => {
+    await persistNewExitType(newExitTypeName.value);
+};
+
+const saveExitTypeFromSearch = async () => {
+    await persistNewExitType(exitTypeSearch.value, true);
 };
 
 const handleEditExitType = (type: ExitType) => {
     if (type.deleted_at) return;
-    exitTypeModalMode.value = 'edit';
     editingExitType.value = { ...type };
-    showExitTypeModal.value = true;
+    editingExitTypeInlineName.value = type.name;
+    editingExitTypeInlineError.value = '';
+    showEditExitTypeInline.value = true;
+    nextTick(() => editingExitTypeInputRef.value?.focus());
+};
+
+const cancelEditExitType = () => {
+    showEditExitTypeInline.value = false;
+    editingExitType.value = null;
+    editingExitTypeInlineName.value = '';
+    editingExitTypeInlineError.value = '';
+};
+
+const saveEditExitType = async () => {
+    if (!editingExitType.value) return;
+
+    const name = editingExitTypeInlineName.value.trim();
+
+    if (!name) {
+        editingExitTypeInlineError.value = 'O nome é obrigatório';
+        nextTick(() => editingExitTypeInputRef.value?.focus());
+        return;
+    }
+
+    if (isExitTypeModalLoading.value) return;
+
+    isExitTypeModalLoading.value = true;
+    editingExitTypeInlineError.value = '';
+
+    try {
+        const { data } = await axios.put(`/api/personalizar/exit-types/${editingExitType.value.id}`, { name });
+        exitTypes.value = exitTypes.value.map((t) => (t.id === editingExitType.value!.id ? data : t));
+        toast.success('Tipo atualizado!', { description: 'Tipo de saída foi atualizado com sucesso.' });
+        cancelEditExitType();
+    } catch (error: any) {
+        const message = error?.response?.data?.message || 'Erro ao atualizar tipo de saída';
+        editingExitTypeInlineError.value = message;
+        toast.error('Erro ao atualizar', { description: message });
+        nextTick(() => editingExitTypeInputRef.value?.focus());
+    } finally {
+        isExitTypeModalLoading.value = false;
+    }
 };
 
 const handleDeleteExitType = (type: ExitType) => {
@@ -607,11 +784,57 @@ onMounted(fetchData);
                                     v-for="type in filteredEntryTypes"
                                     :key="type.id"
                                     :class="[
-                                        'border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow',
-                                        type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                        'border rounded-lg p-4 shadow-sm transition-shadow',
+                                        editingEntryType?.id === type.id
+                                            ? 'border-2 border-blue-300 bg-blue-50/60'
+                                            : [
+                                                'border-gray-200',
+                                                type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                            ]
                                     ]"
                                 >
-                                    <div class="flex justify-between items-start">
+                                    <!-- Modo edição inline -->
+                                    <div v-if="editingEntryType?.id === type.id && showEditEntryTypeInline" class="space-y-3">
+                                        <div class="flex items-center gap-3">
+                                            <input
+                                                ref="editingEntryTypeInputRef"
+                                                v-model="editingEntryTypeInlineName"
+                                                type="text"
+                                                class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                                :disabled="isEntryTypeModalLoading"
+                                                @keydown.enter.prevent="saveEditEntryType"
+                                                @keydown.esc.prevent="cancelEditEntryType"
+                                            />
+
+                                            <div class="flex items-center gap-2">
+                                                <button
+                                                    @click="saveEditEntryType"
+                                                    :disabled="isEntryTypeModalLoading"
+                                                    class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="Salvar"
+                                                >
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    @click="cancelEditEntryType"
+                                                    :disabled="isEntryTypeModalLoading"
+                                                    class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="Cancelar"
+                                                >
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <p v-if="editingEntryTypeInlineError" class="text-sm text-red-600">{{ editingEntryTypeInlineError }}</p>
+                                    </div>
+
+                                    <!-- Modo visualização normal -->
+                                    <div v-else class="flex justify-between items-start">
                                         <div>
                                             <p class="font-semibold text-gray-800">{{ type.name }}</p>
                                             <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
@@ -720,14 +943,102 @@ onMounted(fetchData);
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div
+                                    v-if="showNewExitTypeInline"
+                                    class="border-2 border-red-300 rounded-lg p-4 shadow-sm bg-red-50/60"
+                                >
+                                    <div class="flex items-center gap-3">
+                                        <input
+                                            ref="newExitTypeInput"
+                                            v-model="newExitTypeName"
+                                            type="text"
+                                            placeholder="Digite o nome do novo tipo de saída"
+                                            class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none"
+                                            :disabled="isExitTypeModalLoading"
+                                            @keydown.enter.prevent="saveNewExitType"
+                                            @keydown.esc.prevent="cancelNewExitType"
+                                        />
+
+                                        <div class="flex items-center gap-2">
+                                            <button
+                                                @click="saveNewExitType"
+                                                :disabled="isExitTypeModalLoading"
+                                                class="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                                                title="Salvar"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                @click="cancelNewExitType"
+                                                :disabled="isExitTypeModalLoading"
+                                                class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                                title="Cancelar"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <p v-if="newExitTypeError" class="mt-2 text-sm text-red-600">{{ newExitTypeError }}</p>
+                                </div>
+                                <div
                                     v-for="type in filteredExitTypes"
                                     :key="type.id"
                                     :class="[
-                                        'border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow',
-                                        type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                        'border rounded-lg p-4 shadow-sm transition-shadow',
+                                        editingExitType?.id === type.id
+                                            ? 'border-2 border-blue-300 bg-blue-50/60'
+                                            : [
+                                                'border-gray-200',
+                                                type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                            ]
                                     ]"
                                 >
-                                    <div class="flex justify-between items-start">
+                                    <!-- Modo edição inline -->
+                                    <div v-if="editingExitType?.id === type.id && showEditExitTypeInline" class="space-y-3">
+                                        <div class="flex items-center gap-3">
+                                            <input
+                                                ref="editingExitTypeInputRef"
+                                                v-model="editingExitTypeInlineName"
+                                                type="text"
+                                                class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                                :disabled="isExitTypeModalLoading"
+                                                @keydown.enter.prevent="saveEditExitType"
+                                                @keydown.esc.prevent="cancelEditExitType"
+                                            />
+
+                                            <div class="flex items-center gap-2">
+                                                <button
+                                                    @click="saveEditExitType"
+                                                    :disabled="isExitTypeModalLoading"
+                                                    class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="Salvar"
+                                                >
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    @click="cancelEditExitType"
+                                                    :disabled="isExitTypeModalLoading"
+                                                    class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="Cancelar"
+                                                >
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <p v-if="editingExitTypeInlineError" class="text-sm text-red-600">{{ editingExitTypeInlineError }}</p>
+                                    </div>
+
+                                    <!-- Modo visualização normal -->
+                                    <div v-else class="flex justify-between items-start">
                                         <div>
                                             <p class="font-semibold text-gray-800">{{ type.name }}</p>
                                             <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
@@ -767,8 +1078,28 @@ onMounted(fetchData);
                                 </div>
                             </div>
 
-                            <div v-if="filteredExitTypes.length === 0" class="text-center text-gray-500 py-8">
-                                Nenhum tipo de saída encontrado.
+                            <div
+                                v-if="canSuggestCreateExitTypeFromSearch"
+                                class="mt-4 rounded-lg border border-dashed border-red-300 bg-red-50 p-4"
+                            >
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800">
+                                            Nenhum tipo encontrado para "{{ exitTypeSearch.trim() }}".
+                                        </p>
+                                        <p class="text-sm text-gray-600">
+                                            Criar este tipo de saída com um clique.
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        @click="saveExitTypeFromSearch"
+                                        :disabled="isExitTypeModalLoading"
+                                        class="inline-flex items-center justify-center rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                                    >
+                                        {{ isExitTypeModalLoading ? 'Criando...' : `Criar "${exitTypeSearch.trim()}"` }}
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
