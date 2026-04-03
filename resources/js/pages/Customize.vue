@@ -47,7 +47,6 @@ const entryTypes = ref<EntryType[]>([]);
 const entryTypeSearch = ref('');
 const showEntryTypeModal = ref(false);
 const showEntryTypeDeleteModal = ref(false);
-const showEntryTypeRestoreModal = ref(false);
 const showNewEntryTypeInline = ref(false);
 const showEditEntryTypeInline = ref(false);
 const showDeleteConfirmEntryTypeInline = ref(false);
@@ -72,7 +71,6 @@ const exitTypes = ref<ExitType[]>([]);
 const exitTypeSearch = ref('');
 const showExitTypeModal = ref(false);
 const showExitTypeDeleteModal = ref(false);
-const showExitTypeRestoreModal = ref(false);
 const showNewExitTypeInline = ref(false);
 const showEditExitTypeInline = ref(false);
 const showDeleteConfirmExitTypeInline = ref(false);
@@ -97,7 +95,6 @@ const serviceTypes = ref<ServiceType[]>([]);
 const serviceTypeSearch = ref('');
 const showServiceTypeModal = ref(false);
 const showServiceTypeDeleteModal = ref(false);
-const showServiceTypeRestoreModal = ref(false);
 const serviceTypeModalMode = ref<'create' | 'edit'>('create');
 const editingServiceType = ref<ServiceType | null>(null);
 const deletingServiceType = ref<ServiceType | null>(null);
@@ -431,10 +428,10 @@ const cancelDeleteEntryType = () => {
     deletingEntryType.value = null;
 };
 
-const handleRestoreEntryType = (type: EntryType) => {
-    if (!type.deleted_at) return;
+const handleRestoreEntryType = async (type: EntryType) => {
+    if (!type.deleted_at || isEntryTypeRestoreLoading.value) return;
     restoringEntryType.value = type;
-    showEntryTypeRestoreModal.value = true;
+    await confirmRestoreEntryType();
 };
 
 const confirmDeleteEntryType = async () => {
@@ -461,7 +458,6 @@ const confirmRestoreEntryType = async () => {
         const entryTypeId = restoringEntryType.value.id;
         await axios.post(`/api/personalizar/entry-types/${entryTypeId}/restore`);
         entryTypes.value = applyRestoreLocally(entryTypes.value, entryTypeId);
-        showEntryTypeRestoreModal.value = false;
         restoringEntryType.value = null;
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao restaurar tipo de entrada';
@@ -622,10 +618,10 @@ const cancelDeleteExitType = () => {
     deletingExitType.value = null;
 };
 
-const handleRestoreExitType = (type: ExitType) => {
-    if (!type.deleted_at) return;
+const handleRestoreExitType = async (type: ExitType) => {
+    if (!type.deleted_at || isExitTypeRestoreLoading.value) return;
     restoringExitType.value = type;
-    showExitTypeRestoreModal.value = true;
+    await confirmRestoreExitType();
 };
 
 const handleSaveExitType = async (payload: Partial<ExitType>) => {
@@ -672,7 +668,6 @@ const confirmRestoreExitType = async () => {
         const exitTypeId = restoringExitType.value.id;
         await axios.post(`/api/personalizar/exit-types/${exitTypeId}/restore`);
         exitTypes.value = applyRestoreLocally(exitTypes.value, exitTypeId);
-        showExitTypeRestoreModal.value = false;
         restoringExitType.value = null;
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao restaurar tipo de saída';
@@ -707,10 +702,10 @@ const handleDeleteServiceType = (type: ServiceType) => {
     showServiceTypeDeleteModal.value = true;
 };
 
-const handleRestoreServiceType = (type: ServiceType) => {
-    if (!type.deleted_at) return;
+const handleRestoreServiceType = async (type: ServiceType) => {
+    if (!type.deleted_at || isServiceTypeRestoreLoading.value) return;
     restoringServiceType.value = type;
-    showServiceTypeRestoreModal.value = true;
+    await confirmRestoreServiceType();
 };
 
 const handleSaveServiceType = async (payload: Partial<ServiceType>) => {
@@ -757,7 +752,6 @@ const confirmRestoreServiceType = async () => {
         const serviceTypeId = restoringServiceType.value.id;
         await axios.post(`/api/personalizar/service-types/${serviceTypeId}/restore`);
         serviceTypes.value = applyRestoreLocally(serviceTypes.value, serviceTypeId);
-        showServiceTypeRestoreModal.value = false;
         restoringServiceType.value = null;
     } catch (error: any) {
         const message = error?.response?.data?.message || 'Erro ao restaurar tipo de serviço';
@@ -958,10 +952,21 @@ onMounted(fetchData);
                                         <div v-else class="flex gap-2">
                                             <button
                                                 @click="handleRestoreEntryType(type)"
-                                                class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
-                                                title="Restaurar"
+                                                :disabled="isEntryTypeRestoreLoading"
+                                                :class="[
+                                                    'p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                                                    restoringEntryType?.id === type.id && isEntryTypeRestoreLoading
+                                                        ? 'text-green-600 bg-green-50'
+                                                        : 'text-green-500 hover:bg-green-50'
+                                                ]"
+                                                :title="restoringEntryType?.id === type.id && isEntryTypeRestoreLoading ? 'Restaurando...' : 'Restaurar'"
                                             >
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg
+                                                    :class="['w-5 h-5', restoringEntryType?.id === type.id && isEntryTypeRestoreLoading ? 'animate-spin' : '']"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
                                             </button>
@@ -1189,10 +1194,21 @@ onMounted(fetchData);
                                         <div v-else class="flex gap-2">
                                             <button
                                                 @click="handleRestoreExitType(type)"
-                                                class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
-                                                title="Restaurar"
+                                                :disabled="isExitTypeRestoreLoading"
+                                                :class="[
+                                                    'p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                                                    restoringExitType?.id === type.id && isExitTypeRestoreLoading
+                                                        ? 'text-green-600 bg-green-50'
+                                                        : 'text-green-500 hover:bg-green-50'
+                                                ]"
+                                                :title="restoringExitType?.id === type.id && isExitTypeRestoreLoading ? 'Restaurando...' : 'Restaurar'"
                                             >
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg
+                                                    :class="['w-5 h-5', restoringExitType?.id === type.id && isExitTypeRestoreLoading ? 'animate-spin' : '']"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
                                             </button>
@@ -1393,10 +1409,21 @@ onMounted(fetchData);
                                         <div v-else class="flex gap-2">
                                             <button
                                                 @click="handleRestoreServiceType(type)"
-                                                class="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
-                                                title="Restaurar"
+                                                :disabled="isServiceTypeRestoreLoading"
+                                                :class="[
+                                                    'p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                                                    restoringServiceType?.id === type.id && isServiceTypeRestoreLoading
+                                                        ? 'text-green-600 bg-green-50'
+                                                        : 'text-green-500 hover:bg-green-50'
+                                                ]"
+                                                :title="restoringServiceType?.id === type.id && isServiceTypeRestoreLoading ? 'Restaurando...' : 'Restaurar'"
                                             >
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg
+                                                    :class="['w-5 h-5', restoringServiceType?.id === type.id && isServiceTypeRestoreLoading ? 'animate-spin' : '']"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
                                             </button>
@@ -1470,33 +1497,5 @@ onMounted(fetchData);
             @confirm="confirmDeleteServiceType"
         />
 
-        <!-- Restore Modals -->
-        <DeleteConfirmModal
-            :show="showEntryTypeRestoreModal"
-            :record="restoringEntryType"
-            :is-loading="isEntryTypeRestoreLoading"
-            item-type="restore"
-            @close="showEntryTypeRestoreModal = false; restoringEntryType = null"
-            @confirm="confirmRestoreEntryType"
-        />
-
-        <DeleteConfirmModal
-            :show="showExitTypeRestoreModal"
-            :record="restoringExitType"
-            :is-loading="isExitTypeRestoreLoading"
-            item-type="restore"
-            @close="showExitTypeRestoreModal = false; restoringExitType = null"
-            @confirm="confirmRestoreExitType"
-        />
-
-        <DeleteConfirmModal
-            :show="showServiceTypeRestoreModal"
-            :record="restoringServiceType"
-            :is-loading="isServiceTypeRestoreLoading"
-            item-type="restore"
-            @close="showServiceTypeRestoreModal = false; restoringServiceType = null"
-            @confirm="confirmRestoreServiceType"
-        />
-        
     </div>
 </template>
