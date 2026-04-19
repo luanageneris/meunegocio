@@ -256,21 +256,21 @@ class HistoryController extends Controller
         if ($log->action === 'create' && is_array($log->new_values)) {
             return [
                 'type' => 'created_values',
-                'fields' => $this->toFieldList($log->new_values),
+                'fields' => $this->toFieldList($log->new_values, 'new'),
             ];
         }
 
         if ($log->action === 'delete' && is_array($log->old_values)) {
             return [
                 'type' => 'deleted_values',
-                'fields' => $this->toFieldList($log->old_values),
+                'fields' => $this->toFieldList($log->old_values, 'old'),
             ];
         }
 
         if (is_array($log->new_values)) {
             return [
                 'type' => 'event_payload',
-                'fields' => $this->toFieldList($log->new_values),
+                'fields' => $this->toFieldList($log->new_values, 'new'),
             ];
         }
 
@@ -280,14 +280,14 @@ class HistoryController extends Controller
         ];
     }
 
-    private function toFieldList(array $values): array
+    private function toFieldList(array $values, string $valueSide = 'new'): array
     {
         return collect($values)
-            ->map(function ($value, $field) {
+            ->map(function ($value, $field) use ($valueSide) {
                 return [
                     'field' => $field,
-                    'old' => null,
-                    'new' => $value,
+                    'old' => $valueSide === 'old' ? $value : null,
+                    'new' => $valueSide === 'new' ? $value : null,
                 ];
             })
             ->values()

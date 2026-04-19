@@ -147,4 +147,43 @@ class HistoryControllerTest extends TestCase
 
         $response->assertStatus(401);
     }
+
+    /** @test */
+    public function company_update_is_audited_with_field_level_changes()
+    {
+        $response = $this->actingAs($this->user, 'sanctum')->putJson('/api/company', [
+            'name' => 'Empresa Atualizada Teste',
+            'email' => 'empresa.teste@example.com',
+            'phone' => '11999999999',
+            'document' => '12345678000199',
+            'address' => 'Rua Auditoria, 123',
+            'city' => 'Sao Paulo',
+            'state' => 'SP',
+            'postal_code' => '01001000',
+            'use_service_types' => true,
+        ]);
+
+        $response->assertOk();
+
+        $log = AuditLog::query()
+            ->where('company_id', $this->company->id)
+            ->where('model', Company::class)
+            ->where('action', 'update')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($log);
+        $this->assertSame($this->company->id, $log->model_id);
+        $this->assertIsArray($log->changes);
+        $this->assertArrayHasKey('name', $log->changes);
+        $this->assertSame('Empresa Atualizada Teste', $log->changes['name']['new']);
+        $this->assertArrayNotHasKey('endpoint', $log->changes);
+
+        $historyResponse = $this->actingAs($this->user, 'sanctum')->getJson('/api/history');
+
+        $historyResponse->assertOk()
+            ->assertJsonPath('data.0.model', Company::class)
+            ->assertJsonPath('data.0.model_id', $this->company->id)
+            ->assertJsonPath('data.0.details.type', 'field_changes');
+    }
 }

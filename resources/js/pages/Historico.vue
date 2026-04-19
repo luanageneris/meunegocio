@@ -53,6 +53,7 @@ const perPage = ref(20);
 const totalPages = ref(1);
 const totalRecords = ref(0);
 const expandedLog = ref<number | null>(null);
+const expandedInfoLogs = ref<Set<number>>(new Set());
 
 // Funções helpers
 const getActionBadgeClass = (action: string) => {
@@ -169,6 +170,9 @@ const fieldLabels: Record<string, Record<string, string>> = {
     balance: 'Saldo',
     date: 'Data',
   },
+  ImportLog: {
+    import_summary: 'Resumo da Importação',
+  },
 };
 
 const formatKey = (key: unknown) => {
@@ -223,6 +227,22 @@ const formatValue = (value: unknown, field: string = '') => {
   }
 
   if (typeof value === 'string') {
+    const normalizedField = field.toLowerCase();
+    const isJsonCandidateField = ['payload', 'request', 'response', 'summary', 'details'].includes(normalizedField);
+
+    if (isJsonCandidateField) {
+      const parsed = tryParseJson(value);
+
+      if (parsed !== null) {
+        const importSummary = buildImportSummary(parsed);
+        if (importSummary) {
+          return importSummary;
+        }
+
+        return JSON.stringify(parsed, null, 2);
+      }
+    }
+
     if ((lowerField === 'type' || lowerField.endsWith('_type')) && ['entry', 'exit'].includes(value.toLowerCase())) {
       return value.toLowerCase() === 'entry' ? 'Entrada' : 'Saída';
     }
@@ -258,6 +278,11 @@ const formatValue = (value: unknown, field: string = '') => {
   if (typeof value === 'object') {
     const objectValue = value as Record<string, unknown>;
 
+    const importSummary = buildImportSummary(objectValue);
+    if (importSummary) {
+      return importSummary;
+    }
+
     if (typeof objectValue.name === 'string' && objectValue.name.trim() !== '') {
       return objectValue.name;
     }
@@ -270,10 +295,124 @@ const formatValue = (value: unknown, field: string = '') => {
       return objectValue.description;
     }
 
-    return JSON.stringify(value);
+    return JSON.stringify(value, null, 2);
   }
 
   return String(value);
+};
+
+const tryParseJson = (value: string) => {
+  const trimmed = value.trim();
+
+  if ((!trimmed.startsWith('{') || !trimmed.endsWith('}')) && (!trimmed.startsWith('[') || !trimmed.endsWith(']'))) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    return null;
+  }
+};
+
+const buildImportSummary = (value: unknown) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const obj = value as Record<string, unknown>;
+  const summary = obj.summary;
+
+  if (!summary || typeof summary !== 'object' || Array.isArray(summary)) {
+    return null;
+  }
+
+  const s = summary as Record<string, unknown>;
+  const lines: string[] = [];
+
+  const appendLine = (label: string, key: string) => {
+    const raw = s[key];
+    if (raw === null || raw === undefined || raw === '') {
+      return;
+    }
+    lines.push(`${label}: ${raw}`);
+  };
+
+  appendLine('Aba(s) processada(s)', 'sheets_processed');
+  appendLine('Linha(s) processada(s)', 'rows_processed');
+  appendLine('Entrada(s) criada(s)', 'entries_created');
+  appendLine('Saída(s) criada(s)', 'exits_created');
+  appendLine('Comissão(ões) criada(s)', 'commissions_created');
+
+  if (lines.length === 0) {
+    return null;
+  }
+
+  return lines.join('\n');
+};
+
+const isComplexValue = (value: unknown, field: unknown) => {
+  const fieldKey = typeof field === 'string' ? field.toLowerCase() : String(field ?? '').toLowerCase();
+
+  if (['payload', 'request', 'response', 'summary', 'details'].includes(fieldKey)) {
+    return true;
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    return true;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']')) || trimmed.includes('\n') || value.length > 80;
+  }
+
+  return false;
+};
+
+const isEmptyAuditValue = (value: unknown) => {
+  if (value === null || value === undefined) {
+    return true;
+  }
+
+  if (typeof value === 'string') {
+    return value.trim() === '';
+  }
+
+  return false;
+};
+
+const isImportLogModel = (model: unknown) => {
+  const modelSafe = typeof model === 'string' ? model : String(model ?? '');
+  const modelName = modelSafe.split('\\').pop() || modelSafe;
+  return modelName === 'ImportLog';
+};
+
+const getImportSummaryFromLog = (log: AuditLog) => {
+  const details = log.details?.fields || [];
+
+  const candidates = details
+    .filter((item) => ['response', 'payload', 'summary'].includes(String(item.field).toLowerCase()))
+    .map((item) => item.new ?? item.old)
+    .filter((value) => !isEmptyAuditValue(value));
+
+  for (const candidate of candidates) {
+    const summary = buildImportSummary(candidate);
+    if (summary) {
+      return summary;
+    }
+
+    if (typeof candidate === 'string') {
+      const parsed = tryParseJson(candidate);
+      const parsedSummary = parsed ? buildImportSummary(parsed) : null;
+
+      if (parsedSummary) {
+        return parsedSummary;
+      }
+    }
+  }
+
+  return null;
 };
 
 const getVisibleDetails = (log: AuditLog) => {
@@ -283,11 +422,61 @@ const getVisibleDetails = (log: AuditLog) => {
     return [];
   }
 
-  return details.filter((item) => !shouldHideField(item.field));
+  if (isImportLogModel(log.model)) {
+    const summary = getImportSummaryFromLog(log);
+
+    if (!summary) {
+      return [];
+    }
+
+    return [
+      {
+        field: 'import_summary',
+        old: null,
+        new: summary,
+      },
+    ];
+  }
+
+  return details.filter((item) => {
+    if (shouldHideField(item.field)) {
+      return false;
+    }
+
+    const oldIsEmpty = isEmptyAuditValue(item.old);
+    const newIsEmpty = isEmptyAuditValue(item.new);
+
+    // Hide rows where there is no meaningful comparison between old and new values.
+    return !(oldIsEmpty && newIsEmpty);
+  });
 };
 
 const hasMeaningfulDetails = (log: AuditLog) => {
   return getVisibleDetails(log).length > 0;
+};
+
+const getDetailDisplayMode = (log: AuditLog) => {
+  if (log.action === 'create' || log.action === 'restore') {
+    return 'new-only';
+  }
+
+  if (log.action === 'delete') {
+    return 'old-only';
+  }
+
+  const visibleDetails = getVisibleDetails(log);
+  const hasOldValues = visibleDetails.some((detail) => !isEmptyAuditValue(detail.old));
+  const hasNewValues = visibleDetails.some((detail) => !isEmptyAuditValue(detail.new));
+
+  if (!hasOldValues && hasNewValues) {
+    return 'new-only';
+  }
+
+  if (hasOldValues && !hasNewValues) {
+    return 'old-only';
+  }
+
+  return 'both';
 };
 
 // Carregando dados
@@ -344,11 +533,34 @@ watch([selectedFilter, selectedModel, dateFrom, dateTo], () => {
 });
 
 const toggleDetails = (logId: number) => {
-  expandedLog.value = expandedLog.value === logId ? null : logId;
+  const isClosing = expandedLog.value === logId;
+  expandedLog.value = isClosing ? null : logId;
+
+  if (isClosing) {
+    const updated = new Set(expandedInfoLogs.value);
+    updated.delete(logId);
+    expandedInfoLogs.value = updated;
+  }
 };
 
 const isExpanded = (logId: number) => {
   return expandedLog.value === logId;
+};
+
+const toggleInfoSection = (logId: number) => {
+  const updated = new Set(expandedInfoLogs.value);
+
+  if (updated.has(logId)) {
+    updated.delete(logId);
+  } else {
+    updated.add(logId);
+  }
+
+  expandedInfoLogs.value = updated;
+};
+
+const isInfoExpanded = (logId: number) => {
+  return expandedInfoLogs.value.has(logId);
 };
 
 onMounted(() => {
@@ -543,13 +755,28 @@ onMounted(() => {
                         <div
                           v-for="detail in getVisibleDetails(log)"
                           :key="detail.field"
-                          class="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm"
+                          :class="[
+                            'grid grid-cols-1 gap-2 text-sm',
+                            getDetailDisplayMode(log) === 'both' ? 'md:grid-cols-3' : 'md:grid-cols-2',
+                          ]"
                         >
                           <span class="font-semibold text-gray-700">{{ getFieldLabel(log.model, detail.field) }}</span>
-                          <div class="text-red-700 bg-red-50 px-2 py-1 rounded border border-red-100">
+                          <div
+                            v-if="getDetailDisplayMode(log) !== 'new-only'"
+                            :class="[
+                              'text-red-700 bg-red-50 px-2 py-1 rounded border border-red-100',
+                              isComplexValue(detail.old, detail.field) ? 'whitespace-pre-wrap break-words font-mono text-xs leading-5' : '',
+                            ]"
+                          >
                             {{ formatValue(detail.old, String(detail.field)) }}
                           </div>
-                          <div class="text-green-700 bg-green-50 px-2 py-1 rounded border border-green-100">
+                          <div
+                            v-if="getDetailDisplayMode(log) !== 'old-only'"
+                            :class="[
+                              'text-green-700 bg-green-50 px-2 py-1 rounded border border-green-100',
+                              isComplexValue(detail.new, detail.field) ? 'whitespace-pre-wrap break-words font-mono text-xs leading-5' : '',
+                            ]"
+                          >
                             {{ formatValue(detail.new, String(detail.field)) }}
                           </div>
                         </div>
@@ -561,13 +788,20 @@ onMounted(() => {
                     </div>
 
                     <!-- Meta Information -->
-                    <div class="bg-white rounded-lg p-4 border border-orange-100">
-                      <h4 class="font-bold text-gray-900 mb-3">Informações</h4>
-                      <div class="space-y-1 text-sm text-gray-600">
+                    <div class="bg-white rounded-lg border border-orange-100 overflow-hidden">
+                      <button
+                        type="button"
+                        class="group w-full px-4 py-3 flex items-center justify-between text-left transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                        @click.stop="toggleInfoSection(log.id)"
+                      >
+                        <h4 class="font-bold text-gray-900 transition-colors group-hover:text-orange-700">Informações</h4>
+                        <span class="text-gray-500 text-sm transition-colors group-hover:text-orange-600">{{ isInfoExpanded(log.id) ? '▲' : '▼' }}</span>
+                      </button>
+
+                      <div v-if="isInfoExpanded(log.id)" class="px-4 pb-4 space-y-1 text-sm text-gray-600">
                         <p><span class="font-semibold">Usuário:</span> {{ log.user?.name || 'Sistema' }}</p>
                         <p><span class="font-semibold">Registro afetado:</span> {{ log.model_label || getModelLabel(log.model) }} {{ log.entity_reference || ('#' + log.model_id) }}</p>
                         <p><span class="font-semibold">IP:</span> {{ log.ip_address || '—' }}</p>
-                        <p><span class="font-semibold">Endpoint:</span> {{ log.endpoint }}</p>
                         <p><span class="font-semibold">Data/Hora:</span> {{ formatDate(log.created_at) }}</p>
                       </div>
                     </div>

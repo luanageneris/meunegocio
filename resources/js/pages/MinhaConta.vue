@@ -7,6 +7,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import Footer from '@/components/Footer.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
+import AppInlineNotice from '@/components/AppInlineNotice.vue';
 import logoUrl from '../../img/icon-logo.svg';
 
 type CompanyForm = {
@@ -49,6 +50,7 @@ const clearRecordsConfirmInput = ref('');
 const isClearingRecords = ref(false);
 const clearRecordsError = ref<string | null>(null);
 const clearRecordsSuccess = ref<string | null>(null);
+const saveSuccessMessage = ref('');
 
 const getCsrfToken = (): string => {
     const csrfFromProps = (page.props as any).csrf_token;
@@ -123,6 +125,7 @@ const save = async () => {
 
     isSaving.value = true;
     errors.value = {};
+    saveSuccessMessage.value = '';
 
     try {
         const response = await fetch('/api/company', {
@@ -149,12 +152,16 @@ const save = async () => {
         const currentUser = auth.user.value || {};
         auth.setUser({ ...currentUser, company: payload.data });
 
-        toast.success('Dados atualizados', { description: 'Informações salvas com sucesso.' });
+        saveSuccessMessage.value = 'Informações salvas com sucesso.';
     } catch (error: any) {
         toast.error('Não foi possível salvar', { description: error?.message || 'Revise os campos e tente novamente.' });
     } finally {
         isSaving.value = false;
     }
+};
+
+const dismissSaveSuccessMessage = () => {
+    saveSuccessMessage.value = '';
 };
 
 const openDeleteModal = () => {
@@ -309,6 +316,15 @@ onMounted(async () => {
             />
             
             <main class="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 overflow-x-hidden">
+                <AppInlineNotice
+                    v-if="saveSuccessMessage"
+                    class="mb-6"
+                    title="Dados atualizados"
+                    :message="saveSuccessMessage"
+                    variant="success"
+                    @dismiss="dismissSaveSuccessMessage"
+                />
+
                 <div class="bg-white rounded-xl shadow-lg border border-blue-200/70 overflow-hidden">
 
                     <div class="p-6 sm:p-10">

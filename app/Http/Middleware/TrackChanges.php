@@ -206,12 +206,29 @@ class TrackChanges
             return null;
         }
 
+        $implicitModelId = $this->resolveImplicitModelId($request, $resource, $modelClass);
+
         // Para POST (create), ID vem do response, não da URL
         if ($request->getMethod() === 'POST' && !str_contains($path, '/restore')) {
             return [$modelClass, 0];
         }
 
-        return [$modelClass, $this->extractIdFromSegments($segments, $resourceIndex + 1)];
+        $resolvedId = $this->extractIdFromSegments($segments, $resourceIndex + 1);
+
+        if ($resolvedId > 0) {
+            return [$modelClass, $resolvedId];
+        }
+
+        return [$modelClass, $implicitModelId];
+    }
+
+    private function resolveImplicitModelId(Request $request, ?string $resource, string $modelClass): int
+    {
+        if ($resource === 'company' && $modelClass === 'App\Models\Company') {
+            return (int) ($request->user()?->company_id ?? 0);
+        }
+
+        return 0;
     }
 
     private function extractIdFromSegments(array $segments, int $startIndex = 0): int
