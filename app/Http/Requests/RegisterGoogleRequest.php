@@ -22,7 +22,7 @@ class RegisterGoogleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'company_name' => 'required|string|min:3|max:255|unique:companies,name',
+            'company_name' => 'nullable|string|min:3|max:255|unique:companies,name',
         ];
     }
 

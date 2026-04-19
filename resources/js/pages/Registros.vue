@@ -12,9 +12,12 @@ import {
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import Footer from '@/components/Footer.vue';
+import AppInlineNotice from '@/components/AppInlineNotice.vue';
 
 const auth = useAuth();
 const { isPrivacyMode } = usePrivacy();
+const registrationSuccessToastKey = 'registration_success_toast';
+const registrationSuccessMessage = ref('');
 const company = ref<any>(null);
 const isLoading = ref(false);
 const isListLoading = ref(false);
@@ -228,6 +231,26 @@ const syncFiltersToQueryString = () => {
     const queryString = params.toString();
     const nextUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
     window.history.replaceState({}, '', nextUrl);
+};
+
+const showRegistrationSuccessMessageIfNeeded = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const message = window.sessionStorage.getItem(registrationSuccessToastKey);
+
+    if (!message) {
+        return;
+    }
+
+    window.sessionStorage.removeItem(registrationSuccessToastKey);
+
+    registrationSuccessMessage.value = message;
+};
+
+const dismissRegistrationSuccessMessage = () => {
+    registrationSuccessMessage.value = '';
 };
 
 type RangeKey = 'hoje' | 'ultimos7dias' | 'mensal' | 'anual';
@@ -1293,6 +1316,8 @@ onMounted(async () => {
         window.location.href = '/login';
         return;
     }
+
+    showRegistrationSuccessMessageIfNeeded();
     
     try {
         const response = await fetch('/api/company', {
@@ -1341,6 +1366,15 @@ onBeforeUnmount(() => {
 
             <!-- Main Content -->
             <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <AppInlineNotice
+                    v-if="registrationSuccessMessage"
+                    class="mb-6"
+                    variant="success"
+                    title="Conta criada"
+                    :message="registrationSuccessMessage"
+                    @dismiss="dismissRegistrationSuccessMessage"
+                />
+
                 <!-- Tabs -->
                 <div class="mb-8 -mx-4 px-4 overflow-x-auto sm:overflow-visible">
                     <div class="flex min-w-max justify-start sm:justify-center gap-2 pb-1">

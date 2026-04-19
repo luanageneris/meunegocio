@@ -176,15 +176,15 @@ const handleKeydown = (e: KeyboardEvent) => {
                     </div>
                 </div>
 
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-6">
                     <p class="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                        <MessageCircle class="h-5 w-5 text-blue-600" />
+                        <MessageCircle class="h-5 w-5 text-green-600" />
                         <span>Precisa de ajuda?</span>
                     </p>
                     <p class="text-sm text-gray-700 mb-3">
                         Você também pode enviar uma solicitação de suporte diretamente por e-mail:
                     </p>
-                    <a href="mailto:suporte@meunegocio.app" class="inline-block px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold hover:bg-blue-600 transition text-sm">
+                    <a href="mailto:suporte@meunegocio.app" class="inline-block px-4 py-2 rounded-lg bg-green-500 text-white font-semibold hover:bg-green-600 transition text-sm">
                         Enviar e-mail para suporte
                     </a>
                 </div>

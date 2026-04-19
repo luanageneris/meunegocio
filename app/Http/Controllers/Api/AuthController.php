@@ -12,6 +12,9 @@ use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
@@ -27,6 +30,7 @@ class AuthController extends Controller
     {
         return Socialite::driver('google')
             ->scopes(['email', 'profile'])
+            ->with(['prompt' => 'select_account'])
             ->redirect();
     }
 
@@ -49,10 +53,9 @@ class AuthController extends Controller
                     'expires_at' => now()->addMinutes(10)->timestamp,
                 ];
 
-                $encrypted = encrypt(json_encode($pendingData));
                 $cookie = cookie(
                     'pending_registration',
-                    $encrypted,
+                    json_encode($pendingData),
                     10,
                     null,
                     null,
@@ -138,21 +141,13 @@ class AuthController extends Controller
      */
     public function pendingRegistration(Request $request)
     {
-        $cookie = $request->cookie('pending_registration');
+        $pending = $this->readPendingRegistrationCookie($request);
 
-        if (!$cookie) {
+        if (!$pending) {
             return response()->json([
-                'message' => 'Nenhum registro pendente encontrado.',
-            ], 404);
-        }
-
-        try {
-            $pending = json_decode(decrypt($cookie), true);
-        } catch (DecryptException | \Exception $e) {
-            Cookie::queue(Cookie::forget('pending_registration'));
-            return response()->json([
-                'message' => 'Registro pendente inválido ou expirado.',
-            ], 410);
+                'data' => null,
+                'pending' => false,
+            ]);
         }
 
         if (($pending['expires_at'] ?? 0) < now()->timestamp) {
@@ -164,6 +159,7 @@ class AuthController extends Controller
 
         return response()->json([
             'data' => $pending,
+            'pending' => true,
         ]);
     }
 
@@ -173,20 +169,11 @@ class AuthController extends Controller
     public function registerGoogle(RegisterGoogleRequest $request)
     {
         try {
-            $cookie = $request->cookie('pending_registration');
+            $pending = $this->readPendingRegistrationCookie($request);
 
-            if (!$cookie) {
+            if (!$pending) {
                 return response()->json([
                     'message' => 'Registro pendente não encontrado ou expirado.',
-                ], 410);
-            }
-
-            try {
-                $pending = json_decode(decrypt($cookie), true);
-            } catch (DecryptException $e) {
-                Cookie::queue(Cookie::forget('pending_registration'));
-                return response()->json([
-                    'message' => 'Registro pendente inválido ou expirado.',
                 ], 410);
             }
 
@@ -204,22 +191,35 @@ class AuthController extends Controller
                 ], 409);
             }
 
-            // Criar nova empresa
-            $company = Company::create([
-                'name' => $request->company_name,
-            ]);
+            [$company, $user] = DB::transaction(function () use ($request, $pending) {
+                $resolvedCompanyName = $this->resolveCompanyName(
+                    $request->input('company_name'),
+                    $pending['name'] ?? null,
+                    $pending['email'] ?? null,
+                );
 
-            // Criar novo usuário root para essa empresa
-            $user = User::create([
-                'company_id' => $company->id,
-                'name' => $pending['name'],
-                'email' => $pending['email'],
-                'google_id' => $pending['google_id'],
-                'role' => 'root',
-                'email_verified_at' => now(),
-            ]);
+                $company = Company::create([
+                    'name' => $resolvedCompanyName,
+                    'slug' => $this->generateUniqueCompanySlug($resolvedCompanyName),
+                ]);
 
-            $this->companyDefaultsService->ensureForCompany((int) $company->id);
+                $user = User::create([
+                    'company_id' => $company->id,
+                    'name' => $pending['name'],
+                    'email' => $pending['email'],
+                    'google_id' => $pending['google_id'],
+                    'role' => 'root',
+                    'email_verified_at' => now(),
+                ]);
+
+                $company->forceFill([
+                    'owner_id' => $user->id,
+                ])->save();
+
+                $this->companyDefaultsService->ensureForCompany((int) $company->id);
+
+                return [$company, $user];
+            });
 
             Cookie::queue(Cookie::forget('pending_registration'));
 
@@ -234,11 +234,70 @@ class AuthController extends Controller
                     'message' => 'Conta criada com sucesso!',
                 ],
             ], 201);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('Google registration failed.', [
+                'company_name' => $request->input('company_name'),
+                'pending_email' => $pending['email'] ?? null,
+                'exception' => $e,
+            ]);
+
             return response()->json([
-                'message' => 'Erro ao registrar: ' . $e->getMessage(),
+                'message' => 'Nao foi possivel concluir o cadastro agora. Tente novamente em instantes.',
             ], 500);
         }
+    }
+
+    private function generateUniqueCompanySlug(string $companyName): string
+    {
+        $baseSlug = Str::slug($companyName);
+
+        if ($baseSlug === '') {
+            $baseSlug = 'empresa';
+        }
+
+        $slug = $baseSlug;
+        $suffix = 2;
+
+        while (Company::withTrashed()->where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $suffix;
+            $suffix++;
+        }
+
+        return $slug;
+    }
+
+    private function resolveCompanyName(?string $companyName, ?string $googleName, ?string $googleEmail): string
+    {
+        $baseName = trim((string) $companyName);
+
+        if ($baseName === '') {
+            $displayName = trim((string) $googleName);
+            $firstName = trim(strtok($displayName, ' ') ?: '');
+
+            if ($firstName !== '') {
+                $baseName = 'Empresa de ' . $firstName;
+            } elseif (!empty($googleEmail)) {
+                $emailPrefix = trim((string) strstr($googleEmail, '@', true));
+                $baseName = $emailPrefix !== '' ? 'Empresa de ' . $emailPrefix : 'Minha Empresa';
+            } else {
+                $baseName = 'Minha Empresa';
+            }
+        }
+
+        return $this->generateUniqueCompanyName($baseName);
+    }
+
+    private function generateUniqueCompanyName(string $baseName): string
+    {
+        $name = $baseName;
+        $suffix = 2;
+
+        while (Company::withTrashed()->where('name', $name)->exists()) {
+            $name = $baseName . ' ' . $suffix;
+            $suffix++;
+        }
+
+        return $name;
     }
 
     /**
@@ -249,6 +308,33 @@ class AuthController extends Controller
         return response()->json([
             'user' => $request->user()->load('company'),
         ]);
+    }
+
+    private function readPendingRegistrationCookie(Request $request): ?array
+    {
+        $cookieValue = $request->cookie('pending_registration');
+
+        if (!$cookieValue || !is_string($cookieValue)) {
+            return null;
+        }
+
+        // New format: plain JSON stored in cookie (Laravel middleware encrypts at rest)
+        $plainJson = json_decode($cookieValue, true);
+        if (is_array($plainJson) && isset($plainJson['email'], $plainJson['google_id'])) {
+            return $plainJson;
+        }
+
+        // Legacy format: encrypted payload created manually before storing cookie
+        try {
+            $decryptedJson = json_decode(decrypt($cookieValue), true);
+            if (is_array($decryptedJson) && isset($decryptedJson['email'], $decryptedJson['google_id'])) {
+                return $decryptedJson;
+            }
+        } catch (DecryptException | \Throwable $e) {
+            // Ignore and treat as missing/invalid pending registration
+        }
+
+        return null;
     }
 
     /**

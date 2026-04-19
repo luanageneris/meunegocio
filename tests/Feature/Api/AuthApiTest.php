@@ -4,6 +4,9 @@ namespace Tests\Feature\Api;
 
 use App\Models\User;
 use App\Models\Company;
+use App\Models\Collaborator;
+use App\Models\EntryType;
+use App\Models\ExitType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -125,5 +128,70 @@ class AuthApiTest extends TestCase
             ->postJson("/api/auth/impersonate/{$otherUser->id}");
 
         $response->assertStatus(403);
+    }
+
+    public function test_google_registration_creates_company_with_slug_and_default_records()
+    {
+        $payload = [
+            'name' => 'Nova Empresa',
+            'email' => 'registro@example.com',
+            'google_id' => 'google-register-123',
+            'expires_at' => now()->addMinutes(10)->timestamp,
+        ];
+
+        $response = $this->withCookie('pending_registration', json_encode($payload))
+            ->postJson('/api/auth/register', [
+                'company_name' => 'Eletronica',
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.user.email', 'registro@example.com')
+            ->assertJsonPath('data.user.role', 'root')
+            ->assertJsonPath('data.user.company.slug', 'eletronica');
+
+        $company = Company::firstWhere('slug', 'eletronica');
+
+        $this->assertNotNull($company);
+        $this->assertNotNull($company->owner_id);
+        $this->assertDatabaseHas('entry_types', [
+            'company_id' => $company->id,
+            'name' => 'Não definido',
+        ]);
+        $this->assertDatabaseHas('exit_types', [
+            'company_id' => $company->id,
+            'name' => 'Não definido',
+        ]);
+        $this->assertDatabaseHas('collaborators', [
+            'company_id' => $company->id,
+            'name' => 'Não definido',
+        ]);
+    }
+
+    public function test_google_registration_generates_unique_slug_for_duplicate_company_name()
+    {
+        Company::create([
+            'name' => 'Empresa Base',
+            'slug' => 'eletronica',
+            'email' => 'empresa-base@example.com',
+        ]);
+
+        $payload = [
+            'name' => 'Outra Empresa',
+            'email' => 'registro2@example.com',
+            'google_id' => 'google-register-456',
+            'expires_at' => now()->addMinutes(10)->timestamp,
+        ];
+
+        $response = $this->withCookie('pending_registration', json_encode($payload))
+            ->postJson('/api/auth/register', [
+                'company_name' => 'Eletronica 2',
+            ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('companies', [
+            'name' => 'Eletronica 2',
+            'slug' => 'eletronica-2',
+        ]);
     }
 }

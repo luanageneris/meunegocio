@@ -4,11 +4,15 @@ import { ref, onMounted, computed } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
 import logoUrl from '@/../../resources/img/icon-logo.svg';
+import Footer from '@/components/Footer.vue';
 
 const auth = useAuth();
 const toast = useToast();
 const isLoading = ref(false);
 const isSubmitting = ref(false);
+const companyNameStorageKey = 'registration_company_name';
+const autoSubmitStorageKey = 'registration_auto_submit';
+const registrationSuccessToastKey = 'registration_success_toast';
 
 // Dados do formulário
 const googleUser = ref<any>(null);
@@ -18,6 +22,85 @@ const form = ref({
 
 const errors = ref<Record<string, string[]>>({});
 const hasGoogleData = computed(() => !!googleUser.value);
+
+const getRegisterErrorDescription = (result: any) => {
+    if (result?.errors?.company_name?.length) {
+        return result.errors.company_name[0];
+    }
+
+    if (typeof result?.message === 'string' && !result.message.includes('SQLSTATE')) {
+        return result.message;
+    }
+
+    return 'Nao foi possivel concluir o cadastro agora. Tente novamente em instantes.';
+};
+
+const restoreCompanyName = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const savedCompanyName = window.sessionStorage.getItem(companyNameStorageKey);
+
+    if (savedCompanyName && !form.value.company_name) {
+        form.value.company_name = savedCompanyName;
+    }
+};
+
+const persistCompanyName = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const companyName = form.value.company_name.trim();
+
+    if (!companyName) {
+        window.sessionStorage.removeItem(companyNameStorageKey);
+        return;
+    }
+
+    window.sessionStorage.setItem(companyNameStorageKey, companyName);
+};
+
+const clearStoredCompanyName = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.sessionStorage.removeItem(companyNameStorageKey);
+};
+
+const shouldAutoSubmit = () => {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    return window.sessionStorage.getItem(autoSubmitStorageKey) === '1';
+};
+
+const markAutoSubmit = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.sessionStorage.setItem(autoSubmitStorageKey, '1');
+};
+
+const clearAutoSubmit = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.sessionStorage.removeItem(autoSubmitStorageKey);
+};
+
+const markRegistrationSuccessToast = (message: string) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.sessionStorage.setItem(registrationSuccessToastKey, message);
+};
 
 const fetchPendingRegistration = async () => {
     isLoading.value = true;
@@ -30,43 +113,64 @@ const fetchPendingRegistration = async () => {
         });
 
         if (!response.ok) {
-            // Se não houver pendência, refaça o login Google para criar o cookie
-            window.location.href = '/auth/google';
-            return;
+            googleUser.value = null;
+            clearAutoSubmit();
+            return false;
         }
 
         const result = await response.json();
-        googleUser.value = result.data;
+
+        if (result.pending === true && result.data) {
+            googleUser.value = result.data;
+            return true;
+        }
+
+        googleUser.value = null;
+        clearAutoSubmit();
+        return false;
     } catch (error: any) {
         window.location.href = '/login?error=pending_fetch_failed';
+        return false;
     } finally {
         isLoading.value = false;
     }
 };
 
-onMounted(() => {
+const initializeRegistrationFlow = async () => {
     // Se usuário já está autenticado, redirecionar para registros
     if (auth.isAuthenticated.value) {
         window.location.href = '/registros';
         return;
     }
 
-    fetchPendingRegistration();
+    restoreCompanyName();
+    const hasPendingRegistration = await fetchPendingRegistration();
+
+    if (hasPendingRegistration && hasGoogleData.value && form.value.company_name.trim()) {
+        clearAutoSubmit();
+        await handleSubmit();
+    }
+};
+
+onMounted(() => {
+    initializeRegistrationFlow();
 });
+
+const handleGoogleConnect = () => {
+    persistCompanyName();
+    markAutoSubmit();
+    window.location.href = '/auth/google';
+};
 
 const handleSubmit = async () => {
     if (!hasGoogleData.value) {
-        toast.error('Conecte com o Google para continuar');
-        return;
-    }
-
-    if (!form.value.company_name.trim()) {
-        errors.value = { company_name: ['O nome da empresa é obrigatório'] };
+        handleGoogleConnect();
         return;
     }
 
     isSubmitting.value = true;
     errors.value = {};
+    persistCompanyName();
 
     try {
         const response = await fetch('/api/auth/register', {
@@ -77,7 +181,7 @@ const handleSubmit = async () => {
             },
             credentials: 'include',
             body: JSON.stringify({
-                company_name: form.value.company_name,
+                company_name: form.value.company_name.trim() || null,
             }),
         });
 
@@ -85,27 +189,26 @@ const handleSubmit = async () => {
 
         if (!response.ok) {
             errors.value = result.errors || {};
-            if (result.message) {
-                toast.error('Erro ao registrar', { description: result.message });
-            }
+            toast.error('Nao foi possivel criar a conta', {
+                description: getRegisterErrorDescription(result),
+            });
             return;
         }
 
         // Salvar token e usuário
         auth.setToken(result.data.token);
         auth.setUser(result.data.user);
-
-        toast.success('Conta criada com sucesso!', {
-            description: `Bem-vindo, ${result.data.user.name}!`,
-        });
+        clearStoredCompanyName();
+        clearAutoSubmit();
+        markRegistrationSuccessToast(result?.data?.message || 'Conta criada com sucesso!');
 
         // Redirecionar para registros
         setTimeout(() => {
             window.location.href = '/registros';
         }, 500);
     } catch (error: any) {
-        toast.error('Erro ao registrar', {
-            description: error?.message || 'Ocorreu um erro inesperado',
+        toast.error('Nao foi possivel criar a conta', {
+            description: 'Nao foi possivel concluir o cadastro agora. Tente novamente em instantes.',
         });
     } finally {
         isSubmitting.value = false;
@@ -126,7 +229,7 @@ const handleSubmit = async () => {
                 <div class="absolute bottom-20 left-10 w-96 h-96 bg-white opacity-5 rounded-full"></div>
 
                 <div class="relative z-10 text-center text-white max-w-md">
-                    <img :src="logoUrl" alt="MEU NEGÓCIO" class="w-48 h-48 mx-auto mb-8 drop-shadow-2xl" />
+                    <img :src="logoUrl" alt="MEU NEGÓCIO" class="w-24 h-24 mx-auto mb-8 drop-shadow-2xl" />
                     <h1 class="text-5xl font-bold mb-6 drop-shadow-lg">MEU NEGÓCIO</h1>
                     <p class="text-xl leading-relaxed opacity-95 font-medium">
                         Liberte o potencial do seu negócio!
@@ -138,7 +241,7 @@ const handleSubmit = async () => {
             </div>
 
             <!-- Right Side - Registration Form -->
-            <div class="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gradient-to-br from-amber-50 to-orange-50">
+            <div class="w-full lg:w-1/2 flex items-center justify-center p-2 bg-gradient-to-br from-amber-50 to-orange-50">
                 <div class="w-full max-w-md">
                     <!-- Logo for mobile -->
                     <div class="lg:hidden text-center mb-8">
@@ -147,7 +250,7 @@ const handleSubmit = async () => {
                     </div>
 
                     <!-- Registration Card -->
-                    <div class="bg-white rounded-2xl shadow-2xl p-8 md:p-12 border border-orange-100">
+                    <div class="bg-white rounded-2xl shadow-2xl p-4 md:p-12 border border-orange-100">
                         <div class="text-center mb-8">
                             <h3 class="text-2xl font-bold text-gray-800 mb-2">Criar conta</h3>
                             <p class="text-gray-600 text-sm">Complete seus dados para começar</p>
@@ -176,13 +279,14 @@ const handleSubmit = async () => {
                         <form @submit.prevent="handleSubmit" class="space-y-6">
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Nome da sua empresa <span class="text-red-500">*</span>
+                                    Nome da sua empresa <span class="text-gray-400">(opcional)</span>
                                 </label>
                                 <input
                                     v-model="form.company_name"
+                                    @input="errors = {}"
                                     type="text"
                                     placeholder="Ex: Xerografia & Cia"
-                                    :disabled="isSubmitting || !hasGoogleData"
+                                    :disabled="isSubmitting"
                                     class="w-full px-4 py-3 border-2 border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
                                 />
                                 <p v-if="errors.company_name" class="text-sm text-red-600 mt-2">
@@ -193,20 +297,48 @@ const handleSubmit = async () => {
                                 </p>
                             </div>
 
+                            <div v-if="!hasGoogleData" class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                Você pode avançar com Google sem preencher o nome da empresa. Se deixar em branco, criaremos um nome padrão automaticamente.
+                            </div>
+
                             <!-- Submit Button -->
                             <button
                                 type="submit"
-                                :disabled="isSubmitting || !form.company_name.trim() || !hasGoogleData"
+                                :disabled="isSubmitting"
                                 class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg py-3 px-4 font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 disabled:hover:scale-100"
                             >
-                                <svg v-if="!isSubmitting" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg v-if="!isSubmitting && hasGoogleData" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <svg v-if="!isSubmitting && !hasGoogleData" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                 </svg>
                                 <svg v-if="isSubmitting" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                <span>{{ isSubmitting ? 'Criando conta...' : 'Criar minha conta' }}</span>
+                                <span>
+                                    {{
+                                        isSubmitting
+                                            ? 'Criando conta...'
+                                            : hasGoogleData
+                                                ? 'Criar minha conta'
+                                                : 'Avançar com Google'
+                                    }}
+                                </span>
+                            </button>
+
+                            <button
+                                v-if="hasGoogleData"
+                                type="button"
+                                :disabled="isSubmitting"
+                                @click="handleGoogleConnect"
+                                class="w-full flex items-center justify-center gap-2 rounded-lg border border-orange-200 px-4 py-3 font-semibold text-orange-700 transition-all hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m14.836 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-14.837-2m14.837 2H15" />
+                                </svg>
+                                <span>Escolher outra conta Google</span>
                             </button>
 
                             <!-- Back to Login Link -->
@@ -221,17 +353,10 @@ const handleSubmit = async () => {
                         </form>
                     </div>
 
-                    <!-- Footer -->
-                    <div class="mt-8 text-center text-sm text-gray-500 space-y-2">
-                        <p>&copy; {{ new Date().getFullYear() }} | MEU NEGÓCIO. Todos os direitos reservados.</p>
-                        <div class="flex justify-center gap-4 text-xs font-semibold">
-                            <Link href="/politica-de-privacidade" class="text-orange-600 hover:text-orange-700 underline">Política de Privacidade</Link>
-                            <Link href="/suporte" class="text-orange-600 hover:text-orange-700 underline">Ajuda e Suporte</Link>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
+        <Footer/>
     </div>
 </template>
 
