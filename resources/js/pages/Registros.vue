@@ -19,7 +19,7 @@ const company = ref<any>(null);
 const isLoading = ref(false);
 const isListLoading = ref(false);
 const isLoadingMore = ref(false);
-const activeTab = ref<'hoje' | 'ultimos7dias' | 'mensal' | 'todos'>('hoje');
+const activeTab = ref<'hoje' | 'ultimos7dias' | 'mensal' | 'anual' | 'todos'>('hoje');
 const isChartsView = ref(false);
 const selectedYear = ref<number>(new Date().getFullYear());
 const selectedMonth = ref<number>(new Date().getMonth() + 1); // 1-12
@@ -136,8 +136,9 @@ const registros = ref<any[]>([]);
 const sortKey = ref<'valor' | 'categoria' | 'colaborador' | 'descricao' | 'dataOperacao' | 'registradoEm' | 'tipo'>('registradoEm');
 const sortDir = ref<'asc' | 'desc'>('desc');
 
-const validTabs = ['hoje', 'ultimos7dias', 'mensal', 'todos'] as const;
+const validTabs = ['hoje', 'ultimos7dias', 'mensal', 'anual', 'todos'] as const;
 const validSortKeys = ['valor', 'categoria', 'colaborador', 'descricao', 'dataOperacao', 'registradoEm', 'tipo'] as const;
+const yearOptions = computed(() => Array.from({ length: 5 }, (_, index) => selectedYear.value - 2 + index));
 
 const applyFiltersFromQueryString = () => {
     if (typeof window === 'undefined') return;
@@ -146,7 +147,7 @@ const applyFiltersFromQueryString = () => {
 
     const tab = params.get('tab');
     if (tab && validTabs.includes(tab as typeof validTabs[number])) {
-        activeTab.value = tab as 'hoje' | 'ultimos7dias' | 'mensal' | 'todos';
+        activeTab.value = tab as 'hoje' | 'ultimos7dias' | 'mensal' | 'anual' | 'todos';
     }
 
     const month = Number(params.get('month'));
@@ -229,21 +230,24 @@ const syncFiltersToQueryString = () => {
     window.history.replaceState({}, '', nextUrl);
 };
 
-type RangeKey = 'hoje' | 'ultimos7dias' | 'mensal';
+type RangeKey = 'hoje' | 'ultimos7dias' | 'mensal' | 'anual';
 
 const rangeTotals = ref<Record<RangeKey, { entradas: number; saidas: number; lucro: number }>>({
     hoje: { entradas: 0, saidas: 0, lucro: 0 },
     ultimos7dias: { entradas: 0, saidas: 0, lucro: 0 },
     mensal: { entradas: 0, saidas: 0, lucro: 0 },
+    anual: { entradas: 0, saidas: 0, lucro: 0 },
 });
 
 const commissionsByRange = ref<Record<RangeKey, Array<{ collaborator_id: number; collaborator_name: string; total: number }>>>({
     hoje: [],
     ultimos7dias: [],
     mensal: [],
+    anual: [],
 });
 
 const dailyBreakdown = ref<Array<{ date: string; entradas: number; saidas: number; lucro: number }>>([]);
+const monthlyDailyBreakdown = ref<Array<{ date: string; entradas: number; saidas: number; lucro: number }>>([]);
 
 const monthlyBreakdown = ref<Array<{ month: string; monthNum: number; entradas: number; saidas: number; lucro: number; comissoes: number }>>([]);
 
@@ -408,11 +412,11 @@ const totalComissoes = computed(() => Number(resumoTotais.value.commissions ?? 0
 const totalFinal = computed(() => Number(resumoTotais.value.final_total ?? 0));
 
 const chartRangeKey = computed<RangeKey>(() => {
-    if (activeTab.value === 'hoje' || activeTab.value === 'ultimos7dias' || activeTab.value === 'mensal') {
+    if (activeTab.value === 'hoje' || activeTab.value === 'ultimos7dias' || activeTab.value === 'mensal' || activeTab.value === 'anual') {
         return activeTab.value;
     }
 
-    return 'mensal';
+    return 'anual';
 });
 
 const currentChartTotals = computed(() => rangeTotals.value[chartRangeKey.value]);
@@ -428,6 +432,15 @@ const maxValueComissoes = computed(() => {
 const maxValueDaily = computed(() => {
     if (!dailyBreakdown.value.length) return 0;
     const values = dailyBreakdown.value
+        .flatMap((d) => [toFiniteAmount(d.entradas), toFiniteAmount(d.saidas), toFiniteAmount(d.lucro)])
+        .filter((v) => Number.isFinite(v));
+
+    return values.length ? Math.max(...values) : 0;
+});
+
+const maxValueMonthlyDaily = computed(() => {
+    if (!monthlyDailyBreakdown.value.length) return 0;
+    const values = monthlyDailyBreakdown.value
         .flatMap((d) => [toFiniteAmount(d.entradas), toFiniteAmount(d.saidas), toFiniteAmount(d.lucro)])
         .filter((v) => Number.isFinite(v));
 
@@ -493,6 +506,12 @@ const makeRange = (range: RangeKey) => {
         const past = new Date(today);
         past.setDate(today.getDate() - 6);
         return { start: formatDateForApi(past), end: formatDateForApi(today) };
+    }
+
+    if (range === 'mensal') {
+        const first = new Date(selectedYear.value, selectedMonth.value - 1, 1);
+        const last = new Date(selectedYear.value, selectedMonth.value, 0);
+        return { start: formatDateForApi(first), end: formatDateForApi(last) };
     }
 
     const first = new Date(selectedYear.value, 0, 1);
@@ -619,6 +638,45 @@ const fetchRangeData = async (range: RangeKey) => {
         }
 
         if (range === 'mensal') {
+            const dailyMap = new Map<string, { entradas: number; saidas: number }>();
+
+            items.forEach((r: any) => {
+                const parsedDate = parseRecordDate(r.date);
+                if (!parsedDate) return;
+
+                const date = formatDateForApi(parsedDate);
+                if (!dailyMap.has(date)) {
+                    dailyMap.set(date, { entradas: 0, saidas: 0 });
+                }
+
+                const day = dailyMap.get(date)!;
+                if (r.type === 'entry' || r.entry_type_id) {
+                    day.entradas += toFiniteAmount(r.amount);
+                } else {
+                    day.saidas += toFiniteAmount(r.amount);
+                }
+            });
+
+            const breakdown: Array<{ date: string; entradas: number; saidas: number; lucro: number }> = [];
+            const lastDay = new Date(selectedYear.value, selectedMonth.value, 0).getDate();
+
+            for (let day = 1; day <= lastDay; day++) {
+                const date = new Date(selectedYear.value, selectedMonth.value - 1, day);
+                const dateStr = formatDateForApi(date);
+                const data = dailyMap.get(dateStr) || { entradas: 0, saidas: 0 };
+
+                breakdown.push({
+                    date: dateStr,
+                    entradas: data.entradas,
+                    saidas: data.saidas,
+                    lucro: data.entradas - data.saidas,
+                });
+            }
+
+            monthlyDailyBreakdown.value = breakdown;
+        }
+
+        if (range === 'anual') {
             const monthlyMap = new Map<number, { entradas: number; saidas: number; comissoes: number }>();
 
             for (let m = 0; m < 12; m++) {
@@ -641,7 +699,6 @@ const fetchRangeData = async (range: RangeKey) => {
 
             // Carregar comissões agregadas por mês
             try {
-                const currentYear = new Date().getFullYear();
                 const commMonthRes = await fetch('/api/registros/commissions/summary-by-month', {
                     method: 'POST',
                     headers: {
@@ -650,8 +707,8 @@ const fetchRangeData = async (range: RangeKey) => {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ 
-                        start_date: `${currentYear}-01-01`, 
-                        end_date: `${currentYear}-12-31` 
+                        start_date: `${selectedYear.value}-01-01`, 
+                        end_date: `${selectedYear.value}-12-31` 
                     }),
                 });
 
@@ -722,7 +779,7 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
         const today = new Date();
         let response: Response;
 
-        if (activeTab.value === 'hoje' || activeTab.value === 'ultimos7dias' || activeTab.value === 'mensal') {
+        if (activeTab.value === 'hoje' || activeTab.value === 'ultimos7dias' || activeTab.value === 'mensal' || activeTab.value === 'anual') {
             let start: string;
             let end: string;
 
@@ -734,11 +791,16 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
                 past.setDate(today.getDate() - 6);
                 start = formatDateForApi(past);
                 end = formatDateForApi(today);
-            } else { // mensal
+            } else if (activeTab.value === 'mensal') {
                 const year = selectedYear.value;
                 const monthIdx = selectedMonth.value - 1; // 0-based
                 const first = new Date(year, monthIdx, 1);
                 const last = new Date(year, monthIdx + 1, 0);
+                start = formatDateForApi(first);
+                end = formatDateForApi(last);
+            } else {
+                const first = new Date(selectedYear.value, 0, 1);
+                const last = new Date(selectedYear.value, 11, 31);
                 start = formatDateForApi(first);
                 end = formatDateForApi(last);
             }
@@ -832,7 +894,7 @@ const cleanupInfiniteScroll = () => {
     }
 };
 
-const changeTab = (tab: 'hoje' | 'ultimos7dias' | 'mensal' | 'todos') => {
+const changeTab = (tab: 'hoje' | 'ultimos7dias' | 'mensal' | 'anual' | 'todos') => {
     if (tab === 'todos' && isChartsView.value) {
         isChartsView.value = false;
     }
@@ -1280,7 +1342,8 @@ onBeforeUnmount(() => {
             <!-- Main Content -->
             <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <!-- Tabs -->
-                <div class="flex justify-center gap-2 mb-8">
+                <div class="mb-8 -mx-4 px-4 overflow-x-auto sm:overflow-visible">
+                    <div class="flex min-w-max justify-start sm:justify-center gap-2 pb-1">
                     <button
                         @click="changeTab('hoje')"
                         :class="[
@@ -1315,6 +1378,17 @@ onBeforeUnmount(() => {
                         Mensal
                     </button>
                     <button
+                        @click="changeTab('anual')"
+                        :class="[
+                            'px-6 py-2 rounded-full font-medium transition-all',
+                            activeTab === 'anual'
+                                ? 'bg-orange-500 text-white shadow-lg'
+                                : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                        ]"
+                    >
+                        Anual
+                    </button>
+                    <button
                         @click="changeTab('todos')"
                         :class="[
                             'px-6 py-2 rounded-full font-medium transition-all',
@@ -1325,11 +1399,14 @@ onBeforeUnmount(() => {
                     >
                         Todos
                     </button>
+                    </div>
                 </div>
 
-                <!-- Month/Year Selectors for Mensal -->
-                <div v-if="activeTab === 'mensal'" class="flex justify-center gap-3 mb-6">
+                <!-- Period Selectors -->
+                <div v-if="activeTab === 'mensal' || activeTab === 'anual'" class="mb-6 -mx-4 px-4 overflow-x-auto sm:overflow-visible">
+                    <div class="flex min-w-max justify-start sm:justify-center gap-3 pb-1">
                     <select
+                        v-if="activeTab === 'mensal'"
                         v-model.number="selectedMonth"
                         @change="(currentPage = 1, fetchRegistros(1))"
                         class="px-4 py-2 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-white"
@@ -1343,10 +1420,11 @@ onBeforeUnmount(() => {
                         @change="(currentPage = 1, fetchRegistros(1))"
                         class="px-4 py-2 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-white"
                     >
-                        <option v-for="y in [selectedYear - 2, selectedYear - 1, selectedYear, selectedYear + 1, selectedYear + 2]" :key="y" :value="y">
+                        <option v-for="y in yearOptions" :key="y" :value="y">
                             {{ y }}
                         </option>
                     </select>
+                    </div>
                 </div>
 
                 <!-- Content Card -->
@@ -1423,8 +1501,7 @@ onBeforeUnmount(() => {
                                             {{ showRemoved ? 'Ver ativos' : 'Ver removidos' }}
                                         </button>
                                     </DropdownMenuItem>
-                                    <!-- Opção de gráfico apenas no modo Mensal -->
-                                    <DropdownMenuItem v-if="activeTab === 'mensal'" :as-child="true">
+                                    <DropdownMenuItem v-if="activeTab !== 'todos'" :as-child="true">
                                         <button
                                             type="button"
                                             class="w-full text-left"
@@ -1572,7 +1649,7 @@ onBeforeUnmount(() => {
                             </button>
                         </div>
                         <div v-if="importSuccess && !importError" class="flex justify-end mt-6">
-                            <button @click="cancelImport" class="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg hover:shadow-md transition-all flex items-center gap-2">
+                            <button @click="cancelImport" class="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all flex items-center gap-2">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                                 </svg>
@@ -2187,7 +2264,101 @@ onBeforeUnmount(() => {
 
                             <div v-if="activeTab === 'mensal'" class="space-y-6">
                                 <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
-                                    <!-- 4 Totais Anuais -->
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                        <div class="text-center">
+                                            <h3 class="text-lg font-bold text-yellow-600">{{ formatCurrency(currentChartTotals.entradas) }}</h3>
+                                            <p class="text-xs text-gray-600 mt-1">Entradas do mês</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <h3 class="text-lg font-bold text-orange-600">{{ formatCurrency(currentChartTotals.saidas) }}</h3>
+                                            <p class="text-xs text-gray-600 mt-1">Saídas do mês</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <h3 class="text-lg font-bold text-green-600">{{ formatCurrency(currentChartTotals.lucro) }}</h3>
+                                            <p class="text-xs text-gray-600 mt-1">Lucro do mês</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <h3 class="text-lg font-bold text-blue-600">{{ formatCurrency(commissionsTotal) }}</h3>
+                                            <p class="text-xs text-gray-600 mt-1">Comissões do mês</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-wrap justify-center gap-6 mb-6 text-sm">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-3 h-3 bg-yellow-400 rounded"></div>
+                                            <span class="text-gray-600">Entrada</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-3 h-3 bg-orange-500 rounded"></div>
+                                            <span class="text-gray-600">Saída</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-3 h-3 bg-green-500 rounded"></div>
+                                            <span class="text-gray-600">Lucro</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex gap-4">
+                                        <div class="relative pt-2 pb-8">
+                                            <div class="w-16 h-48 flex flex-col justify-between text-right">
+                                                <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthlyDaily) }}</span>
+                                                <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthlyDaily * 0.75) }}</span>
+                                                <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthlyDaily * 0.5) }}</span>
+                                                <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthlyDaily * 0.25) }}</span>
+                                                <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(0) }}</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex-1 relative overflow-x-auto">
+                                            <div class="absolute inset-0 flex flex-col pt-2 pb-8 pointer-events-none">
+                                                <div class="flex-1 border-t border-gray-200"></div>
+                                                <div class="flex-1 border-t border-gray-200"></div>
+                                                <div class="flex-1 border-t border-gray-200"></div>
+                                                <div class="flex-1 border-t border-gray-200"></div>
+                                                <div class="flex-1 border-t border-gray-200"></div>
+                                            </div>
+
+                                            <div class="flex items-end gap-2 h-64 min-w-max px-4 relative z-10">
+                                                <div v-for="day in monthlyDailyBreakdown" :key="day.date" class="flex flex-col items-center gap-1 w-8 flex-shrink-0">
+                                                    <div class="flex items-end gap-0.5 h-48 w-full">
+                                                        <div class="flex-1 bg-yellow-400 rounded-t transition-all hover:bg-yellow-500" :style="{ height: chartBarHeight(day.entradas, maxValueMonthlyDaily) }" :title="chartMonthlyTitle(formatDayLabel(day.date), 'Entrada', day.entradas)"></div>
+                                                        <div class="flex-1 bg-orange-500 rounded-t transition-all hover:bg-orange-600" :style="{ height: chartBarHeight(day.saidas, maxValueMonthlyDaily) }" :title="chartMonthlyTitle(formatDayLabel(day.date), 'Saída', day.saidas)"></div>
+                                                        <div class="flex-1 bg-green-500 rounded-t transition-all hover:bg-green-600" :style="{ height: chartBarHeight(day.lucro, maxValueMonthlyDaily) }" :title="chartMonthlyTitle(formatDayLabel(day.date), 'Lucro', day.lucro)"></div>
+                                                    </div>
+                                                    <span class="text-xs text-gray-600 mt-2">{{ formatDayLabel(day.date).slice(0, 2) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
+                                    <h3 class="text-xl font-bold text-orange-600 text-center mb-2">{{ formatCurrency(commissionsTotal) }}</h3>
+                                    <p class="text-center text-gray-600 mb-6">Comissões por colaborador no mês</p>
+
+                                    <div v-if="currentCommissions.length === 0" class="flex items-center justify-center h-48">
+                                        <div class="text-center text-gray-400">
+                                            <svg class="mx-auto h-12 w-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <p class="text-lg font-medium">Nenhuma comissão no período</p>
+                                            <p class="text-sm mt-1">Não há comissões registradas para este mês</p>
+                                        </div>
+                                    </div>
+
+                                    <div v-else class="flex items-end justify-center gap-8 h-48">
+                                        <div v-for="item in currentCommissions" :key="`commission-month-${item.collaborator_id}`" class="flex flex-col items-center gap-2">
+                                            <div class="flex items-end h-32">
+                                                <div class="w-16 bg-orange-500 rounded-t-lg transition-all hover:bg-orange-600" :style="{ height: `${maxValueComissoes > 0 ? (item.total / maxValueComissoes) * 100 : 0}%` }" :title="chartValueTitle(item.collaborator_name, item.total)"></div>
+                                            </div>
+                                            <span class="text-sm text-gray-600">{{ item.collaborator_name }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-if="activeTab === 'anual'" class="space-y-6">
+                                <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
                                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                                         <div class="text-center">
                                             <h3 class="text-lg font-bold text-yellow-600">{{ formatCurrency(currentChartTotals.entradas) }}</h3>
@@ -2207,7 +2378,6 @@ onBeforeUnmount(() => {
                                         </div>
                                     </div>
 
-                                    <!-- Legenda -->
                                     <div class="flex flex-wrap justify-center gap-6 mb-6 text-sm">
                                         <div class="flex items-center gap-2">
                                             <div class="w-3 h-3 bg-yellow-400 rounded"></div>
@@ -2227,9 +2397,7 @@ onBeforeUnmount(() => {
                                         </div>
                                     </div>
 
-                                    <!-- Gráfico com régua Y e 4 barras por mês -->
                                     <div class="flex gap-4">
-                                        <!-- Eixo Y (Escala de valores) -->
                                         <div class="relative pt-2 pb-8">
                                             <div class="w-16 h-48 flex flex-col justify-between text-right">
                                                 <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthly) }}</span>
@@ -2240,9 +2408,7 @@ onBeforeUnmount(() => {
                                             </div>
                                         </div>
 
-                                        <!-- Área do Gráfico -->
                                         <div class="flex-1 relative">
-                                            <!-- Linhas horizontais de grade -->
                                             <div class="absolute inset-0 flex flex-col pt-2 pb-8 pointer-events-none">
                                                 <div class="flex-1 border-t border-gray-200"></div>
                                                 <div class="flex-1 border-t border-gray-200"></div>
@@ -2251,7 +2417,6 @@ onBeforeUnmount(() => {
                                                 <div class="flex-1 border-t border-gray-200"></div>
                                             </div>
 
-                                            <!-- Barras do gráfico -->
                                             <div class="flex items-end justify-around gap-2 h-64 px-4 relative z-10">
                                                 <div v-for="month in monthlyBreakdown" :key="month.monthNum" class="flex flex-col items-center gap-1 flex-1">
                                                     <div class="flex items-end gap-0.5 h-48 w-full max-w-[48px]">
@@ -2269,7 +2434,7 @@ onBeforeUnmount(() => {
                             </div>
 
                             <div v-if="activeTab === 'todos'" class="bg-amber-50 border border-amber-200 rounded-lg p-5 text-center text-amber-700">
-                                Selecione Hoje, Últimos 7 dias ou Mensal para visualizar os gráficos.
+                                Selecione Hoje, Últimos 7 dias, Mensal ou Anual para visualizar os gráficos.
                             </div>
                         </div>
                     </template>

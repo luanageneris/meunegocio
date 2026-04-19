@@ -3,12 +3,11 @@ import { Head, Link } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
-import PageHeader from '@/components/PageHeader.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
-import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import Footer from '@/components/Footer.vue';
+import { Info, MessageCircle } from 'lucide-vue-next';
 
 interface SupportRequest {
     subject: string;
@@ -166,7 +165,7 @@ const handleKeydown = (e: KeyboardEvent) => {
 
                 <div class="bg-orange-50 border border-orange-200 rounded-lg p-6 space-y-3">
                     <div class="flex gap-3">
-                        <div class="text-orange-600 font-bold mt-1">ℹ️</div>
+                        <Info class="h-5 w-5 text-orange-600 mt-1 shrink-0" />
                         <div>
                             <p class="font-semibold text-gray-900">Não tem conta?</p>
                             <p class="text-sm text-gray-700">Crie sua primeira conta para acessar o suporte e gerenciar sua empresa.</p>
@@ -178,7 +177,10 @@ const handleKeydown = (e: KeyboardEvent) => {
                 </div>
 
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <p class="font-semibold text-gray-900 mb-2">💬 Precisa de ajuda?</p>
+                    <p class="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <MessageCircle class="h-5 w-5 text-blue-600" />
+                        <span>Precisa de ajuda?</span>
+                    </p>
                     <p class="text-sm text-gray-700 mb-3">
                         Você também pode enviar uma solicitação de suporte diretamente por e-mail:
                     </p>
@@ -190,22 +192,14 @@ const handleKeydown = (e: KeyboardEvent) => {
                 <div class="border-t pt-6">
                     <Link
                         href="/login"
-                        class="w-full block text-center px-6 py-3 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition"
+                        class="w-full block text-center px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold shadow-lg hover:bg-primary/90 transition"
                     >
                         Fazer login para enviar mensagem
                     </Link>
                 </div>
             </div>
         </main>
-
-        <footer class="max-w-6xl mx-auto px-6 pb-10 text-sm text-gray-600 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div class="flex flex-wrap gap-4">
-                <Link href="/politica-de-privacidade" class="font-semibold hover:text-orange-700 transition">Política de Privacidade</Link>
-            </div>
-            <span class="text-xs text-gray-500">© {{ new Date().getFullYear() }} Meu Negócio</span>
-        </footer>
-        
-        <Footer />
     </div>
+    <Footer />
 </template>
 
