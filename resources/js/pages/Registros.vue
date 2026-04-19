@@ -4,12 +4,6 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import { useInputMasks } from '@/composables/useInputMasks';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import Footer from '@/components/Footer.vue';
@@ -2951,41 +2945,32 @@ onBeforeUnmount(() => {
                 </div>
             </main>
 
-            <div v-if="!showRemoved" class="fixed bottom-6 left-4 lg:left-[17rem] z-40">
-                <DropdownMenu>
-                    <DropdownMenuTrigger :as-child="true">
-                        <button
-                            type="button"
-                            class="h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white inline-flex items-center justify-center hover:shadow-xl transition-all"
-                            title="Adicionar registro"
-                            aria-label="Adicionar registro"
-                        >
-                            <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
-                            </svg>
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" class="w-52">
-                        <DropdownMenuItem :as-child="true">
-                            <button
-                                type="button"
-                                class="w-full text-left"
-                                @click="openCreateEntry"
-                            >
-                                Nova Entrada
-                            </button>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem :as-child="true">
-                            <button
-                                type="button"
-                                class="w-full text-left"
-                                @click="openCreateExit"
-                            >
-                                Nova Saída
-                            </button>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+            <div v-if="!showRemoved" class="fixed top-6 right-4 lg:top-auto lg:bottom-6 lg:right-4 z-40 flex flex-col gap-3">
+                <!-- Botão Nova Entrada -->
+                <button
+                    type="button"
+                    class="h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-orange-400 to-amber-400 text-white inline-flex items-center justify-center hover:shadow-xl transition-all border-2 border-white"
+                    title="Nova Entrada"
+                    aria-label="Nova Entrada"
+                    @click="openCreateEntry"
+                >
+                    <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
+                    </svg>
+                </button>
+
+                <!-- Botão Nova Saída -->
+                <button
+                    type="button"
+                    class="h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white inline-flex items-center justify-center hover:shadow-xl transition-all border-2 border-white"
+                    title="Nova Saída"
+                    aria-label="Nova Saída"
+                    @click="openCreateExit"
+                >
+                    <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14" />
+                    </svg>
+                </button>
             </div>
             <Footer />
         </div>
