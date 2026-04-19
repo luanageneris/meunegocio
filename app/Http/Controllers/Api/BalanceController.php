@@ -112,9 +112,9 @@ class BalanceController
             $dayTotal = 0;
             foreach ($records as $record) {
                 if ($record->entry_type_id) {
-                    $dayTotal += $record->amount;
+                    $dayTotal += $record->final_amount;
                 } else {
-                    $dayTotal -= $record->amount;
+                    $dayTotal -= $record->final_amount;
                 }
             }
 
@@ -153,14 +153,16 @@ class BalanceController
         $entries = FinancialRecord::forCompany()
             ->whereYear('date', $year)
             ->whereMonth('date', $month)
-            ->whereNotNull('entry_type_id')
-            ->sum('amount');
+            ->whereNotNull('entry_type_id');
+
+        $entries = FinancialRecord::sumFinalAmount($entries);
 
         $exits = FinancialRecord::forCompany()
             ->whereYear('date', $year)
             ->whereMonth('date', $month)
-            ->whereNotNull('exit_type_id')
-            ->sum('amount');
+            ->whereNotNull('exit_type_id');
+
+        $exits = FinancialRecord::sumFinalAmount($exits);
 
         $commissions = Commission::forCompany()
             ->whereYear('date', $year)
@@ -193,13 +195,15 @@ class BalanceController
 
         $entries = FinancialRecord::forCompany()
             ->whereYear('date', $year)
-            ->whereNotNull('entry_type_id')
-            ->sum('amount');
+            ->whereNotNull('entry_type_id');
+
+        $entries = FinancialRecord::sumFinalAmount($entries);
 
         $exits = FinancialRecord::forCompany()
             ->whereYear('date', $year)
-            ->whereNotNull('exit_type_id')
-            ->sum('amount');
+            ->whereNotNull('exit_type_id');
+
+        $exits = FinancialRecord::sumFinalAmount($exits);
 
         $commissions = Commission::forCompany()
             ->whereYear('date', $year)

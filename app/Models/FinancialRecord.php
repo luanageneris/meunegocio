@@ -14,6 +14,8 @@ class FinancialRecord extends Model
 {
     use HasFactory, SoftDeletes, BelongsToCompany;
 
+    public const FINAL_AMOUNT_SQL = 'GREATEST((amount * COALESCE(quantity, 1)) - COALESCE(discount, 0), 0)';
+
     protected $fillable = [
         'company_id',
         'type',
@@ -74,6 +76,29 @@ class FinancialRecord extends Model
     public function commission(): HasOne
     {
         return $this->hasOne(Commission::class);
+    }
+
+    public function getFinalAmountAttribute(): float
+    {
+        $amount = (float) ($this->amount ?? 0);
+        $quantity = max(1, (int) ($this->quantity ?? 1));
+        $discount = (float) ($this->discount ?? 0);
+
+        return max(0, ($amount * $quantity) - $discount);
+    }
+
+    public static function sumFinalAmount(Builder $query): float
+    {
+        return (float) $query
+            ->selectRaw('COALESCE(SUM(' . self::FINAL_AMOUNT_SQL . '), 0) as total')
+            ->value('total');
+    }
+
+    public static function sumDiscountAmount(Builder $query): float
+    {
+        return (float) $query
+            ->selectRaw('COALESCE(SUM(COALESCE(discount, 0)), 0) as total')
+            ->value('total');
     }
 
     // Scopes para filtros

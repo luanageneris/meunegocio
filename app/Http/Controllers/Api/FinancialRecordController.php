@@ -183,13 +183,21 @@ class FinancialRecordController
 
     private function calculateFinancialTotals(Builder $query): array
     {
-        $entries = (float) (clone $query)->where('type', 'entry')->sum('amount');
-        $exits = (float) (clone $query)->where('type', 'exit')->sum('amount');
+        $entriesQuery = (clone $query)->where('type', 'entry');
+        $entries = $this->sumFinalAmount(clone $entriesQuery);
+        $exits = $this->sumFinalAmount((clone $query)->where('type', 'exit'));
+        $entryDiscounts = FinancialRecord::sumDiscountAmount($entriesQuery);
 
         return [
             'entries' => $entries,
             'exits' => $exits,
+            'entry_discounts' => $entryDiscounts,
         ];
+    }
+
+    private function sumFinalAmount(Builder $query): float
+    {
+        return FinancialRecord::sumFinalAmount($query);
     }
 
     /**
@@ -205,13 +213,15 @@ class FinancialRecordController
 
         $entries = FinancialRecord::forCompany()
             ->whereDate('date', $date)
-            ->whereNotNull('entry_type_id')
-            ->sum('amount');
+            ->whereNotNull('entry_type_id');
+
+        $entries = $this->sumFinalAmount($entries);
 
         $exits = FinancialRecord::forCompany()
             ->whereDate('date', $date)
-            ->whereNotNull('exit_type_id')
-            ->sum('amount');
+            ->whereNotNull('exit_type_id');
+
+        $exits = $this->sumFinalAmount($exits);
 
         $profit = $entries - $exits;
 

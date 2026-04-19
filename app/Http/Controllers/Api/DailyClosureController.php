@@ -57,13 +57,15 @@ class DailyClosureController
         // Calculate totals
         $entries = FinancialRecord::forCompany()
             ->whereDate('date', $date)
-            ->whereNotNull('entry_type_id')
-            ->sum('amount');
+            ->whereNotNull('entry_type_id');
+
+        $entries = FinancialRecord::sumFinalAmount($entries);
 
         $exits = FinancialRecord::forCompany()
             ->whereDate('date', $date)
-            ->whereNotNull('exit_type_id')
-            ->sum('amount');
+            ->whereNotNull('exit_type_id');
+
+        $exits = FinancialRecord::sumFinalAmount($exits);
 
         $commissions = Commission::forCompany()
             ->whereDate('date', $date)

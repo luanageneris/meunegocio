@@ -47,11 +47,12 @@ const pagination = ref<{ total: number; per_page: number; current_page: number }
     per_page: 7,
     current_page: 1,
 });
-const resumoTotais = ref<{ entries: number; exits: number; commissions: number; final_total: number }>({
+const resumoTotais = ref<{ entries: number; exits: number; commissions: number; final_total: number; entry_discounts: number }>({
     entries: 0,
     exits: 0,
     commissions: 0,
     final_total: 0,
+    entry_discounts: 0,
 });
 
 // Inline form state
@@ -350,6 +351,26 @@ const toFiniteAmount = (value: unknown): number => {
     return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const calculateRecordTotal = (amount: unknown, quantity: unknown, discount: unknown): number => {
+    const safeAmount = Math.max(0, toFiniteAmount(amount));
+    const safeQuantity = Math.max(1, toFiniteAmount(quantity) || 1);
+    const safeDiscount = Math.max(0, toFiniteAmount(discount));
+
+    return Math.max(0, (safeAmount * safeQuantity) - safeDiscount);
+};
+
+const entryCalculatedTotal = computed(() => calculateRecordTotal(
+    entryForm.value.amount,
+    entryForm.value.quantity,
+    entryForm.value.discount,
+));
+
+const exitCalculatedTotal = computed(() => calculateRecordTotal(
+    exitForm.value.amount,
+    exitForm.value.quantity,
+    exitForm.value.discount,
+));
+
 const findDefaultOptionId = (items: any[]) => {
     const normalized = (v: string) => (v || '').trim().toLowerCase();
     const found = items.find((item: any) => {
@@ -360,11 +381,23 @@ const findDefaultOptionId = (items: any[]) => {
     return found?.id ?? null;
 };
 
+const getRecordDeleteLabel = (record: { categoria?: string; descricao?: string; colaborador?: string; tipo?: string }) => {
+    const normalizedValue = (value?: string) => {
+        const trimmed = (value || '').trim();
+        return trimmed && trimmed !== '-' ? trimmed : '';
+    };
+
+    return normalizedValue(record.categoria)
+        || normalizedValue(record.descricao)
+        || normalizedValue(record.colaborador)
+        || (record.tipo === 'entrada' ? 'esta entrada' : 'esta saída');
+};
+
 const viewRegistros = computed(() => registros.value.map((r: any) => ({
     id: r.id,
     // Determina tipo com base em presença de entry/exit
     tipo: (r.entry_type_id || r.entry_type) ? 'entrada' : 'saida',
-    valor: Number(r.amount ?? 0),
+    valor: calculateRecordTotal(r.amount, r.quantity, r.discount),
     categoria: r.entry_type?.name ?? r.exit_type?.name ?? '-',
     descricao: r.description ?? '',
     colaborador: r.collaborator?.name ?? '',
@@ -431,6 +464,10 @@ const totalEntradas = computed(() => Number(resumoTotais.value.entries ?? 0));
 const totalSaidas = computed(() => Number(resumoTotais.value.exits ?? 0));
 
 const totalComissoes = computed(() => Number(resumoTotais.value.commissions ?? 0));
+
+const totalDescontosEntradas = computed(() => Number(resumoTotais.value.entry_discounts ?? 0));
+
+const totalEntradasBrutas = computed(() => totalEntradas.value + totalDescontosEntradas.value);
 
 const totalFinal = computed(() => Number(resumoTotais.value.final_total ?? 0));
 
@@ -584,12 +621,12 @@ const fetchRangeData = async (range: RangeKey) => {
             ? entradasFromApi
             : items
                 .filter((r: any) => r.type === 'entry' || r.entry_type_id)
-                .reduce((s: number, r: any) => s + toFiniteAmount(r.amount), 0);
+                .reduce((s: number, r: any) => s + calculateRecordTotal(r.amount, r.quantity, r.discount), 0);
         const saidas = Number.isFinite(saidasFromApi)
             ? saidasFromApi
             : items
                 .filter((r: any) => r.type === 'exit' || r.exit_type_id)
-                .reduce((s: number, r: any) => s + toFiniteAmount(r.amount), 0);
+                .reduce((s: number, r: any) => s + calculateRecordTotal(r.amount, r.quantity, r.discount), 0);
 
         rangeTotals.value[range] = { entradas, saidas, lucro: entradas - saidas };
 
@@ -634,9 +671,9 @@ const fetchRangeData = async (range: RangeKey) => {
 
                 const day = dailyMap.get(date)!;
                 if (r.type === 'entry' || r.entry_type_id) {
-                    day.entradas += toFiniteAmount(r.amount);
+                    day.entradas += calculateRecordTotal(r.amount, r.quantity, r.discount);
                 } else {
-                    day.saidas += toFiniteAmount(r.amount);
+                    day.saidas += calculateRecordTotal(r.amount, r.quantity, r.discount);
                 }
             });
 
@@ -674,9 +711,9 @@ const fetchRangeData = async (range: RangeKey) => {
 
                 const day = dailyMap.get(date)!;
                 if (r.type === 'entry' || r.entry_type_id) {
-                    day.entradas += toFiniteAmount(r.amount);
+                    day.entradas += calculateRecordTotal(r.amount, r.quantity, r.discount);
                 } else {
-                    day.saidas += toFiniteAmount(r.amount);
+                    day.saidas += calculateRecordTotal(r.amount, r.quantity, r.discount);
                 }
             });
 
@@ -714,9 +751,9 @@ const fetchRangeData = async (range: RangeKey) => {
                 const month = monthlyMap.get(monthNum)!;
 
                 if (r.type === 'entry' || r.entry_type_id) {
-                    month.entradas += toFiniteAmount(r.amount);
+                    month.entradas += calculateRecordTotal(r.amount, r.quantity, r.discount);
                 } else {
-                    month.saidas += toFiniteAmount(r.amount);
+                    month.saidas += calculateRecordTotal(r.amount, r.quantity, r.discount);
                 }
             });
 
@@ -863,6 +900,7 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
             exits: Number(json?.totals?.exits ?? 0),
             commissions: Number(json?.totals?.commissions ?? 0),
             final_total: Number(json?.totals?.final_total ?? 0),
+            entry_discounts: Number(json?.totals?.entry_discounts ?? 0),
         };
         currentPage.value = pagination.value.current_page || page;
 
@@ -1740,6 +1778,13 @@ onBeforeUnmount(() => {
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
                                 <input type="text" v-model="entryForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="Opcional" />
                             </div>
+                            <div class="sm:col-span-2">
+                                <div class="rounded-lg border border-yellow-200 bg-white px-4 py-3">
+                                    <p class="text-xs font-medium text-gray-500">Valor total</p>
+                                    <p class="mt-1 text-lg font-semibold text-yellow-700">{{ formatCurrency(entryCalculatedTotal) }}</p>
+                                    <p v-if="useServiceTypes" class="mt-1 text-xs text-gray-500">Cálculo: valor x quantidade - desconto</p>
+                                </div>
+                            </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-4">
                             <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
@@ -1790,6 +1835,13 @@ onBeforeUnmount(() => {
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
                                 <input type="text" v-model="exitForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="Opcional" />
                             </div>
+                            <div class="sm:col-span-2">
+                                <div class="rounded-lg border border-orange-200 bg-white px-4 py-3">
+                                    <p class="text-xs font-medium text-gray-500">Valor total</p>
+                                    <p class="mt-1 text-lg font-semibold text-orange-700">{{ formatCurrency(exitCalculatedTotal) }}</p>
+                                    <p class="mt-1 text-xs text-gray-500">Cálculo: valor x quantidade - desconto</p>
+                                </div>
+                            </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-4">
                             <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
@@ -1801,12 +1853,77 @@ onBeforeUnmount(() => {
 
                     <template v-if="!isChartsView">
                     <!-- Summary -->
-                    <div class="mb-6 space-y-1 text-sm text-gray-600">
-                        <p>Total de registros: <span class="font-semibold">{{ totalRegistros }}</span></p>
-                        <p>Valor Total de Entrada: <span class="font-semibold text-yellow-600">{{ formatCurrency(totalEntradas) }}</span></p>
-                        <p>Valor Total de Saída: <span class="font-semibold text-orange-600">{{ formatCurrency(totalSaidas) }}</span></p>
-                        <p>Total de Comissões: <span class="font-semibold text-blue-600">{{ formatCurrency(totalComissoes) }}</span></p>
-                        <p>Total Final (comissões - saída + entrada): <span class="font-semibold text-emerald-600">{{ formatCurrency(totalFinal) }}</span></p>
+                    <div class="mb-6 space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                <p class="text-xs font-medium text-slate-500">Total de registros</p>
+                                <p class="mt-1 text-2xl font-bold text-slate-800">{{ totalRegistros }}</p>
+                            </div>
+                            <div class="rounded-xl border border-yellow-200 bg-yellow-50/70 p-4">
+                                <p class="text-xs font-medium text-yellow-700">Entradas (líquido)</p>
+                                <p class="mt-1 text-2xl font-bold text-yellow-700">{{ formatCurrency(totalEntradas) }}</p>
+                            </div>
+                            <div class="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+                                <p class="text-xs font-medium text-amber-700">Descontos nas entradas</p>
+                                <p class="mt-1 text-2xl font-bold text-amber-700">{{ formatCurrency(totalDescontosEntradas) }}</p>
+                            </div>
+                            <div class="rounded-xl border border-orange-200 bg-orange-50/70 p-4">
+                                <p class="text-xs font-medium text-orange-700">Saídas</p>
+                                <p class="mt-1 text-2xl font-bold text-orange-700">{{ formatCurrency(totalSaidas) }}</p>
+                            </div>
+                            <div class="rounded-xl border border-blue-200 bg-blue-50/70 p-4">
+                                <p class="text-xs font-medium text-blue-700">Comissões</p>
+                                <p class="mt-1 text-2xl font-bold text-blue-700">{{ formatCurrency(totalComissoes) }}</p>
+                            </div>
+                            <div class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
+                                <p class="text-xs font-medium text-emerald-700">Total final</p>
+                                <p class="mt-1 text-2xl font-bold text-emerald-700">{{ formatCurrency(totalFinal) }}</p>
+                            </div>
+                        </div>
+
+                        <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                            <div class="px-4 py-3 border-b border-slate-100 bg-slate-50/70">
+                                <p class="text-sm font-semibold text-slate-700">Conferência financeira</p>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full min-w-[640px] text-sm">
+                                    <thead class="bg-slate-50 text-slate-600">
+                                        <tr>
+                                            <th class="text-left px-4 py-2 font-semibold">Métrica</th>
+                                            <th class="text-right px-4 py-2 font-semibold">Valor bruto</th>
+                                            <th class="text-right px-4 py-2 font-semibold">Descontos</th>
+                                            <th class="text-right px-4 py-2 font-semibold">Valor líquido</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        <tr>
+                                            <td class="px-4 py-2 text-slate-700">Entradas</td>
+                                            <td class="px-4 py-2 text-right font-semibold text-slate-700">{{ formatCurrency(totalEntradasBrutas) }}</td>
+                                            <td class="px-4 py-2 text-right font-semibold text-amber-700">{{ formatCurrency(totalDescontosEntradas) }}</td>
+                                            <td class="px-4 py-2 text-right font-semibold text-yellow-700">{{ formatCurrency(totalEntradas) }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-4 py-2 text-slate-700">Saídas</td>
+                                            <td class="px-4 py-2 text-right font-semibold text-orange-700">{{ formatCurrency(totalSaidas) }}</td>
+                                            <td class="px-4 py-2 text-right text-slate-400">-</td>
+                                            <td class="px-4 py-2 text-right font-semibold text-orange-700">{{ formatCurrency(totalSaidas) }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-4 py-2 text-slate-700">Comissões</td>
+                                            <td class="px-4 py-2 text-right font-semibold text-blue-700">{{ formatCurrency(totalComissoes) }}</td>
+                                            <td class="px-4 py-2 text-right text-slate-400">-</td>
+                                            <td class="px-4 py-2 text-right font-semibold text-blue-700">{{ formatCurrency(totalComissoes) }}</td>
+                                        </tr>
+                                        <tr class="bg-emerald-50/60">
+                                            <td class="px-4 py-2 font-semibold text-emerald-800">Total final</td>
+                                            <td class="px-4 py-2 text-right text-slate-400">-</td>
+                                            <td class="px-4 py-2 text-right text-slate-400">-</td>
+                                            <td class="px-4 py-2 text-right font-bold text-emerald-700">{{ formatCurrency(totalFinal) }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Search -->
@@ -1939,6 +2056,13 @@ onBeforeUnmount(() => {
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
                                         <input type="text" v-model="entryForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="Opcional" />
                                     </div>
+                                    <div class="sm:col-span-2">
+                                        <div class="rounded-lg border border-yellow-200 bg-white px-4 py-3">
+                                            <p class="text-xs font-medium text-gray-500">Valor total</p>
+                                            <p class="mt-1 text-lg font-semibold text-yellow-700">{{ formatCurrency(entryCalculatedTotal) }}</p>
+                                            <p v-if="useServiceTypes" class="mt-1 text-xs text-gray-500">Cálculo: valor x quantidade - desconto</p>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="flex justify-end gap-2 mt-4">
                                     <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
@@ -1988,6 +2112,13 @@ onBeforeUnmount(() => {
                                     <div class="sm:col-span-2">
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
                                         <input type="text" v-model="exitForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="Opcional" />
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <div class="rounded-lg border border-orange-200 bg-white px-4 py-3">
+                                            <p class="text-xs font-medium text-gray-500">Valor total</p>
+                                            <p class="mt-1 text-lg font-semibold text-orange-700">{{ formatCurrency(exitCalculatedTotal) }}</p>
+                                            <p class="mt-1 text-xs text-gray-500">Cálculo: valor x quantidade - desconto</p>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="flex justify-end gap-2 mt-4">
@@ -2087,8 +2218,8 @@ onBeforeUnmount(() => {
                                 class="border-t border-red-200 bg-red-50/80 px-4 py-3 rounded-b-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                             >
                                 <p class="text-sm font-medium text-gray-800">
-                                    Tem certeza que deseja remover este registro de
-                                    <span class="font-semibold text-red-600">{{ registro.categoria }}</span>?
+                                    Tem certeza que deseja remover
+                                    <span class="font-semibold text-red-600">{{ getRecordDeleteLabel(registro) }}</span>?
                                 </p>
                                 <div class="flex gap-2 justify-end">
                                     <button

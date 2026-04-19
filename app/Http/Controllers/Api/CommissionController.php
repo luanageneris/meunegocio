@@ -104,8 +104,8 @@ class CommissionController
 
         $commissions = [];
         foreach ($records as $record) {
-            // Calculate commission: amount * (percentage / 100)
-            $commissionValue = $record->amount * ($record->serviceType->commission_percentage / 100);
+            // Calculate commission from the record final amount after quantity and discount.
+            $commissionValue = $record->final_amount * ($record->serviceType->commission_percentage / 100);
 
             // Create commission
             $commission = Commission::create([
