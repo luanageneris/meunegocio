@@ -28,8 +28,8 @@ onMounted(() => {
 const companyName = computed(() => auth.getCompanyName.value || 'Empresa');
 
 const menuItems = [
-    { name: 'Personalizar', icon: 'settings', route: '/personalizar', key: 'personalizar' },
     { name: 'Registros', icon: 'list', route: '/registros', key: 'registros' },
+    { name: 'Personalizar', icon: 'settings', route: '/personalizar', key: 'personalizar' },
     { name: 'Colaboradores', icon: 'people', route: '/colaboradores', key: 'colaboradores' },
     { name: 'Histórico', icon: 'history', route: '/historico', key: 'historico' },
     { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },

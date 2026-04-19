@@ -8,6 +8,12 @@ import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import Footer from '@/components/Footer.vue';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const page = usePage();
 const auth = useAuth();
