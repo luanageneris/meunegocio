@@ -55,6 +55,23 @@ class ExitTypeApiTest extends TestCase
             ->assertJsonCount(3);
     }
 
+    public function test_default_exit_type_is_hidden_from_list(): void
+    {
+        ExitType::create([
+            'name' => CompanyDefaultsService::DEFAULT_LABEL,
+            'company_id' => $this->company->id,
+        ]);
+        ExitType::create(['name' => 'Comissão comum', 'company_id' => $this->company->id]);
+
+        $response = $this->actingAs($this->rootUser, 'sanctum')
+            ->getJson('/api/personalizar/exit-types');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1)
+            ->assertJsonFragment(['name' => 'Comissão comum'])
+            ->assertJsonMissing(['name' => CompanyDefaultsService::DEFAULT_LABEL]);
+    }
+
     public function test_can_create_exit_type()
     {
         $response = $this->actingAs($this->rootUser, 'sanctum')

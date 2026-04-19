@@ -55,6 +55,23 @@ class EntryTypeApiTest extends TestCase
             ->assertJsonCount(3);
     }
 
+    public function test_default_entry_type_is_hidden_from_list(): void
+    {
+        EntryType::create([
+            'name' => CompanyDefaultsService::DEFAULT_LABEL,
+            'company_id' => $this->company->id,
+        ]);
+        EntryType::create(['name' => 'Serviço comum', 'company_id' => $this->company->id]);
+
+        $response = $this->actingAs($this->rootUser, 'sanctum')
+            ->getJson('/api/personalizar/entry-types');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1)
+            ->assertJsonFragment(['name' => 'Serviço comum'])
+            ->assertJsonMissing(['name' => CompanyDefaultsService::DEFAULT_LABEL]);
+    }
+
     public function test_can_create_entry_type()
     {
         $response = $this->actingAs($this->rootUser, 'sanctum')

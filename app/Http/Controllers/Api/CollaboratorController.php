@@ -17,6 +17,7 @@ class CollaboratorController extends Controller
     public function index(Request $request)
     {
         $collaborators = Collaborator::forCompany()
+            ->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido'])
             ->orderBy('name')
             ->get();
 
@@ -30,6 +31,7 @@ class CollaboratorController extends Controller
     {
         $collaborators = Collaborator::withTrashed()
             ->forCompany()
+            ->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido'])
             ->orderByDesc('deleted_at')
             ->orderBy('name')
             ->get();

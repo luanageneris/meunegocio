@@ -74,6 +74,30 @@ class CollaboratorApiTest extends TestCase
             ->assertJsonCount(2);
     }
 
+    public function test_default_collaborator_is_hidden_from_list(): void
+    {
+        Collaborator::create([
+            'name' => CompanyDefaultsService::DEFAULT_LABEL,
+            'cpf' => '000.000.000-01',
+            'active' => true,
+            'company_id' => $this->company->id,
+        ]);
+        Collaborator::create([
+            'name' => 'Colaborador comum',
+            'cpf' => '123.456.789-09',
+            'active' => true,
+            'company_id' => $this->company->id,
+        ]);
+
+        $response = $this->actingAs($this->rootUser, 'sanctum')
+            ->getJson('/api/personalizar/collaborators');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1)
+            ->assertJsonFragment(['name' => 'Colaborador comum'])
+            ->assertJsonMissing(['name' => CompanyDefaultsService::DEFAULT_LABEL]);
+    }
+
     public function test_root_can_create_collaborator()
     {
         $response = $this->actingAs($this->rootUser, 'sanctum')

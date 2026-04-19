@@ -14,6 +14,7 @@ class ExitTypeController extends Controller
     public function index(Request $request)
     {
         $types = ExitType::forCompany()
+            ->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido'])
             ->orderBy('name')
             ->get();
 
@@ -79,6 +80,7 @@ class ExitTypeController extends Controller
     {
         $types = ExitType::where('company_id', $request->user()->company_id)
             ->withTrashed()
+            ->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido'])
             ->orderBy('name')
             ->get();
 
