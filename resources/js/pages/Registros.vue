@@ -2204,45 +2204,45 @@ onBeforeUnmount(() => {
                     </div>
 
                     <!-- Inline Create Exit Form (hidden when viewing removed items) -->
-                    <div v-if="showNewExitInline && !showRemoved" class="mb-6 border-2 border-orange-300 rounded-lg p-4 bg-orange-50/50">
-                        <h3 class="text-sm font-semibold text-orange-700 mb-4">Nova Saída</h3>
-                        <div v-if="Object.keys(exitFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <p v-for="(errs, field) in exitFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
+                    <div v-if="showNewExitInline && !showRemoved" class="mb-4 border-2 border-orange-300 rounded-lg p-3 sm:p-4 bg-orange-50/50">
+                        <h3 class="text-xs sm:text-sm font-semibold text-orange-700 mb-3 sm:mb-4">Nova Saída</h3>
+                        <div v-if="Object.keys(exitFormErrors).length" class="mb-3 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p v-for="(errs, field) in exitFormErrors" :key="field" class="text-xs sm:text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Saída</label>
-                                <select v-model="exitForm.exit_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                <select v-model="exitForm.exit_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-xs sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
-                                <select v-model="exitForm.collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                <select v-model="exitForm.collaborator_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-xs sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
-                                <input type="date" v-model="exitForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+                                <input type="date" v-model="exitForm.date" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" />
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
-                                <input ref="exitAmountInput" type="text" inputmode="numeric" v-model="exitForm.amount" @input="handleExitAmountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                                <input ref="exitAmountInput" type="text" inputmode="numeric" v-model="exitForm.amount" @input="handleExitAmountInput" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" placeholder="0,00" />
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
-                                <input type="number" min="1" v-model="exitForm.quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+                                <input type="number" min="1" v-model="exitForm.quantity" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" />
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
-                                <input type="text" inputmode="numeric" v-model="exitForm.discount" @input="handleExitDiscountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                                <input type="text" inputmode="numeric" v-model="exitForm.discount" @input="handleExitDiscountInput" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" placeholder="0,00" />
                             </div>
                             <div class="sm:col-span-2">
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
-                                <input type="text" v-model="exitForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="Opcional" />
+                                <input type="text" v-model="exitForm.description" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" placeholder="Opcional" />
                             </div>
                             <div class="sm:col-span-2">
                                 <div class="rounded-lg border border-orange-200 bg-white px-4 py-3">
@@ -2253,8 +2253,8 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-4">
-                            <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-                            <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
+                            <button @click="closeAllForms" class="px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
                                 {{ isExitLoading ? 'Salvando...' : 'Salvar' }}
                             </button>
                         </div>
