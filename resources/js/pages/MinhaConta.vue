@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
@@ -20,6 +20,7 @@ type CompanyForm = {
     postal_code: string;
 };
 
+const page = usePage();
 const auth = useAuth();
 const toast = useToast();
 const company = ref<any>(null);
@@ -48,6 +49,12 @@ const clearRecordsConfirmInput = ref('');
 const isClearingRecords = ref(false);
 const clearRecordsError = ref<string | null>(null);
 const clearRecordsSuccess = ref<string | null>(null);
+
+const getCsrfToken = (): string => {
+    const csrfFromProps = (page.props as any).csrf_token;
+    if (csrfFromProps) return csrfFromProps;
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+};
 
 const canEdit = computed(() => {
     const role = auth.user.value?.role;
@@ -124,7 +131,7 @@ const save = async () => {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
                 'Authorization': `Bearer ${auth.token.value}`,
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'X-CSRF-TOKEN': getCsrfToken(),
             },
             body: JSON.stringify(form.value),
         });
@@ -209,6 +216,7 @@ const handleClearRecordsConfirm = async () => {
             headers: {
                 'Authorization': `Bearer ${auth.token.value}`,
                 'Accept': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
             },
         });
 
@@ -253,6 +261,7 @@ const handleDeleteConfirm = async () => {
             headers: {
                 'Authorization': `Bearer ${auth.token.value}`,
                 'Accept': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
             },
         });
 

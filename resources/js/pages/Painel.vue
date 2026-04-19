@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted, computed } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
@@ -8,6 +8,7 @@ import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import Footer from '@/components/Footer.vue';
 
+const page = usePage();
 const auth = useAuth();
 const { isPrivacyMode } = usePrivacy();
 const company = ref<any>(null);
@@ -31,6 +32,12 @@ const commissionsByRange = ref<Record<RangeKey, Array<{ collaborator_id: number;
 const dailyBreakdown = ref<Array<{ date: string; entradas: number; saidas: number; lucro: number }>>([]);
 
 const monthlyBreakdown = ref<Array<{ month: string; monthNum: number; entradas: number; saidas: number; lucro: number }>>([]);
+
+const getCsrfToken = (): string => {
+    const csrfFromProps = (page.props as any).csrf_token;
+    if (csrfFromProps) return csrfFromProps;
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+};
 
 const formatCurrency = (value: number) => {
     if (isPrivacyMode.value) {
@@ -94,6 +101,7 @@ const fetchRangeData = async (range: RangeKey) => {
                 'Authorization': `Bearer ${auth.token.value}`,
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
             },
             body: JSON.stringify({ start_date: start, end_date: end }),
         });
@@ -110,6 +118,7 @@ const fetchRangeData = async (range: RangeKey) => {
                 'Authorization': `Bearer ${auth.token.value}`,
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
             },
             body: JSON.stringify({ start_date: start, end_date: end }),
         });

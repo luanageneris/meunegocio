@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
@@ -14,6 +14,7 @@ import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import Footer from '@/components/Footer.vue';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
 
+const page = usePage();
 const auth = useAuth();
 const { isPrivacyMode } = usePrivacy();
 const registrationSuccessToastKey = 'registration_success_toast';
@@ -139,6 +140,17 @@ const isEntryLoading = ref(false);
 const isExitLoading = ref(false);
 
 const useServiceTypes = computed(() => company.value?.use_service_types !== false);
+
+// Helper function to get CSRF token from Inertia props, fallback to meta tag
+const getCsrfToken = (): string => {
+    // Try to get from Inertia props first
+    const csrfFromProps = (page.props as any).csrf_token;
+    if (csrfFromProps) return csrfFromProps;
+    
+    // Fallback to meta tag
+    if (typeof window === 'undefined') return '';
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+};
 
 const registros = ref<any[]>([]);
 const sortKey = ref<'valor' | 'categoria' | 'colaborador' | 'descricao' | 'dataOperacao' | 'registradoEm' | 'tipo'>('registradoEm');
@@ -399,8 +411,8 @@ const getRecordDeleteLabel = (record: { categoria?: string; descricao?: string; 
 
 const viewRegistros = computed(() => registros.value.map((r: any) => ({
     id: r.id,
-    // Determina tipo com base em presença de entry/exit
-    tipo: (r.entry_type_id || r.entry_type) ? 'entrada' : 'saida',
+    // Determina tipo com base no campo type do banco de dados
+    tipo: r.type === 'entry' ? 'entrada' : 'saida',
     valor: calculateRecordTotal(r.amount, r.quantity, r.discount),
     categoria: r.entry_type?.name ?? r.exit_type?.name ?? '-',
     descricao: r.description ?? '',
@@ -412,9 +424,11 @@ const viewRegistros = computed(() => registros.value.map((r: any) => ({
 })));
 
 const filteredRegistros = computed(() => {
-    let filtered = viewRegistros.value.filter(r => (showRemoved.value ? r.deleted : !r.deleted));
+    // Backend já filtra por deleted status, então não precisamos filtrar novamente aqui
+    // Apenas aplicamos o filtro de busca se houver
+    let filtered = viewRegistros.value;
 
-    if (searchQuery.value) {
+    if (searchQuery.value && !showRemoved.value) {
         const query = searchQuery.value.toLowerCase();
         filtered = filtered.filter(r =>
             (r.categoria || '').toLowerCase().includes(query) ||
@@ -596,6 +610,7 @@ const fetchRangeData = async (range: RangeKey) => {
                     'Authorization': `Bearer ${auth.token.value}`,
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
                 },
                 body: JSON.stringify({ start_date: start, end_date: end }),
             });
@@ -642,6 +657,7 @@ const fetchRangeData = async (range: RangeKey) => {
                 'Authorization': `Bearer ${auth.token.value}`,
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
             },
             body: JSON.stringify({ start_date: start, end_date: end }),
         });
@@ -771,6 +787,7 @@ const fetchRangeData = async (range: RangeKey) => {
                         'Authorization': `Bearer ${auth.token.value}`,
                         'Accept': 'application/json',
                         'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken(),
                     },
                     body: JSON.stringify({ 
                         start_date: `${selectedYear.value}-01-01`, 
@@ -877,6 +894,7 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
                     'Authorization': `Bearer ${auth.token.value}`,
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
                 },
                 body: JSON.stringify({ start_date: start, end_date: end }),
             });
@@ -895,6 +913,7 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
 
         const json = await response.json();
         const incomingData = (json?.data) ?? [];
+        console.log('Registros recebidos:', { showRemoved: showRemoved.value, activeTab: activeTab.value, incomingData, total: json.pagination?.total });
         registros.value = append ? [...registros.value, ...incomingData] : incomingData;
         pagination.value = json.pagination || {
             total: json.data?.length ?? 0,
@@ -1102,6 +1121,7 @@ const confirmDelete = async () => {
             headers: {
                 'Authorization': `Bearer ${auth.token.value}`,
                 'Accept': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
             },
         });
 
@@ -1137,6 +1157,7 @@ const handleRestore = async (id: number) => {
             headers: {
                 'Authorization': `Bearer ${auth.token.value}`,
                 'Accept': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
             },
         });
 
@@ -1299,6 +1320,7 @@ const confirmImport = async () => {
             headers: {
                 'Authorization': `Bearer ${auth.token.value}`,
                 'Accept': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
             },
             body: formData,
         });
@@ -1440,6 +1462,7 @@ const saveEntry = async () => {
                 'Authorization': `Bearer ${auth.token.value}`,
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
             },
             body: JSON.stringify(payload),
         });
@@ -1486,6 +1509,7 @@ const saveExit = async () => {
                 'Authorization': `Bearer ${auth.token.value}`,
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
             },
             body: JSON.stringify(payload),
         });
@@ -1507,7 +1531,9 @@ const saveExit = async () => {
 
 const handleVerRemovidos = () => {
     showRemoved.value = !showRemoved.value;
+    selectedRecordId.value = null;
     currentPage.value = 1;
+    searchQuery.value = '';
     fetchRegistros(1);
 };
 
@@ -1607,7 +1633,7 @@ onBeforeUnmount(() => {
             />
 
             <!-- Main Content -->
-            <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main class="w-full max-w-full sm:max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 flex flex-col overflow-x-hidden">
                 <AppInlineNotice
                     v-if="registrationSuccessMessage"
                     class="mb-6"
@@ -1618,8 +1644,8 @@ onBeforeUnmount(() => {
                 />
 
                 <!-- Tabs -->
-                <div class="mb-8 -mx-4 px-4 overflow-x-auto sm:overflow-visible">
-                    <div class="flex min-w-max justify-start sm:justify-center gap-2 pb-1">
+                <div class="mb-8 -mx-4 px-4 sm:-mx-0 sm:px-0 overflow-x-auto sm:overflow-visible scroll-smooth scrollbar-hide">
+                    <div class="flex min-w-max justify-start sm:justify-center gap-2 pb-2 sm:pb-1">
                     <button
                         @click="changeTab('hoje')"
                         :class="[
@@ -1679,13 +1705,13 @@ onBeforeUnmount(() => {
                 </div>
 
                 <!-- Period Selectors -->
-                <div v-if="activeTab === 'mensal' || activeTab === 'anual'" class="mb-6 -mx-4 px-4 overflow-x-auto sm:overflow-visible">
-                    <div class="flex min-w-max justify-start sm:justify-center gap-3 pb-1">
+                <div v-if="activeTab === 'mensal' || activeTab === 'anual'" class="mb-3 -mx-4 px-4 sm:-mx-0 sm:px-0 overflow-x-auto sm:overflow-visible scrollbar-hide">
+                    <div class="flex gap-1 pb-2 sm:pb-1 justify-center">
                     <select
                         v-if="activeTab === 'mensal'"
                         v-model.number="selectedMonth"
                         @change="(currentPage = 1, fetchRegistros(1))"
-                        class="px-4 py-2 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-white"
+                        class="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white text-sm"
                     >
                         <option v-for="m in monthOptions" :key="m.value" :value="m.value">
                             {{ m.label }}
@@ -1694,7 +1720,7 @@ onBeforeUnmount(() => {
                     <select
                         v-model.number="selectedYear"
                         @change="(currentPage = 1, fetchRegistros(1))"
-                        class="px-4 py-2 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-white"
+                        class="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white text-sm"
                     >
                         <option v-for="y in yearOptions" :key="y" :value="y">
                             {{ y }}
@@ -1704,9 +1730,22 @@ onBeforeUnmount(() => {
                 </div>
 
                 <!-- Content Card -->
-                <div class="bg-white rounded-lg shadow-lg p-6 ">
+                <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 w-full max-w-full overflow-hidden">
+                    <!-- Removed Items Mode Banner -->
+                    <div v-if="showRemoved" class="mb-6 p-3 sm:p-4 border-l-4 border-red-500 bg-red-50 rounded-lg">
+                        <div class="flex items-start gap-3">
+                            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0-6a4 4 0 110-8 4 4 0 010 8zm0 6a6 6 0 110-12 6 6 0 010 12z" />
+                            </svg>
+                            <div class="flex-1">
+                                <p class="text-sm font-semibold text-red-800">Visualizando itens removidos</p>
+                                <p class="text-xs text-red-700 mt-1">Você está vendo apenas registros deletados. Somente restauração é permitida neste modo.</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Action Buttons -->
-                    <div class="mb-6 flex justify-end">
+                    <div class="mb-4 flex flex-col sm:flex-row gap-2 sm:gap-4 sm:justify-end">
                         <input
                             ref="importFileInput"
                             type="file"
@@ -1715,26 +1754,27 @@ onBeforeUnmount(() => {
                             @change="onImportFileSelected"
                         />
 
-                        <div class="self-end sm:self-start">
+                        <div class="self-end sm:self-auto">
                             <!-- Botão de troca para sair do modo gráfico -->
                             <button
                                 v-if="isChartsView"
                                 @click="toggleChartsView"
-                                class="h-10 w-10 inline-flex items-center justify-center rounded-lg border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors"
+                                class="w-full sm:w-auto px-4 py-2 h-10 inline-flex items-center justify-center rounded-lg border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors"
                                 title="Voltar para listagem"
                                 aria-label="Voltar para listagem"
                             >
                                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m10 0v12m0 0l4-4m-4 4l-4-4" />
                                 </svg>
+                                <span class="ml-2 text-sm">Voltar</span>
                             </button>
 
-                            <!-- Menu de 3 pontos para outras opções -->
-                            <DropdownMenu v-else>
+                            <!-- Menu de 3 pontos para outras opções (normal mode) -->
+                            <DropdownMenu v-else-if="!showRemoved">
                                 <DropdownMenuTrigger :as-child="true">
                                     <button
                                         type="button"
-                                        class="h-10 w-10 inline-flex items-center justify-center rounded-lg border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors"
+                                        class="w-full sm:w-auto px-4 py-2 h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors text-sm"
                                         aria-label="Abrir configurações"
                                     >
                                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -1742,9 +1782,10 @@ onBeforeUnmount(() => {
                                             <circle cx="12" cy="12" r="1.75" />
                                             <circle cx="12" cy="19" r="1.75" />
                                         </svg>
+                                        <span>Opções</span>
                                     </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" class="w-56">
+                                <DropdownMenuContent align="end" class="w-48 sm:w-56">
                                     <DropdownMenuItem :as-child="true">
                                         <button
                                             type="button"
@@ -1760,7 +1801,7 @@ onBeforeUnmount(() => {
                                             class="w-full text-left"
                                             @click="handleVerRemovidos"
                                         >
-                                            {{ showRemoved ? 'Ver ativos' : 'Ver removidos' }}
+                                            Ver removidos
                                         </button>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem v-if="activeTab !== 'todos'" :as-child="true">
@@ -1774,61 +1815,73 @@ onBeforeUnmount(() => {
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
+
+                            <!-- Simplified button for removed mode -->
+                            <button v-else
+                                @click="handleVerRemovidos"
+                                class="w-full sm:w-auto px-4 py-2 h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-red-400 text-red-600 hover:bg-red-50 transition-colors text-sm"
+                                title="Voltar para itens ativos"
+                                aria-label="Voltar para itens ativos"
+                            >
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                <span>Ver ativos</span>
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Import Panel -->
-                    <div v-if="showImportPanel" class="mb-6 border-2 border-orange-200 rounded-lg p-6 bg-orange-50/60">
-                        <div class="flex items-center gap-3 mb-5">
-                            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <!-- Import Panel (hidden when viewing removed items) -->
+                    <div v-if="showImportPanel && !showRemoved" class="mb-4 border-2 border-orange-200 rounded-lg p-3 sm:p-4 bg-orange-50/60">
+                        <div class="flex items-center gap-2 mb-3 sm:mb-4">
+                            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
-                            <h3 class="text-base font-semibold text-orange-700">Importar Entradas e Saídas</h3>
+                            <h3 class="text-xs sm:text-sm font-semibold text-orange-700">Importar Entradas e Saídas</h3>
                         </div>
 
-                        <div v-if="selectedImportFile" class="mb-5 p-4 bg-white border border-orange-200 rounded-lg flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div v-if="selectedImportFile" class="mb-3 p-2 sm:p-3 bg-white border border-orange-200 rounded-lg flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
-                                <div>
-                                    <p class="text-sm font-medium text-gray-700">{{ selectedImportFile.name }}</p>
+                                <div class="min-w-0">
+                                    <p class="text-xs sm:text-sm font-medium text-gray-700 truncate">{{ selectedImportFile.name }}</p>
                                     <p class="text-xs text-gray-500">{{ formatFileSize(selectedImportFile.size) }}</p>
                                 </div>
                             </div>
-                            <button @click="clearImportFile" class="px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
+                            <button @click="clearImportFile" class="px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
-                                Trocar arquivo
                             </button>
                         </div>
 
-                        <div v-else class="mb-5 p-4 bg-white border-2 border-dashed border-orange-300 rounded-lg text-center">
-                            <p class="text-sm text-gray-600">Nenhum arquivo selecionado</p>
-                            <button @click="openImportPicker" class="mt-2 text-xs text-orange-600 hover:text-orange-700 font-medium underline">
-                                Clique aqui para escolher um Excel
+                        <div v-else class="mb-3 p-3 sm:p-4 bg-white border-2 border-dashed border-orange-300 rounded-lg text-center">
+                            <p class="text-xs sm:text-sm text-gray-600">Nenhum arquivo selecionado</p>
+                            <button @click="openImportPicker" class="mt-1 text-xs text-orange-600 hover:text-orange-700 font-medium underline">
+                                Escolher Excel
                             </button>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Entrada padrão</label>
-                                <select v-model="importDefaults.default_entry_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Entrada</label>
+                                <select v-model="importDefaults.default_entry_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-xs sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Saída padrão</label>
-                                <select v-model="importDefaults.default_exit_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Saída</label>
+                                <select v-model="importDefaults.default_exit_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-xs sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Colaborador padrão da Comissão</label>
-                                <select v-model="importDefaults.default_collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Colaborador</label>
+                                <select v-model="importDefaults.default_collaborator_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-xs sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
@@ -1836,73 +1889,73 @@ onBeforeUnmount(() => {
                         </div>
 
                         <!-- Loading State -->
-                        <div v-if="isImportLoading" class="mt-5 p-6 bg-white border border-blue-200 rounded-lg text-center">
-                            <div class="inline-block mb-3">
-                                <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <div v-if="isImportLoading" class="mt-3 p-3 sm:p-4 bg-white border border-blue-200 rounded-lg text-center">
+                            <div class="inline-block mb-2">
+                                <svg class="animate-spin h-6 sm:h-8 w-6 sm:w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
                             </div>
-                            <p class="text-sm font-medium text-gray-700">Processando arquivo...</p>
-                            <p class="text-xs text-gray-500 mt-2">Isto pode levar alguns segundos</p>
+                            <p class="text-xs sm:text-sm font-medium text-gray-700">Processando arquivo...</p>
+                            <p class="text-xs text-gray-500 mt-1">Pode levar alguns segundos</p>
                         </div>
 
                         <!-- Error State -->
-                        <div v-if="importError" class="mt-5 p-4 bg-red-50 border border-red-300 rounded-lg">
-                            <div class="flex items-center gap-2 mb-2">
-                                <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                        <div v-if="importError" class="mt-3 p-3 sm:p-4 bg-red-50 border border-red-300 rounded-lg">
+                            <div class="flex items-center gap-2 mb-1 sm:mb-2">
+                                <svg class="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
                                 </svg>
-                                <p class="text-sm font-medium text-red-700">Erro na importação</p>
+                                <p class="text-xs sm:text-sm font-medium text-red-700">Erro na importação</p>
                             </div>
-                            <p class="text-sm text-red-600">{{ importError }}</p>
+                            <p class="text-xs sm:text-sm text-red-600">{{ importError }}</p>
                         </div>
 
                         <!-- Success State -->
-                        <div v-if="importSuccess && !isImportLoading" class="mt-5 p-4 bg-orange-50 border border-orange-300 rounded-lg">
+                        <div v-if="importSuccess && !isImportLoading" class="mt-3 p-3 sm:p-4 bg-orange-50 border border-orange-300 rounded-lg">
                             <div class="flex items-center gap-2">
-                                <svg class="w-5 h-5 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                                <svg class="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                                 </svg>
-                                <p class="text-sm font-medium text-orange-700">{{ importSuccess }}</p>
+                                <p class="text-xs sm:text-sm font-medium text-orange-700">{{ importSuccess }}</p>
                             </div>
                         </div>
 
                         <!-- Summary Cards -->
-                        <div v-if="importSummary && !isImportLoading" class="mt-5 grid grid-cols-2 md:grid-cols-5 gap-3">
-                            <div class="bg-white border border-orange-200 rounded-lg p-3 text-center">
-                                <p class="text-2xl font-bold text-orange-600">{{ importSummary.sheets_processed }}</p>
-                                <p class="text-xs text-gray-600 mt-1">Abas</p>
+                        <div v-if="importSummary && !isImportLoading" class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                            <div class="bg-white border border-orange-200 rounded-lg p-2 text-center">
+                                <p class="text-lg sm:text-xl font-bold text-orange-600">{{ importSummary.sheets_processed }}</p>
+                                <p class="text-xs text-gray-600 mt-0.5">Abas</p>
                             </div>
-                            <div class="bg-white border border-blue-200 rounded-lg p-3 text-center">
-                                <p class="text-2xl font-bold text-blue-600">{{ importSummary.rows_processed }}</p>
-                                <p class="text-xs text-gray-600 mt-1">Linhas</p>
+                            <div class="bg-white border border-blue-200 rounded-lg p-2 text-center">
+                                <p class="text-lg sm:text-xl font-bold text-blue-600">{{ importSummary.rows_processed }}</p>
+                                <p class="text-xs text-gray-600 mt-0.5">Linhas</p>
                             </div>
-                            <div class="bg-white border border-yellow-200 rounded-lg p-3 text-center">
-                                <p class="text-2xl font-bold text-yellow-600">{{ importSummary.entries_created }}</p>
-                                <p class="text-xs text-gray-600 mt-1">Entradas</p>
+                            <div class="bg-white border border-yellow-200 rounded-lg p-2 text-center">
+                                <p class="text-lg sm:text-xl font-bold text-yellow-600">{{ importSummary.entries_created }}</p>
+                                <p class="text-xs text-gray-600 mt-0.5">Entradas</p>
                             </div>
-                            <div class="bg-white border border-orange-200 rounded-lg p-3 text-center">
-                                <p class="text-2xl font-bold text-orange-600">{{ importSummary.exits_created }}</p>
-                                <p class="text-xs text-gray-600 mt-1">Saídas</p>
+                            <div class="bg-white border border-orange-300 rounded-lg p-2 text-center">
+                                <p class="text-lg sm:text-xl font-bold text-orange-700">{{ importSummary.exits_created }}</p>
+                                <p class="text-xs text-gray-600 mt-0.5">Saídas</p>
                             </div>
-                            <div class="bg-white border border-purple-200 rounded-lg p-3 text-center">
-                                <p class="text-2xl font-bold text-purple-600">{{ importSummary.commissions_created }}</p>
-                                <p class="text-xs text-gray-600 mt-1">Comissões</p>
+                            <div class="bg-white border border-purple-200 rounded-lg p-2 text-center">
+                                <p class="text-lg sm:text-xl font-bold text-purple-600">{{ importSummary.commissions_created }}</p>
+                                <p class="text-xs text-gray-600 mt-0.5">Comissões</p>
                             </div>
                         </div>
 
-                        <div v-if="!importSuccess || importError" class="flex justify-end gap-2 mt-6">
-                            <button @click="cancelImport" :disabled="isImportLoading" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50">
+                        <div v-if="!importSuccess || importError" class="flex flex-col sm:flex-row justify-end gap-2 mt-3 sm:mt-4">
+                            <button @click="cancelImport" :disabled="isImportLoading" class="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50">
                                 Cancelar
                             </button>
-                            <button @click="confirmImport" :disabled="isImportLoading || !selectedImportFile" class="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            <button @click="confirmImport" :disabled="isImportLoading || !selectedImportFile" class="px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                                 <svg v-if="!isImportLoading" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                                 </svg>
-                                <span v-if="!isImportLoading">Confirmar importação</span>
-                                <span v-else class="flex items-center gap-2">
-                                    <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                <span v-if="!isImportLoading">Confirmar</span>
+                                <span v-else class="flex items-center gap-1">
+                                    <svg class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
@@ -1910,84 +1963,84 @@ onBeforeUnmount(() => {
                                 </span>
                             </button>
                         </div>
-                        <div v-if="importSuccess && !importError" class="flex justify-end mt-6">
-                            <button @click="cancelImport" class="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all flex items-center gap-2">
+                        <div v-if="importSuccess && !importError" class="flex justify-end mt-3 sm:mt-4">
+                            <button @click="cancelImport" class="px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all flex items-center justify-center gap-2">
+                                <span>Fechar importação</span>
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                                 </svg>
-                                Fechar
                             </button>
                         </div>
                     </div>
 
                     <template v-if="!isChartsView">
-                    <!-- Summary -->
-                    <div class="mb-6 space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                            <div class="rounded-xl border border-slate-200 bg-white p-4">
-                                <p class="text-xs font-medium text-slate-500">Total de registros</p>
-                                <p class="mt-1 text-2xl font-bold text-slate-800">{{ totalRegistros }}</p>
+                    <!-- Summary (hidden when viewing removed items) -->
+                    <div v-if="!showRemoved" class="mb-4 space-y-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                            <div class="rounded-lg border border-slate-200 bg-white p-3 text-center">
+                                <p class="text-xs font-medium text-slate-500">Total</p>
+                                <p class="mt-1 text-lg font-bold text-slate-800">{{ totalRegistros }}</p>
                             </div>
-                            <div class="rounded-xl border border-yellow-200 bg-yellow-50/70 p-4">
-                                <p class="text-xs font-medium text-yellow-700">Entradas (líquido)</p>
-                                <p class="mt-1 text-2xl font-bold text-yellow-700">{{ formatCurrency(totalEntradas) }}</p>
+                            <div class="rounded-lg border border-yellow-200 bg-yellow-50/70 p-3 text-center">
+                                <p class="text-xs font-medium text-yellow-700">Entradas</p>
+                                <p class="mt-1 text-lg font-bold text-yellow-700">{{ formatCurrency(totalEntradas) }}</p>
                             </div>
-                            <div class="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-                                <p class="text-xs font-medium text-amber-700">Descontos nas entradas</p>
-                                <p class="mt-1 text-2xl font-bold text-amber-700">{{ formatCurrency(totalDescontosEntradas) }}</p>
+                            <div class="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-center">
+                                <p class="text-xs font-medium text-amber-700">Descontos</p>
+                                <p class="mt-1 text-lg font-bold text-amber-700">{{ formatCurrency(totalDescontosEntradas) }}</p>
                             </div>
-                            <div class="rounded-xl border border-orange-200 bg-orange-50/70 p-4">
+                            <div class="rounded-lg border border-orange-200 bg-orange-50/70 p-3 text-center">
                                 <p class="text-xs font-medium text-orange-700">Saídas</p>
-                                <p class="mt-1 text-2xl font-bold text-orange-700">{{ formatCurrency(totalSaidas) }}</p>
+                                <p class="mt-1 text-lg font-bold text-orange-700">{{ formatCurrency(totalSaidas) }}</p>
                             </div>
-                            <div class="rounded-xl border border-blue-200 bg-blue-50/70 p-4">
+                            <div class="rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-center">
                                 <p class="text-xs font-medium text-blue-700">Comissões</p>
-                                <p class="mt-1 text-2xl font-bold text-blue-700">{{ formatCurrency(totalComissoes) }}</p>
+                                <p class="mt-1 text-lg font-bold text-blue-700">{{ formatCurrency(totalComissoes) }}</p>
                             </div>
-                            <div class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
+                            <div class="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 text-center">
                                 <p class="text-xs font-medium text-emerald-700">Total final</p>
-                                <p class="mt-1 text-2xl font-bold text-emerald-700">{{ formatCurrency(totalFinal) }}</p>
+                                <p class="mt-1 text-lg font-bold text-emerald-700">{{ formatCurrency(totalFinal) }}</p>
                             </div>
                         </div>
 
-                        <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                            <div class="px-4 py-3 border-b border-slate-100 bg-slate-50/70">
-                                <p class="text-sm font-semibold text-slate-700">Conferência financeira</p>
+                        <div class="rounded-lg border border-slate-200 bg-white overflow-hidden hidden sm:block">
+                            <div class="px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-100 bg-slate-50/70">
+                                <p class="text-xs sm:text-sm font-semibold text-slate-700">Conferência financeira</p>
                             </div>
                             <div class="overflow-x-auto">
-                                <table class="w-full min-w-[640px] text-sm">
+                                <table class="w-full text-xs sm:text-sm">
                                     <thead class="bg-slate-50 text-slate-600">
                                         <tr>
-                                            <th class="text-left px-4 py-2 font-semibold">Métrica</th>
-                                            <th class="text-right px-4 py-2 font-semibold">Valor bruto</th>
-                                            <th class="text-right px-4 py-2 font-semibold">Descontos</th>
-                                            <th class="text-right px-4 py-2 font-semibold">Valor líquido</th>
+                                            <th class="text-left px-3 sm:px-4 py-2 font-semibold">Métrica</th>
+                                            <th class="text-right px-3 sm:px-4 py-2 font-semibold">Valor bruto</th>
+                                            <th class="text-right px-3 sm:px-4 py-2 font-semibold">Descontos</th>
+                                            <th class="text-right px-3 sm:px-4 py-2 font-semibold">Valor líquido</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100">
                                         <tr>
-                                            <td class="px-4 py-2 text-slate-700">Entradas</td>
-                                            <td class="px-4 py-2 text-right font-semibold text-slate-700">{{ formatCurrency(totalEntradasBrutas) }}</td>
-                                            <td class="px-4 py-2 text-right font-semibold text-amber-700">{{ formatCurrency(totalDescontosEntradas) }}</td>
-                                            <td class="px-4 py-2 text-right font-semibold text-yellow-700">{{ formatCurrency(totalEntradas) }}</td>
+                                            <td class="px-3 sm:px-4 py-2 text-slate-700">Entradas</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right font-semibold text-slate-700">{{ formatCurrency(totalEntradasBrutas) }}</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right font-semibold text-amber-700">{{ formatCurrency(totalDescontosEntradas) }}</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right font-semibold text-yellow-700">{{ formatCurrency(totalEntradas) }}</td>
                                         </tr>
                                         <tr>
-                                            <td class="px-4 py-2 text-slate-700">Saídas</td>
-                                            <td class="px-4 py-2 text-right font-semibold text-orange-700">{{ formatCurrency(totalSaidas) }}</td>
-                                            <td class="px-4 py-2 text-right text-slate-400">-</td>
-                                            <td class="px-4 py-2 text-right font-semibold text-orange-700">{{ formatCurrency(totalSaidas) }}</td>
+                                            <td class="px-3 sm:px-4 py-2 text-slate-700">Saídas</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right font-semibold text-orange-700">{{ formatCurrency(totalSaidas) }}</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right text-slate-400">-</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right font-semibold text-orange-700">{{ formatCurrency(totalSaidas) }}</td>
                                         </tr>
                                         <tr>
-                                            <td class="px-4 py-2 text-slate-700">Comissões</td>
-                                            <td class="px-4 py-2 text-right font-semibold text-blue-700">{{ formatCurrency(totalComissoes) }}</td>
-                                            <td class="px-4 py-2 text-right text-slate-400">-</td>
-                                            <td class="px-4 py-2 text-right font-semibold text-blue-700">{{ formatCurrency(totalComissoes) }}</td>
+                                            <td class="px-3 sm:px-4 py-2 text-slate-700">Comissões</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right font-semibold text-blue-700">{{ formatCurrency(totalComissoes) }}</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right text-slate-400">-</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right font-semibold text-blue-700">{{ formatCurrency(totalComissoes) }}</td>
                                         </tr>
                                         <tr class="bg-emerald-50/60">
-                                            <td class="px-4 py-2 font-semibold text-emerald-800">Total final</td>
-                                            <td class="px-4 py-2 text-right text-slate-400">-</td>
-                                            <td class="px-4 py-2 text-right text-slate-400">-</td>
-                                            <td class="px-4 py-2 text-right font-bold text-emerald-700">{{ formatCurrency(totalFinal) }}</td>
+                                            <td class="px-3 sm:px-4 py-2 font-semibold text-emerald-800">Total final</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right text-slate-400">-</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right text-slate-400">-</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right font-bold text-emerald-700">{{ formatCurrency(totalFinal) }}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -1995,15 +2048,15 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <!-- Search -->
-                    <div class="mb-6">
+                    <!-- Search (hidden when viewing removed items) -->
+                    <div v-if="!showRemoved" class="mb-4">
                         <div class="relative">
                             <input
                                 ref="searchInputRef"
                                 v-model="searchQuery"
                                 type="text"
                                 placeholder="Pesquisar"
-                                class="w-full px-4 py-3 pr-11 border-2 border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                                class="w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 text-sm border-2 border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                             />
                             <button
                                 v-if="searchQuery"
@@ -2020,17 +2073,17 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <!-- Sorting Controls -->
-                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                        <div class="flex flex-wrap items-center gap-3">
-                            <div class="flex items-center gap-2">
-                                <label class="text-sm text-gray-600">Ordenar por</label>
+                    <!-- Sorting Controls (hidden when viewing removed items) -->
+                    <div v-if="!showRemoved" class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+                        <div class="flex flex-wrap items-center gap-1 sm:gap-2">
+                            <div class="flex items-center gap-1 sm:gap-2">
+                                <label class="text-xs text-gray-600 whitespace-nowrap">Ordenar</label>
                                 <select
                                     v-model="sortKey"
-                                    class="px-3 py-2 border border-yellow-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                                    class="px-2 py-1 border border-orange-300 rounded-lg bg-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                                 >
-                                    <option value="registradoEm">Registrado em</option>
-                                    <option value="dataOperacao">Data do movimento</option>
+                                    <option value="registradoEm">Registrado</option>
+                                    <option value="dataOperacao">Data</option>
                                     <option value="valor">Valor</option>
                                     <option value="categoria">Categoria</option>
                                     <option value="colaborador">Colaborador</option>
@@ -2038,45 +2091,45 @@ onBeforeUnmount(() => {
                                     <option value="tipo">Tipo</option>
                                 </select>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <label class="text-sm text-gray-600">Direção</label>
-                                <select
-                                    v-model="sortDir"
-                                    class="px-3 py-2 border border-yellow-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                                >
-                                    <option value="asc">Ascendente</option>
-                                    <option value="desc">Descendente</option>
-                                </select>
-                            </div>
+                            <select
+                                v-model="sortDir"
+                                class="px-2 py-1 border border-orange-300 rounded-lg bg-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                            >
+                                <option value="asc">A-Z</option>
+                                <option value="desc">Z-A</option>
+                            </select>
                         </div>
 
+                        <div class="flex gap-1 sm:gap-2">
                         <button
                             v-if="hasOpenForm"
                             type="button"
                             @click="closeAllForms"
-                            class="h-10 w-10 inline-flex items-center justify-center rounded-lg border-2 border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors"
+                            class="flex-1 sm:flex-none px-3 sm:px-4 py-2 h-9 sm:h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors text-xs sm:text-sm"
                             title="Fechar formulário"
                             aria-label="Fechar formulário"
                         >
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14" />
                             </svg>
+                            <span class="sm:hidden">Fechar</span>
                         </button>
 
-                        <DropdownMenu v-else>
+                        <DropdownMenu v-else-if="!showRemoved">
                             <DropdownMenuTrigger :as-child="true">
                                 <button
                                     type="button"
-                                    class="h-10 w-10 inline-flex items-center justify-center rounded-lg border-2 border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors"
+                                    class="flex-1 sm:flex-none px-3 sm:px-4 py-2 h-9 sm:h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors text-xs sm:text-sm"
                                     title="Novo registro"
                                     aria-label="Novo registro"
                                 >
-                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
                                     </svg>
+                                    <span class="sm:hidden">Novo</span>
                                 </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" class="w-48">
+                            <DropdownMenuContent align="end" class="w-48 sm:w-48">
                                 <DropdownMenuItem :as-child="true">
                                     <button
                                         type="button"
@@ -2097,47 +2150,48 @@ onBeforeUnmount(() => {
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
+                        </div>
                     </div>
 
-                    <!-- Inline Create Entry Form -->
-                    <div v-if="showNewEntryInline" class="mb-6 border-2 border-yellow-300 rounded-lg p-4 bg-yellow-50/50">
-                        <h3 class="text-sm font-semibold text-yellow-700 mb-4">Nova Entrada</h3>
-                        <div v-if="Object.keys(entryFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <p v-for="(errs, field) in entryFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
+                    <!-- Inline Create Entry Form (hidden when viewing removed items) -->
+                    <div v-if="showNewEntryInline && !showRemoved" class="mb-4 border-2 border-yellow-300 rounded-lg p-3 sm:p-4 bg-yellow-50/50">
+                        <h3 class="text-xs sm:text-sm font-semibold text-yellow-700 mb-3 sm:mb-4">Nova Entrada</h3>
+                        <div v-if="Object.keys(entryFormErrors).length" class="mb-3 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p v-for="(errs, field) in entryFormErrors" :key="field" class="text-xs sm:text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Entrada</label>
-                                <select v-model="entryForm.entry_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo</label>
+                                <select v-model="entryForm.entry_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-xs sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div v-if="useServiceTypes">
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Serviço</label>
-                                <select v-model="entryForm.service_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Serviço</label>
+                                <select v-model="entryForm.service_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-xs sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="s in tiposServico" :key="s.id" :value="s.id">{{ s.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
-                                <select v-model="entryForm.collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                <select v-model="entryForm.collaborator_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-xs sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
-                                <input type="date" v-model="entryForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
+                                <input type="date" v-model="entryForm.date" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-xs sm:text-sm" />
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
-                                <input ref="entryAmountInput" type="number" step="0.01" min="0" v-model="entryForm.amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                                <input ref="entryAmountInput" type="number" step="0.01" min="0" v-model="entryForm.amount" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-xs sm:text-sm" placeholder="0,00" />
                             </div>
                             <div v-if="useServiceTypes">
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
-                                <input type="number" min="1" v-model="entryForm.quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Qtd</label>
+                                <input type="number" min="1" v-model="entryForm.quantity" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-xs sm:text-sm" />
                             </div>
                             <div v-if="useServiceTypes">
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
@@ -2163,8 +2217,8 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <!-- Inline Create Exit Form -->
-                    <div v-if="showNewExitInline" class="mb-6 border-2 border-orange-300 rounded-lg p-4 bg-orange-50/50">
+                    <!-- Inline Create Exit Form (hidden when viewing removed items) -->
+                    <div v-if="showNewExitInline && !showRemoved" class="mb-6 border-2 border-orange-300 rounded-lg p-4 bg-orange-50/50">
                         <h3 class="text-sm font-semibold text-orange-700 mb-4">Nova Saída</h3>
                         <div v-if="Object.keys(exitFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                             <p v-for="(errs, field) in exitFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
@@ -2226,34 +2280,45 @@ onBeforeUnmount(() => {
                             <div
                                 v-for="n in 5"
                                 :key="`registro-skeleton-${n}`"
-                                class="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                                class="border border-gray-200 rounded-lg p-3 sm:p-4 bg-gray-50"
                             >
-                                <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
-                                    <div class="md:w-24 h-5 bg-gray-200 rounded animate-pulse"></div>
-                                    <div class="md:w-32 h-5 bg-gray-200 rounded animate-pulse"></div>
-                                    <div class="md:w-40 h-5 bg-gray-200 rounded animate-pulse"></div>
-                                    <div class="w-full md:flex-1 h-5 bg-gray-200 rounded animate-pulse"></div>
-                                    <div class="w-full md:w-64 space-y-2">
+                                <!-- Mobile skeleton -->
+                                <div class="md:hidden space-y-2">
+                                    <div class="flex justify-between">
+                                        <div class="h-5 w-1/2 bg-gray-200 rounded animate-pulse"></div>
+                                        <div class="h-5 w-16 bg-gray-200 rounded animate-pulse"></div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
                                         <div class="h-4 bg-gray-200 rounded animate-pulse"></div>
                                         <div class="h-4 bg-gray-200 rounded animate-pulse"></div>
                                     </div>
-                                    <div class="md:w-24 h-5 bg-gray-200 rounded animate-pulse"></div>
+                                    <div class="h-3 w-24 bg-gray-200 rounded animate-pulse"></div>
+                                </div>
+                                <!-- Desktop skeleton -->
+                                <div class="hidden md:flex md:items-center gap-4">
+                                    <div class="w-24 h-5 bg-gray-200 rounded animate-pulse"></div>
+                                    <div class="w-32 h-5 bg-gray-200 rounded animate-pulse"></div>
+                                    <div class="w-40 h-5 bg-gray-200 rounded animate-pulse"></div>
+                                    <div class="flex-1 h-5 bg-gray-200 rounded animate-pulse"></div>
+                                    <div class="w-64 space-y-2">
+                                        <div class="h-4 bg-gray-200 rounded animate-pulse"></div>
+                                        <div class="h-4 bg-gray-200 rounded animate-pulse"></div>
+                                    </div>
+                                    <div class="w-24 h-5 bg-gray-200 rounded animate-pulse"></div>
                                 </div>
                             </div>
                         </template>
 
                         <div
                             v-else-if="paginatedRegistros.length === 0"
-                            class="border border-gray-200 rounded-lg"
+                            class="border border-gray-200 rounded-lg p-4 text-sm text-gray-500 text-center"
                         >
-                            <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 p-4 text-sm text-gray-500">
-                                <div class="md:w-24 flex-shrink-0">-</div>
-                                <div class="md:w-32 flex-shrink-0">-</div>
-                                <div class="md:w-40 flex-shrink-0">-</div>
-                                <div class="w-full md:flex-1 font-medium text-gray-500">Nenhum registro encontrado</div>
-                                <div class="w-full md:w-24 flex-shrink-0 md:text-right">-</div>
-                                <div class="md:w-24 flex-shrink-0"></div>
-                            </div>
+                            <template v-if="showRemoved">
+                                Nenhum registro removido encontrado
+                            </template>
+                            <template v-else>
+                                Nenhum registro encontrado
+                            </template>
                         </div>
 
                         <div
@@ -2393,85 +2458,117 @@ onBeforeUnmount(() => {
 
                             <!-- Normal view -->
                             <template v-else>
-                            <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 p-4">
-                            <!-- Valor -->
-                            <div class="md:w-24 flex-shrink-0">
-                                <span
-                                    :class="[
-                                        'font-bold text-sm',
-                                        registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500'
-                                    ]"
-                                >
-                                    {{ registro.tipo === 'entrada' ? '+ ' : '- ' }}{{ formatCurrency(registro.valor) }}
-                                </span>
-                            </div>
+                            <div class="p-3 sm:p-4">
+                                <!-- Mobile layout -->
+                                <div class="md:hidden">
+                                    <div class="flex items-start justify-between gap-2 mb-2">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <span :class="['inline-flex text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0', registro.tipo === 'entrada' ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700']">
+                                                {{ registro.tipo === 'entrada' ? 'Entrada' : 'Saída' }}
+                                            </span>
+                                            <span :class="['font-bold text-base', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
+                                                {{ registro.tipo === 'entrada' ? '+' : '−' }} {{ formatCurrency(registro.valor) }}
+                                            </span>
+                                        </div>
+                                        <div class="flex gap-1 flex-shrink-0">
+                                            <template v-if="showRemoved">
+                                                <button
+                                                    @click="handleRestore(registro.id)"
+                                                    :disabled="isRestoreLoading"
+                                                    :class="['p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed', restoringRecordId === registro.id && isRestoreLoading ? 'text-green-600 bg-green-50' : 'text-green-500 hover:bg-green-50']"
+                                                    :title="restoringRecordId === registro.id && isRestoreLoading ? 'Restaurando...' : 'Restaurar'"
+                                                >
+                                                    <svg :class="['w-5 h-5', restoringRecordId === registro.id && isRestoreLoading ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                    </svg>
+                                                </button>
+                                            </template>
+                                            <template v-else>
+                                                <button @click="handleDelete(registro.id)" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Remover">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                                <button @click="openEditRecord(registro.id)" class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors" title="Editar">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                                        <div>
+                                            <span class="text-gray-400 block">Categoria</span>
+                                            <p class="text-gray-700 font-medium truncate">{{ registro.categoria || '-' }}</p>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400 block">Colaborador</span>
+                                            <p class="text-gray-700 truncate">{{ registro.colaborador || '-' }}</p>
+                                        </div>
+                                        <div v-if="registro.descricao" class="col-span-2">
+                                            <span class="text-gray-400 block">Descrição</span>
+                                            <p class="text-gray-600 truncate">{{ registro.descricao }}</p>
+                                        </div>
+                                        <div class="col-span-2 pt-0.5 text-gray-400">
+                                            {{ formatDate(registro.dataOperacao) }}
+                                        </div>
+                                    </div>
+                                </div>
 
-                            <!-- Categoria -->
-                            <div class="md:w-32 flex-shrink-0">
-                                <span class="text-gray-700 text-sm truncate block">{{ registro.categoria }}</span>
-                            </div>
-
-                            <!-- Colaborador -->
-                            <div class="md:w-40 flex-shrink-0">
-                                <span class="text-gray-700 text-sm truncate block">{{ registro.colaborador || '-' }}</span>
-                            </div>
-
-                            <!-- Descrição -->
-                            <div class="w-full md:flex-1">
-                                <span class="text-gray-600 text-sm block">{{ registro.descricao || '-' }}</span>
-                            </div>
-
-                            <!-- Datas -->
-                            <div class="w-full md:w-64 flex-shrink-0 md:text-right">
-                                <div class="text-gray-700 text-xs">Movimento: {{ formatDate(registro.dataOperacao) }}</div>
-                                <div class="text-gray-500 text-xs">Registrado: {{ formatDateTime(registro.registradoEm) }}</div>
-                            </div>
-
-                            <!-- Actions -->
-                            <div class="flex gap-2 flex-shrink-0 md:ml-auto md:w-24 justify-end">
-                                <template v-if="showRemoved">
-                                    <button
-                                        @click="handleRestore(registro.id)"
-                                        :disabled="isRestoreLoading"
-                                        :class="[
-                                            'p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
-                                            restoringRecordId === registro.id && isRestoreLoading
-                                                ? 'text-green-600 bg-green-50'
-                                                : 'text-green-500 hover:bg-green-50'
-                                        ]"
-                                        :title="restoringRecordId === registro.id && isRestoreLoading ? 'Restaurando...' : 'Restaurar'"
-                                    >
-                                        <svg
-                                            :class="['w-5 h-5', restoringRecordId === registro.id && isRestoreLoading ? 'animate-spin' : '']"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                        </svg>
-                                    </button>
-                                </template>
-                                <template v-else>
-                                    <button
-                                        @click="handleDelete(registro.id)"
-                                        class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="Remover"
-                                    >
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                    </button>
-                                    <button
-                                        @click="openEditRecord(registro.id)"
-                                        class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
-                                        title="Editar"
-                                    >
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </svg>
-                                    </button>
-                                </template>
-                            </div>
+                                <!-- Desktop layout -->
+                                <div class="hidden md:flex md:items-center gap-4">
+                                    <!-- Valor -->
+                                    <div class="w-24 flex-shrink-0">
+                                        <span :class="['font-bold text-sm', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
+                                            {{ registro.tipo === 'entrada' ? '+ ' : '- ' }}{{ formatCurrency(registro.valor) }}
+                                        </span>
+                                    </div>
+                                    <!-- Categoria -->
+                                    <div class="w-32 flex-shrink-0">
+                                        <span class="text-gray-700 text-sm truncate block">{{ registro.categoria }}</span>
+                                    </div>
+                                    <!-- Colaborador -->
+                                    <div class="w-40 flex-shrink-0">
+                                        <span class="text-gray-700 text-sm truncate block">{{ registro.colaborador || '-' }}</span>
+                                    </div>
+                                    <!-- Descrição -->
+                                    <div class="flex-1">
+                                        <span class="text-gray-600 text-sm block">{{ registro.descricao || '-' }}</span>
+                                    </div>
+                                    <!-- Datas -->
+                                    <div class="w-64 flex-shrink-0 text-right">
+                                        <div class="text-gray-700 text-xs">Movimento: {{ formatDate(registro.dataOperacao) }}</div>
+                                        <div class="text-gray-500 text-xs">Registrado: {{ formatDateTime(registro.registradoEm) }}</div>
+                                    </div>
+                                    <!-- Actions -->
+                                    <div class="flex gap-2 flex-shrink-0 ml-auto w-24 justify-end">
+                                        <template v-if="showRemoved">
+                                            <button
+                                                @click="handleRestore(registro.id)"
+                                                :disabled="isRestoreLoading"
+                                                :class="['p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed', restoringRecordId === registro.id && isRestoreLoading ? 'text-green-600 bg-green-50' : 'text-green-500 hover:bg-green-50']"
+                                                :title="restoringRecordId === registro.id && isRestoreLoading ? 'Restaurando...' : 'Restaurar'"
+                                            >
+                                                <svg :class="['w-5 h-5', restoringRecordId === registro.id && isRestoreLoading ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                            </button>
+                                        </template>
+                                        <template v-else>
+                                            <button @click="handleDelete(registro.id)" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Remover">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                            <button @click="openEditRecord(registro.id)" class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors" title="Editar">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Inline delete confirmation -->
@@ -2552,7 +2649,7 @@ onBeforeUnmount(() => {
                     </div>
                     </template>
 
-                    <template v-else>
+                    <template v-if="isChartsView && !showRemoved">
                         <div class="space-y-6">
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div class="bg-white border border-orange-100 rounded-lg p-4 text-center shadow-sm">
@@ -2573,7 +2670,7 @@ onBeforeUnmount(() => {
                                 </div>
                             </div>
 
-                            <div v-if="activeTab === 'hoje'" class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
+                            <div v-if="activeTab === 'hoje'" class="bg-white rounded-lg p-4 sm:p-6 shadow-md border border-orange-100">
                                 <h3 class="text-xl font-bold text-orange-600 text-center mb-6">{{ formatCurrency(commissionsTotal) }}</h3>
                                 <p class="text-center text-gray-600 mb-6">Comissões</p>
 
@@ -2587,19 +2684,19 @@ onBeforeUnmount(() => {
                                     </div>
                                 </div>
 
-                                <div v-else class="flex items-end justify-center gap-8 h-64">
+                                <div v-else class="overflow-x-auto"><div class="flex items-end justify-center gap-6 sm:gap-8 h-64 min-w-max px-2">
                                     <div v-for="item in currentCommissions" :key="item.collaborator_id" class="flex flex-col items-center gap-2">
                                         <div class="flex items-end h-48">
                                             <div class="w-16 bg-orange-500 rounded-t-lg transition-all hover:bg-orange-600" :style="{ height: `${maxValueComissoes > 0 ? (item.total / maxValueComissoes) * 100 : 0}%` }" :title="chartValueTitle(item.collaborator_name, item.total)"></div>
                                         </div>
                                         <span class="text-sm text-gray-600">{{ item.collaborator_name }}</span>
                                     </div>
-                                </div>
+                                </div></div>
                             </div>
 
                             <div v-if="activeTab === 'ultimos7dias'" class="space-y-6">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
+                                    <div class="bg-white rounded-lg p-4 sm:p-6 shadow-md border border-orange-100">
                                         <h3 class="text-lg font-bold text-gray-800 mb-4">Entradas vs Saídas</h3>
                                         <div class="flex justify-end gap-4 mb-4 text-sm">
                                             <div class="flex items-center gap-2">
@@ -2631,7 +2728,7 @@ onBeforeUnmount(() => {
                                         </div>
                                     </div>
 
-                                    <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
+                                    <div class="bg-white rounded-lg p-4 sm:p-6 shadow-md border border-orange-100">
                                         <h3 class="text-lg font-bold text-gray-800 mb-4">Lucros vs Investimentos</h3>
                                         <div class="flex justify-end gap-4 mb-4 text-sm">
                                             <div class="flex items-center gap-2">
@@ -2664,9 +2761,9 @@ onBeforeUnmount(() => {
                                     </div>
                                 </div>
 
-                                <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
-                                    <h3 class="text-xl font-bold text-orange-600 text-center mb-2">{{ formatCurrency(commissionsTotal) }}</h3>
-                                    <p class="text-center text-gray-600 mb-6">Comissões</p>
+                                    <div class="bg-white rounded-lg p-4 sm:p-6 shadow-md border border-orange-100">
+                                        <h3 class="text-xl font-bold text-orange-600 text-center mb-2">{{ formatCurrency(commissionsTotal) }}</h3>
+                                        <p class="text-center text-gray-600 mb-6">Comissões</p>
 
                                     <div v-if="currentCommissions.length === 0" class="flex items-center justify-center h-48">
                                         <div class="text-center text-gray-400">
@@ -2678,19 +2775,19 @@ onBeforeUnmount(() => {
                                         </div>
                                     </div>
 
-                                    <div v-else class="flex items-end justify-center gap-8 h-48">
+                                    <div v-else class="overflow-x-auto"><div class="flex items-end justify-center gap-6 sm:gap-8 h-48 min-w-max px-2">
                                         <div v-for="item in currentCommissions" :key="`commission-7-${item.collaborator_id}`" class="flex flex-col items-center gap-2">
                                             <div class="flex items-end h-32">
                                                 <div class="w-16 bg-orange-500 rounded-t-lg transition-all hover:bg-orange-600" :style="{ height: `${maxValueComissoes > 0 ? (item.total / maxValueComissoes) * 100 : 0}%` }" :title="chartValueTitle(item.collaborator_name, item.total)"></div>
                                             </div>
                                             <span class="text-sm text-gray-600">{{ item.collaborator_name }}</span>
                                         </div>
-                                    </div>
+                                    </div></div>
                                 </div>
                             </div>
 
                             <div v-if="activeTab === 'mensal'" class="space-y-6">
-                                <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
+                                <div class="bg-white rounded-lg p-4 sm:p-6 shadow-md border border-orange-100">
                                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                                         <div class="text-center">
                                             <h3 class="text-lg font-bold text-yellow-600">{{ formatCurrency(currentChartTotals.entradas) }}</h3>
@@ -2725,9 +2822,9 @@ onBeforeUnmount(() => {
                                         </div>
                                     </div>
 
-                                    <div class="flex gap-4">
+                                    <div class="flex gap-2 sm:gap-4">
                                         <div class="relative pt-2 pb-8">
-                                            <div class="w-16 h-48 flex flex-col justify-between text-right">
+                                            <div class="w-12 sm:w-16 h-48 flex flex-col justify-between text-right">
                                                 <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthlyDaily) }}</span>
                                                 <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthlyDaily * 0.75) }}</span>
                                                 <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthlyDaily * 0.5) }}</span>
@@ -2759,7 +2856,7 @@ onBeforeUnmount(() => {
                                     </div>
                                 </div>
 
-                                <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
+                                <div class="bg-white rounded-lg p-4 sm:p-6 shadow-md border border-orange-100">
                                     <h3 class="text-xl font-bold text-orange-600 text-center mb-2">{{ formatCurrency(commissionsTotal) }}</h3>
                                     <p class="text-center text-gray-600 mb-6">Comissões por colaborador no mês</p>
 
@@ -2773,19 +2870,19 @@ onBeforeUnmount(() => {
                                         </div>
                                     </div>
 
-                                    <div v-else class="flex items-end justify-center gap-8 h-48">
+                                    <div v-else class="overflow-x-auto"><div class="flex items-end justify-center gap-6 sm:gap-8 h-48 min-w-max px-2">
                                         <div v-for="item in currentCommissions" :key="`commission-month-${item.collaborator_id}`" class="flex flex-col items-center gap-2">
                                             <div class="flex items-end h-32">
                                                 <div class="w-16 bg-orange-500 rounded-t-lg transition-all hover:bg-orange-600" :style="{ height: `${maxValueComissoes > 0 ? (item.total / maxValueComissoes) * 100 : 0}%` }" :title="chartValueTitle(item.collaborator_name, item.total)"></div>
                                             </div>
                                             <span class="text-sm text-gray-600">{{ item.collaborator_name }}</span>
                                         </div>
-                                    </div>
+                                    </div></div>
                                 </div>
                             </div>
 
                             <div v-if="activeTab === 'anual'" class="space-y-6">
-                                <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
+                                <div class="bg-white rounded-lg p-4 sm:p-6 shadow-md border border-orange-100">
                                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                                         <div class="text-center">
                                             <h3 class="text-lg font-bold text-yellow-600">{{ formatCurrency(currentChartTotals.entradas) }}</h3>
@@ -2824,9 +2921,9 @@ onBeforeUnmount(() => {
                                         </div>
                                     </div>
 
-                                    <div class="flex gap-4">
+                                    <div class="flex gap-2 sm:gap-4">
                                         <div class="relative pt-2 pb-8">
-                                            <div class="w-16 h-48 flex flex-col justify-between text-right">
+                                            <div class="w-12 sm:w-16 h-48 flex flex-col justify-between text-right">
                                                 <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthly) }}</span>
                                                 <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthly * 0.75) }}</span>
                                                 <span class="text-xs text-gray-500 font-medium">{{ formatCurrency(maxValueMonthly * 0.5) }}</span>

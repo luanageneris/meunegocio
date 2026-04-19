@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import logoUrl from '../../img/icon-logo.svg';
 
+const page = usePage();
 const auth = useAuth();
 const formData = ref({
     name: '',
@@ -15,6 +16,12 @@ const isLoading = ref(false);
 const error = ref<string | null>(null);
 const success = ref(false);
 
+const getCsrfToken = (): string => {
+    const csrfFromProps = (page.props as any).csrf_token;
+    if (csrfFromProps) return csrfFromProps;
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+};
+
 const handleSubmit = async () => {
     isLoading.value = true;
     error.value = null;
@@ -25,7 +32,7 @@ const handleSubmit = async () => {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'X-CSRF-TOKEN': getCsrfToken(),
             },
             credentials: 'include', // Envia cookies de sessão
             body: JSON.stringify(formData.value),
