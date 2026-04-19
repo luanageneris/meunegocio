@@ -195,7 +195,7 @@ const getFieldLabel = (model: unknown, field: unknown) => {
 
 const shouldHideField = (field: unknown) => {
   const key = typeof field === 'string' ? field : String(field ?? '');
-  const hidden = ['id', 'company_id', 'created_at', 'updated_at', 'deleted_at', 'pivot', 'collaborator_id'];
+  const hidden = ['id', 'company_id', 'created_at', 'updated_at', 'deleted_at', 'pivot', 'collaborator_id', 'endpoint'];
   return hidden.includes(key) || key.endsWith('_id');
 };
 
