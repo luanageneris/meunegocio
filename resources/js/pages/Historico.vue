@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
-import PageHeader from '@/components/PageHeader.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import { useAuth } from '@/composables/useAuth';
@@ -14,13 +13,24 @@ interface AuditLog {
   action: string;
   model: string;
   model_id: number;
-  old_values: Record<string, any> | null;
-  new_values: Record<string, any> | null;
-  changes: Record<string, any> | null;
   user: { id: number; name: string } | null;
   endpoint: string;
   ip_address: string;
   created_at: string;
+  action_label?: string;
+  model_label?: string;
+  entity_reference?: string;
+  changed_fields?: string[];
+  changed_fields_count?: number;
+  summary?: string;
+  details?: {
+    type: string;
+    fields: Array<{
+      field: string;
+      old: unknown;
+      new: unknown;
+    }>;
+  };
 }
 
 interface Stats {
@@ -44,28 +54,6 @@ const totalPages = ref(1);
 const totalRecords = ref(0);
 const expandedLog = ref<number | null>(null);
 
-// Modelos disponíveis
-const models = [
-  { label: 'Todos', value: '' },
-  { label: 'Colaboradores', value: 'App\\Models\\Collaborator' },
-  { label: 'Registros Financeiros', value: 'App\\Models\\FinancialRecord' },
-  { label: 'Comissões', value: 'App\\Models\\Commission' },
-  { label: 'Turnos de Trabalho', value: 'App\\Models\\WorkShift' },
-  { label: 'Tipos de Serviço', value: 'App\\Models\\ServiceType' },
-  { label: 'Tipos de Entrada', value: 'App\\Models\\EntryType' },
-  { label: 'Tipos de Saída', value: 'App\\Models\\ExitType' },
-  { label: 'Fechamentos Diários', value: 'App\\Models\\DailyClosure' },
-  { label: 'Saldos', value: 'App\\Models\\Balance' },
-];
-
-const filterOptions = [
-  { label: 'Todas as ações', value: 'all' },
-  { label: 'Criado', value: 'create' },
-  { label: 'Atualizado', value: 'update' },
-  { label: 'Deletado', value: 'delete' },
-  { label: 'Restaurado', value: 'restore' },
-];
-
 // Funções helpers
 const getActionBadgeClass = (action: string) => {
   return {
@@ -83,6 +71,15 @@ const getActionLabel = (action: string) => {
     'delete': 'Deletado',
     'restore': 'Restaurado',
   }[action] || action;
+};
+
+const getActionIconClass = (action: string) => {
+  return {
+    'create': 'text-green-600 bg-green-100',
+    'update': 'text-blue-600 bg-blue-100',
+    'delete': 'text-red-600 bg-red-100',
+    'restore': 'text-amber-600 bg-amber-100',
+  }[action] || 'text-gray-600 bg-gray-100';
 };
 
 const getModelLabel = (model: string) => {
@@ -110,12 +107,16 @@ const fieldLabels: Record<string, Record<string, string>> = {
     type: 'Tipo (entrada/saída)',
     entry_type_id: 'Tipo de Entrada',
     entry_type_name: 'Tipo de Entrada',
+    entry_type: 'Tipo de Entrada',
     exit_type_id: 'Tipo de Saída',
     exit_type_name: 'Tipo de Saída',
+    exit_type: 'Tipo de Saída',
     collaborator_id: 'Colaborador',
     collaborator_name: 'Colaborador',
+    collaborator: 'Colaborador',
     service_type_id: 'Tipo de Serviço',
     service_type_name: 'Tipo de Serviço',
+    service_type: 'Tipo de Serviço',
     work_shift_id: 'Turno',
     work_shift_name: 'Turno',
     amount: 'Valor',
@@ -194,37 +195,99 @@ const shouldHideField = (field: unknown) => {
   return hidden.includes(key) || key.endsWith('_id');
 };
 
-const asArray = (value: unknown) => {
-  if (Array.isArray(value)) return value;
-
-  if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>);
-    const numericKeys = entries.every(([key]) => /^\d+$/.test(key));
-
-    if (numericKeys) {
-      return entries
-        .sort((a, b) => Number(a[0]) - Number(b[0]))
-        .map(([, v]) => v);
-    }
-  }
-
-  return null;
-};
-
-const getIcon = (action: string) => {
-  return {
-    'create': '✨',
-    'update': '✏️',
-    'delete': '🗑️',
-    'restore': '↩️',
-  }[action] || '📝';
-};
-
 const formatDate = (date: string) => {
   return new Intl.DateTimeFormat('pt-BR', {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(new Date(date));
+};
+
+const formatValue = (value: unknown, field: string = '') => {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+
+  const lowerField = field.toLowerCase();
+
+  if (typeof value === 'number') {
+    const moneyFields = ['amount', 'discount', 'balance', 'total_entry', 'total_exit', 'total_profit'];
+    if (moneyFields.includes(field)) {
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    }
+
+    return String(value);
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? 'Sim' : 'Não';
+  }
+
+  if (typeof value === 'string') {
+    if ((lowerField === 'type' || lowerField.endsWith('_type')) && ['entry', 'exit'].includes(value.toLowerCase())) {
+      return value.toLowerCase() === 'entry' ? 'Entrada' : 'Saída';
+    }
+
+    const asDate = new Date(value);
+    const looksLikeDateField = lowerField.includes('date') || lowerField.endsWith('_at');
+    const hasTime = /T\d{2}:\d{2}|\d{2}:\d{2}:\d{2}/.test(value);
+
+    if (looksLikeDateField && !Number.isNaN(asDate.getTime())) {
+      if (hasTime) {
+        return new Intl.DateTimeFormat('pt-BR', {
+          dateStyle: 'short',
+          timeStyle: 'short',
+        }).format(asDate);
+      }
+
+      return new Intl.DateTimeFormat('pt-BR', {
+        dateStyle: 'short',
+      }).format(asDate);
+    }
+
+    if (/^\d+\.\d{2}$/.test(value) && ['amount', 'discount', 'balance', 'total_entry', 'total_exit', 'total_profit'].includes(field)) {
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value));
+    }
+
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return `${value.length} itens`;
+  }
+
+  if (typeof value === 'object') {
+    const objectValue = value as Record<string, unknown>;
+
+    if (typeof objectValue.name === 'string' && objectValue.name.trim() !== '') {
+      return objectValue.name;
+    }
+
+    if (typeof objectValue.label === 'string' && objectValue.label.trim() !== '') {
+      return objectValue.label;
+    }
+
+    if (typeof objectValue.description === 'string' && objectValue.description.trim() !== '') {
+      return objectValue.description;
+    }
+
+    return JSON.stringify(value);
+  }
+
+  return String(value);
+};
+
+const getVisibleDetails = (log: AuditLog) => {
+  const details = log.details?.fields || [];
+
+  if (details.length === 0) {
+    return [];
+  }
+
+  return details.filter((item) => !shouldHideField(item.field));
+};
+
+const hasMeaningfulDetails = (log: AuditLog) => {
+  return getVisibleDetails(log).length > 0;
 };
 
 // Carregando dados
@@ -322,17 +385,17 @@ onMounted(() => {
           <div class="bg-white rounded-xl p-6 shadow-sm border border-green-200 hover:shadow-md transition">
             <p class="text-gray-600 text-sm font-semibold mb-2">Criações</p>
             <p class="text-4xl font-black text-green-600">{{ stats.by_action.create }}</p>
-            <p class="text-xs text-gray-500 mt-2">✨ Novos registros</p>
+            <p class="text-xs text-gray-500 mt-2">Novos registros</p>
           </div>
           <div class="bg-white rounded-xl p-6 shadow-sm border border-blue-200 hover:shadow-md transition">
             <p class="text-gray-600 text-sm font-semibold mb-2">Atualizações</p>
             <p class="text-4xl font-black text-blue-600">{{ stats.by_action.update }}</p>
-            <p class="text-xs text-gray-500 mt-2">✏️ Registros modificados</p>
+            <p class="text-xs text-gray-500 mt-2">Registros modificados</p>
           </div>
           <div class="bg-white rounded-xl p-6 shadow-sm border border-red-200 hover:shadow-md transition">
             <p class="text-gray-600 text-sm font-semibold mb-2">Deletações</p>
             <p class="text-4xl font-black text-red-600">{{ stats.by_action.delete }}</p>
-            <p class="text-xs text-gray-500 mt-2">🗑️ Registros removidos</p>
+            <p class="text-xs text-gray-500 mt-2">Registros removidos</p>
           </div>
         </div>
 
@@ -425,14 +488,32 @@ onMounted(() => {
               <!-- Log Row -->
               <div class="px-6 py-4 flex items-center justify-between">
                 <div class="flex items-center gap-4 flex-1">
-                  <span class="text-2xl">{{ getIcon(log.action) }}</span>
+                  <span :class="['inline-flex items-center justify-center w-10 h-10 rounded-lg', getActionIconClass(log.action)]">
+                    <svg v-if="log.action === 'create'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <svg v-else-if="log.action === 'update'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5h2m-1 0v14m-7-7h14" />
+                    </svg>
+                    <svg v-else-if="log.action === 'delete'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12m-9 0V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v12m4-12v12" />
+                    </svg>
+                    <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
                   <div class="flex-1">
                     <div class="flex items-center gap-3 mb-1 flex-wrap">
                       <span :class="['px-3 py-1 rounded-full text-xs font-bold', getActionBadgeClass(log.action)]">
-                        {{ getActionLabel(log.action) }}
+                        {{ log.action_label || getActionLabel(log.action) }}
                       </span>
-                      <span class="font-semibold text-gray-900">{{ getModelLabel(log.model) }}</span>
+                      <span class="font-semibold text-gray-900">{{ log.model_label || getModelLabel(log.model) }}</span>
+                      <span class="text-xs font-semibold text-gray-500">ID {{ log.entity_reference || '#' + log.model_id }}</span>
+                      <span v-if="(log.changed_fields_count || 0) > 0" class="px-2 py-1 text-xs rounded-full bg-slate-100 text-slate-700 font-semibold">
+                        {{ log.changed_fields_count }} campo(s)
+                      </span>
                     </div>
+                    <div class="text-sm text-gray-800 font-medium mb-1">{{ log.summary || (getActionLabel(log.action) + ' ' + getModelLabel(log.model)) }}</div>
                     <div class="text-sm text-gray-600">
                       Por <span class="font-semibold">{{ log.user?.name || 'Sistema' }}</span>
                       • {{ formatDate(log.created_at) }}
@@ -456,108 +537,27 @@ onMounted(() => {
                 <div v-if="isExpanded(log.id)" class="bg-orange-50 px-6 py-4 border-t border-orange-100">
                   <div class="space-y-4">
                     <!-- Change Details -->
-                    <div v-if="log.changes" class="bg-white rounded-lg p-4 border border-orange-100">
+                    <div v-if="getVisibleDetails(log).length > 0" class="bg-white rounded-lg p-4 border border-orange-100">
                       <h4 class="font-bold text-gray-900 mb-3">Alterações</h4>
-                      <div class="space-y-2">
+                      <div class="space-y-3">
                         <div
-                          v-for="(change, field) in log.changes"
-                          :key="field"
-                          v-if="!shouldHideField(field)"
-                          class="flex justify-between text-sm"
+                          v-for="detail in getVisibleDetails(log)"
+                          :key="detail.field"
+                          class="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm"
                         >
-                          <span class="font-semibold text-gray-700">{{ getFieldLabel(log.model, field) }}:</span>
-                          <div class="text-right">
-                            <div class="text-red-600 line-through">{{ change.old }}</div>
-                            <div class="text-green-600">→ {{ change.new }}</div>
+                          <span class="font-semibold text-gray-700">{{ getFieldLabel(log.model, detail.field) }}</span>
+                          <div class="text-red-700 bg-red-50 px-2 py-1 rounded border border-red-100">
+                            {{ formatValue(detail.old, String(detail.field)) }}
+                          </div>
+                          <div class="text-green-700 bg-green-50 px-2 py-1 rounded border border-green-100">
+                            {{ formatValue(detail.new, String(detail.field)) }}
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <!-- New Values (for create) -->
-                    <div v-else-if="log.action === 'create' && log.new_values" class="bg-white rounded-lg p-4 border border-orange-100">
-                      <h4 class="font-bold text-gray-900 mb-3">Dados Criados</h4>
-
-                      <template v-if="asArray(log.new_values)">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                          <div
-                            v-for="(item, idx) in asArray(log.new_values)
-                              "
-                            :key="idx"
-                            class="p-3 rounded-lg border border-orange-100 bg-orange-50"
-                          >
-                            <p class="text-xs font-semibold text-orange-700 mb-2">Item {{ idx + 1 }}</p>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <div
-                                v-for="(value, key) in item as any"
-                                :key="key"
-                                v-if="!shouldHideField(key)"
-                                class="break-words"
-                              >
-                                <span class="font-semibold text-gray-700">{{ getFieldLabel(log.model, key) }}:</span>
-                                <span class="text-gray-600"> {{ value }} </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </template>
-
-                      <template v-else>
-                        <div class="grid grid-cols-2 gap-2 text-sm">
-                          <div
-                            v-for="(value, key) in log.new_values"
-                            :key="key"
-                            v-if="!shouldHideField(key)"
-                            class="break-words"
-                          >
-                            <span class="font-semibold text-gray-700">{{ getFieldLabel(log.model, key) }}:</span>
-                            <span class="text-gray-600">{{ value }}</span>
-                          </div>
-                        </div>
-                      </template>
-                    </div>
-
-                    <!-- Old Values (for delete) -->
-                    <div v-else-if="log.action === 'delete' && log.old_values" class="bg-white rounded-lg p-4 border border-orange-100">
-                      <h4 class="font-bold text-gray-900 mb-3">Dados Deletados</h4>
-
-                      <template v-if="asArray(log.old_values)">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                          <div
-                            v-for="(item, idx) in asArray(log.old_values)
-                              "
-                            :key="idx"
-                            class="p-3 rounded-lg border border-orange-100 bg-orange-50"
-                          >
-                            <p class="text-xs font-semibold text-orange-700 mb-2">Item {{ idx + 1 }}</p>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <div
-                                v-for="(value, key) in item as any"
-                                :key="key"
-                                v-if="!shouldHideField(key)"
-                                class="break-words"
-                              >
-                                <span class="font-semibold text-gray-700">{{ getFieldLabel(log.model, key) }}:</span>
-                                <span class="text-gray-600"> {{ value }} </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </template>
-
-                      <template v-else>
-                        <div class="grid grid-cols-2 gap-2 text-sm">
-                          <div
-                            v-for="(value, key) in log.old_values"
-                            :key="key"
-                            v-if="!shouldHideField(key)"
-                            class="break-words"
-                          >
-                            <span class="font-semibold text-gray-700">{{ getFieldLabel(log.model, key) }}:</span>
-                            <span class="text-gray-600">{{ value }}</span>
-                          </div>
-                        </div>
-                      </template>
+                    <div v-if="!hasMeaningfulDetails(log)" class="bg-white rounded-lg p-4 border border-orange-100 text-sm text-gray-600">
+                      Este evento foi registrado sem mudanças detalhadas de campos.
                     </div>
 
                     <!-- Meta Information -->
@@ -565,6 +565,7 @@ onMounted(() => {
                       <h4 class="font-bold text-gray-900 mb-3">Informações</h4>
                       <div class="space-y-1 text-sm text-gray-600">
                         <p><span class="font-semibold">Usuário:</span> {{ log.user?.name || 'Sistema' }}</p>
+                        <p><span class="font-semibold">Registro afetado:</span> {{ log.model_label || getModelLabel(log.model) }} {{ log.entity_reference || ('#' + log.model_id) }}</p>
                         <p><span class="font-semibold">IP:</span> {{ log.ip_address || '—' }}</p>
                         <p><span class="font-semibold">Endpoint:</span> {{ log.endpoint }}</p>
                         <p><span class="font-semibold">Data/Hora:</span> {{ formatDate(log.created_at) }}</p>

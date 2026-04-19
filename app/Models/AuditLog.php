@@ -79,6 +79,7 @@ class AuditLog extends Model
     public function getModelLabel(): string
     {
         return match($this->model) {
+            'App\Models\Company' => 'Empresa',
             'App\Models\Collaborator' => 'Colaborador',
             'App\Models\FinancialRecord' => 'Registro Financeiro',
             'App\Models\Commission' => 'Comissão',
@@ -88,6 +89,7 @@ class AuditLog extends Model
             'App\Models\ExitType' => 'Tipo de Saída',
             'App\Models\DailyClosure' => 'Fechamento Diário',
             'App\Models\Balance' => 'Saldo',
+            'App\Models\ImportLog' => 'Importação',
             default => class_basename($this->model),
         };
     }

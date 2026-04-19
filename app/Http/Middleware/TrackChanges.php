@@ -9,9 +9,30 @@ use App\Models\AuditLog;
 
 class TrackChanges
 {
-    protected $actionsToTrack = ['store', 'update', 'destroy', 'restore'];
+    protected $postEndpointsToIgnore = [
+        'financial-records/between-dates',
+        'financial-records/daily-totals',
+        'work-shifts/monthly-schedule',
+        'daily-closures/summary',
+        'commissions/summary-by-collaborator',
+        'commissions/summary-by-month',
+        'balance/daily-progression',
+        'balance/monthly-summary',
+        'balance/yearly-summary',
+        'support',
+    ];
+
+    protected $endpointOverrides = [
+        'financial-records/clear-all' => ['action' => 'delete', 'model' => 'App\\Models\\FinancialRecord'],
+        'commissions/mark-as-paid' => ['action' => 'update', 'model' => 'App\\Models\\Commission'],
+        'commissions/generate-from-date' => ['action' => 'create', 'model' => 'App\\Models\\Commission'],
+        'daily-closures/reopen' => ['action' => 'update', 'model' => 'App\\Models\\DailyClosure'],
+        'collaborators/get-or-create' => ['action' => 'create', 'model' => 'App\\Models\\Collaborator'],
+        'import' => ['action' => 'create', 'model' => 'App\\Models\\ImportLog'],
+    ];
     
     protected $modelsToTrack = [
+        'company' => 'App\Models\Company',
         'collaborators' => 'App\Models\Collaborator',
         'financial-records' => 'App\Models\FinancialRecord',
         'commissions' => 'App\Models\Commission',
@@ -21,6 +42,7 @@ class TrackChanges
         'exit-types' => 'App\Models\ExitType',
         'daily-closures' => 'App\Models\DailyClosure',
         'balances' => 'App\Models\Balance',
+        'import' => 'App\Models\ImportLog',
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -30,7 +52,7 @@ class TrackChanges
         $response = $next($request);
 
         // Só registrar se autenticado e for request de modificação
-        if ($request->user() && $this->isModificationRequest($request)) {
+        if ($request->user() && $this->isModificationRequest($request) && $this->isSuccessfulResponse($response)) {
             $this->logAudit($request, $response, $preState);
         }
 
@@ -40,7 +62,33 @@ class TrackChanges
     private function isModificationRequest(Request $request): bool
     {
         $method = $request->getMethod();
-        return in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE']);
+
+        if (!in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'])) {
+            return false;
+        }
+
+        if ($method === 'POST' && $this->isIgnoredPostEndpoint($request->path())) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function isIgnoredPostEndpoint(string $path): bool
+    {
+        foreach ($this->postEndpointsToIgnore as $endpoint) {
+            if (str_contains($path, $endpoint)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isSuccessfulResponse(Response $response): bool
+    {
+        $status = $response->getStatusCode();
+        return $status >= 200 && $status < 400;
     }
 
     private function logAudit(Request $request, Response $response, ?array $preState = null): void
@@ -69,6 +117,15 @@ class TrackChanges
             }
             $changes = $this->calculateChanges($oldValues, $newValues);
 
+            [$oldValues, $newValues, $changes] = $this->normalizeAuditPayload(
+                $request,
+                $response,
+                $modelId,
+                $oldValues,
+                $newValues,
+                $changes
+            );
+
             AuditLog::create([
                 'company_id' => $company->id,
                 'user_id' => $user->id,
@@ -93,7 +150,12 @@ class TrackChanges
         $method = $request->getMethod();
         $path = $request->path();
 
-        if ($method === 'POST' && !str_contains($path, '/mark-as-paid') && !str_contains($path, '/generate-from-date') && !str_contains($path, '/restore')) {
+        $override = $this->resolveEndpointOverride($path);
+        if ($override && isset($override['action'])) {
+            return $override['action'];
+        }
+
+        if ($method === 'POST' && !str_contains($path, '/restore')) {
             return 'create';
         }
 
@@ -116,6 +178,11 @@ class TrackChanges
     {
         $path = trim($request->path(), '/');
         $segments = explode('/', $path);
+
+        $override = $this->resolveEndpointOverride($path);
+        if ($override && isset($override['model'])) {
+            return [$override['model'], $this->extractIdFromSegments($segments)];
+        }
 
         // Formatos aceitos:
         // - api/<resource>/<id>
@@ -144,13 +211,18 @@ class TrackChanges
             return [$modelClass, 0];
         }
 
-        $idIndex = $resourceIndex + 1;
+        return [$modelClass, $this->extractIdFromSegments($segments, $resourceIndex + 1)];
+    }
 
-        if (isset($segments[$idIndex]) && is_numeric($segments[$idIndex])) {
-            return [$modelClass, (int) $segments[$idIndex]];
+    private function extractIdFromSegments(array $segments, int $startIndex = 0): int
+    {
+        for ($i = $startIndex; $i < count($segments); $i++) {
+            if (is_numeric($segments[$i])) {
+                return (int) $segments[$i];
+            }
         }
 
-        return [$modelClass, 0];
+        return 0;
     }
 
     private function capturePreState(Request $request): ?array
@@ -218,7 +290,7 @@ class TrackChanges
                 $body = $response->getContent();
                 $json = json_decode($body ?? '', true);
 
-                if (is_array($json)) {
+                if (is_array($json) && !empty($json)) {
                     if (isset($json['data']) && is_array($json['data'])) {
                         return $json['data'];
                     }
@@ -226,7 +298,7 @@ class TrackChanges
                     return $json;
                 }
 
-                return $request->all();
+                return $this->sanitizeRequestData($request->all());
             }
 
             if ($request->getMethod() === 'DELETE') {
@@ -240,9 +312,9 @@ class TrackChanges
                 return $model->toArray();
             }
 
-            return $request->all();
+            return $this->sanitizeRequestData($request->all());
         } catch (\Exception $e) {
-            return $request->all();
+            return $this->sanitizeRequestData($request->all());
         }
     }
 
@@ -271,5 +343,72 @@ class TrackChanges
         }
 
         return empty($changes) ? null : $changes;
+    }
+
+    private function resolveEndpointOverride(string $path): ?array
+    {
+        foreach ($this->endpointOverrides as $pattern => $override) {
+            if (str_contains($path, $pattern)) {
+                return $override;
+            }
+        }
+
+        return null;
+    }
+
+    private function sanitizeRequestData(array $data): array
+    {
+        $sensitiveKeys = [
+            'password',
+            'password_confirmation',
+            'token',
+            'access_token',
+            'refresh_token',
+        ];
+
+        foreach ($sensitiveKeys as $key) {
+            if (array_key_exists($key, $data)) {
+                $data[$key] = '***';
+            }
+        }
+
+        return $data;
+    }
+
+    private function normalizeAuditPayload(
+        Request $request,
+        Response $response,
+        int $modelId,
+        ?array $oldValues,
+        ?array $newValues,
+        ?array $changes
+    ): array {
+        $requestData = $this->sanitizeRequestData($request->all());
+        $responseJson = json_decode($response->getContent() ?? '', true);
+
+        if ($modelId > 0) {
+            return [$oldValues, $newValues, $changes];
+        }
+
+        // Para ações em lote/sem id explícito, mantém um formato padronizado
+        // para o histórico sempre ter contexto de rastreio.
+        $normalizedNewValues = [
+            'request' => $requestData,
+            'response' => is_array($responseJson) ? $responseJson : null,
+            'endpoint' => $request->path(),
+        ];
+
+        if (is_array($newValues) && !empty($newValues)) {
+            $normalizedNewValues['payload'] = $newValues;
+        }
+
+        if (!$oldValues && in_array($request->method(), ['DELETE', 'PUT', 'PATCH'])) {
+            $oldValues = [
+                'request' => $requestData,
+                'endpoint' => $request->path(),
+            ];
+        }
+
+        return [$oldValues, $normalizedNewValues, $changes];
     }
 }

@@ -20,7 +20,7 @@ class HistoryController extends Controller
             return response()->json(['error' => 'Empresa não encontrada'], 403);
         }
 
-        $query = AuditLog::forCompany($company->id);
+                $query = AuditLog::forCompany($company->id);
 
         // Filtros
         if ($request->has('action')) {
@@ -60,7 +60,9 @@ class HistoryController extends Controller
                      ->paginate($perPage);
 
         return response()->json([
-            'data' => $logs->items(),
+            'data' => collect($logs->items())
+                ->map(fn (AuditLog $log) => $this->presentLog($log))
+                ->values(),
             'pagination' => [
                 'total' => $logs->total(),
                 'per_page' => $logs->perPage(),
@@ -90,13 +92,7 @@ class HistoryController extends Controller
             return response()->json(['error' => 'Registro não encontrado'], 404);
         }
 
-        // Enriquecer com informações extras
-        $logData = $log->toArray();
-        $logData['action_label'] = $log->getActionLabel();
-        $logData['model_label'] = $log->getModelLabel();
-        $logData['icon'] = $log->getIconForAction();
-
-        return response()->json(['data' => $logData]);
+        return response()->json(['data' => $this->presentLog($log)]);
     }
 
     /**
@@ -179,7 +175,9 @@ class HistoryController extends Controller
                        ->paginate(50);
 
         return response()->json([
-            'data' => $logs->items(),
+            'data' => collect($logs->items())
+                ->map(fn (AuditLog $log) => $this->presentLog($log))
+                ->values(),
             'pagination' => [
                 'total' => $logs->total(),
                 'per_page' => $logs->perPage(),
@@ -187,6 +185,113 @@ class HistoryController extends Controller
                 'last_page' => $logs->lastPage(),
             ]
         ]);
+    }
+
+    private function presentLog(AuditLog $log): array
+    {
+        $data = $log->toArray();
+        $changes = is_array($log->changes) ? $log->changes : [];
+        $changeFields = array_keys($changes);
+
+        $data['action_label'] = $log->getActionLabel();
+        $data['model_label'] = $log->getModelLabel();
+        $data['entity_reference'] = $log->model_id ? '#' . $log->model_id : 'Sem ID';
+        $data['changed_fields'] = $changeFields;
+        $data['changed_fields_count'] = count($changeFields);
+        $data['summary'] = $this->buildSummary($log, $changeFields);
+        $data['details'] = $this->buildDetails($log);
+
+        return $data;
+    }
+
+    private function buildSummary(AuditLog $log, array $changeFields): string
+    {
+        $modelLabel = $log->getModelLabel();
+        $entityId = $log->model_id ? '#' . $log->model_id : '';
+
+        return match ($log->action) {
+            'create' => "Criou {$modelLabel} {$entityId}",
+            'update' => $this->buildUpdateSummary($modelLabel, $entityId, $changeFields),
+            'delete' => "Removeu {$modelLabel} {$entityId}",
+            'restore' => "Restaurou {$modelLabel} {$entityId}",
+            default => "Executou ação em {$modelLabel} {$entityId}",
+        };
+    }
+
+    private function buildUpdateSummary(string $modelLabel, string $entityId, array $changeFields): string
+    {
+        $count = count($changeFields);
+
+        if ($count === 0) {
+            return "Atualizou {$modelLabel} {$entityId}";
+        }
+
+        if ($count === 1) {
+            return "Atualizou 1 campo em {$modelLabel} {$entityId}";
+        }
+
+        return "Atualizou {$count} campos em {$modelLabel} {$entityId}";
+    }
+
+    private function buildDetails(AuditLog $log): array
+    {
+        $changes = is_array($log->changes) ? $log->changes : [];
+
+        if (!empty($changes)) {
+            return [
+                'type' => 'field_changes',
+                'fields' => collect($changes)
+                    ->map(function ($change, $field) {
+                        return [
+                            'field' => $field,
+                            'old' => $change['old'] ?? null,
+                            'new' => $change['new'] ?? null,
+                        ];
+                    })
+                    ->values()
+                    ->toArray(),
+            ];
+        }
+
+        if ($log->action === 'create' && is_array($log->new_values)) {
+            return [
+                'type' => 'created_values',
+                'fields' => $this->toFieldList($log->new_values),
+            ];
+        }
+
+        if ($log->action === 'delete' && is_array($log->old_values)) {
+            return [
+                'type' => 'deleted_values',
+                'fields' => $this->toFieldList($log->old_values),
+            ];
+        }
+
+        if (is_array($log->new_values)) {
+            return [
+                'type' => 'event_payload',
+                'fields' => $this->toFieldList($log->new_values),
+            ];
+        }
+
+        return [
+            'type' => 'none',
+            'fields' => [],
+        ];
+    }
+
+    private function toFieldList(array $values): array
+    {
+        return collect($values)
+            ->map(function ($value, $field) {
+                return [
+                    'field' => $field,
+                    'old' => null,
+                    'new' => $value,
+                ];
+            })
+            ->values()
+            ->toArray();
     }
 
     /**
