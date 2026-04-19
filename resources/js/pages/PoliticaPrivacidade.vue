@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const lastUpdated = '19/01/2026';
+const privacyMailToHref = 'mailto:privacidade@meunegocio.app?subject=Solicitacao%20de%20privacidade&body=Por%20favor,%20informe:%0D%0A-%20Email%20de%20contato:%0D%0A-%20Empresa%20(ou%20CNPJ/NIF):%0D%0A-%20Direito%20que%20deseja%20exercer:%0D%0A-%20Detalhes%20da%20solicitacao:%0D%0A';
+const isOpeningPrivacyEmail = ref(false);
 
 const page = usePage();
-const isAuthenticated = computed(() => Boolean((page.props as Record<string, unknown>)?.auth?.user));
+const isAuthenticated = computed(() => {
+    const props = page.props as { auth?: { user?: unknown } };
+    return Boolean(props.auth?.user);
+});
 
 const handleBack = () => {
     if (isAuthenticated.value) {
@@ -19,6 +24,19 @@ const handleBack = () => {
     }
 
     router.visit('/login');
+};
+
+const handleOpenPrivacyEmail = () => {
+    if (isOpeningPrivacyEmail.value) {
+        return;
+    }
+
+    isOpeningPrivacyEmail.value = true;
+    window.location.href = privacyMailToHref;
+
+    setTimeout(() => {
+        isOpeningPrivacyEmail.value = false;
+    }, 3000);
 };
 </script>
 
@@ -239,12 +257,15 @@ const handleBack = () => {
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-3">
-                    <a
-                        href="mailto:privacidade@meunegocio.app?subject=Solicitacao%20de%20privacidade&body=Por%20favor,%20informe:%0D%0A-%20Email%20de%20contato:%0D%0A-%20Empresa%20(ou%20CNPJ/NIF):%0D%0A-%20Direito%20que%20deseja%20exercer:%0D%0A-%20Detalhes%20da%20solicitacao:%0D%0A"
-                        class="px-5 py-3 rounded-xl bg-orange-500 text-white font-semibold shadow hover:bg-orange-600 transition"
+                    <button
+                        type="button"
+                        class="px-5 py-3 rounded-xl bg-orange-500 text-white font-semibold shadow transition disabled:opacity-60 disabled:cursor-not-allowed enabled:hover:bg-orange-600"
+                        :disabled="isOpeningPrivacyEmail"
+                        :aria-busy="isOpeningPrivacyEmail"
+                        @click="handleOpenPrivacyEmail"
                     >
-                        Abrir solicitação de privacidade
-                    </a>
+                        {{ isOpeningPrivacyEmail ? 'Abrindo e-mail...' : 'Abrir solicitação de privacidade' }}
+                    </button>
                     <p class="text-sm text-gray-700">O e-mail será enviado a partir da sua conta de correio, garantindo que saibamos quem é o titular.</p>
                 </div>
             </section>
