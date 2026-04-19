@@ -21,7 +21,7 @@ const props = defineProps<{
             </div>
         </header>
 
-        <main class="max-w-6xl mx-auto px-6 pb-8">
+        <main class="w-full min-w-0 max-w-6xl mx-auto px-6 pb-8 overflow-x-hidden">
             <section class="grid lg:grid-cols-2 gap-10 items-center">
                 <div class="space-y-6">
                     <h1 class="text-4xl sm:text-5xl font-black text-gray-900 leading-tight">

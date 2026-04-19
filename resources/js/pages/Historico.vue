@@ -368,13 +368,13 @@ onMounted(() => {
 
     <Sidebar active-route="historico" />
 
-    <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden">
+    <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden">
       <PageHeaderTitle 
         title="Histórico" 
         subtitle="Acompanhe todas as alterações realizadas no sistema"
       />
 
-      <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main class="w-full min-w-0 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
         <!-- Stats Cards -->
         <div v-if="stats" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div class="bg-white rounded-xl p-6 shadow-sm border border-orange-200 hover:shadow-md transition">

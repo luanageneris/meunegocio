@@ -265,11 +265,11 @@ onMounted(async () => {
         <Sidebar active-route="painel" />
 
         <!-- Main Content with margin for sidebar -->
-        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
+        <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
             <PageHeaderTitle title="Painel" subtitle="Acompanhe o desempenho financeiro do seu negócio" />
 
             <!-- Main Content -->
-            <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main class="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
                 <LoadingSpinner v-if="isLoading" />
 
                 <div v-else>

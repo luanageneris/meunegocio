@@ -43,7 +43,7 @@ const handleBack = () => {
             </div>
         </header>
 
-        <main class="max-w-6xl mx-auto px-6 pb-16 space-y-10">
+        <main class="w-full min-w-0 max-w-6xl mx-auto px-6 pb-16 space-y-10 overflow-x-hidden">
             <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8">
                 <div class="grid md:grid-cols-3 gap-6">
                     <div class="p-4 rounded-xl bg-orange-50 border border-orange-100">

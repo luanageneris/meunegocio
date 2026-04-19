@@ -302,13 +302,13 @@ onMounted(async () => {
 
         <Sidebar active-route="conta" />
 
-        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
+        <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
             <PageHeaderTitle 
                 title="Minha Conta" 
                 subtitle="Gerencie as informações da sua empresa e acesso"
             />
             
-            <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
+            <main class="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 overflow-x-hidden">
                 <div class="bg-white rounded-xl shadow-lg border border-blue-200/70 overflow-hidden">
 
                     <div class="p-6 sm:p-10">

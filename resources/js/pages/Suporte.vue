@@ -80,13 +80,13 @@ const handleKeydown = (e: KeyboardEvent) => {
 
         <Sidebar active-route="suporte" />
 
-        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden">
+        <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden">
             <PageHeaderTitle 
                 title="Ajuda e Suporte" 
                 subtitle="Conte-nos o seu problema, nos responderemos o mais breve possível."
             />
 
-            <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main class="w-full min-w-0 max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
                 <div class="bg-white rounded-xl shadow-lg p-8">
 
                     <form @submit.prevent="handleSubmit" class="space-y-6">
@@ -154,7 +154,7 @@ const handleKeydown = (e: KeyboardEvent) => {
             </div>
         </header>
 
-        <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <main class="w-full min-w-0 max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 overflow-x-hidden">
             <div class="bg-white rounded-xl shadow-lg p-8 space-y-6">
                 <div class="text-center">
                     <h2 class="text-3xl font-bold text-orange-600 mb-2">Ajuda e Suporte</h2>

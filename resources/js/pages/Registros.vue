@@ -1626,14 +1626,14 @@ onBeforeUnmount(() => {
         <Sidebar active-route="registros" />
 
         <!-- Main Content -->
-        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
+        <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
             <PageHeaderTitle 
                 title="Registros" 
                 subtitle="Gerencie suas entradas, saídas e comissões"
             />
 
             <!-- Main Content -->
-            <main class="w-full max-w-full sm:max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 flex flex-col overflow-x-hidden">
+            <main class="w-full min-w-0 max-w-full sm:max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 flex flex-col overflow-x-hidden">
                 <AppInlineNotice
                     v-if="registrationSuccessMessage"
                     class="mb-6"

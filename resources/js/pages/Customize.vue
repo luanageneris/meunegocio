@@ -971,11 +971,11 @@ onMounted(fetchData);
         
         <Sidebar active-route="personalizar" />
 
-        <div class="flex-1 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
+        <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
             <PageHeaderTitle title="Personalizar" subtitle="Gerencie tipos de entrada, saída e serviços"/>
             
             <!-- Main Content -->
-            <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main class="w-full min-w-0 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
                 <!-- Error Message -->
                 <div v-if="errorMessage" class="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
                     {{ errorMessage }}
@@ -983,27 +983,27 @@ onMounted(fetchData);
                 
                 <LoadingSpinner v-if="isLoading" />
 
-                <div v-else class="space-y-6">
+                <div v-else class="space-y-4 sm:space-y-6 min-w-0">
                     <!-- Entry Types Section -->
-                    <div class="bg-white rounded-xl shadow-lg p-6">
-                            <div class="flex items-center gap-2 mb-4">
+                        <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                            <div class="flex items-center gap-2 mb-3 sm:mb-4">
                                 <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m0 0h6" />
                                 </svg>
-                                <h2 class="text-2xl font-bold text-gray-800">Tipos de Entradas</h2>
+                                <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Tipos de Entradas</h2>
                             </div>
 
-                            <div class="flex flex-wrap items-center gap-2 mb-4">
+                            <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-4">
                                 <button
                                     @click="handleNewEntryType"
-                                    class="px-5 py-2 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                                    class="w-full sm:w-auto px-5 py-2 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg font-medium text-sm sm:text-base hover:shadow-lg transition-all"
                                 >
                                     + Novo Tipo
                                 </button>
                                 <button
                                     @click="toggleEntryTypeRemoved"
                                     :class="[
-                                        'px-5 py-2 border-2 rounded-lg font-medium transition-all',
+                                        'w-full sm:w-auto px-5 py-2 border-2 rounded-lg font-medium text-sm sm:text-base transition-all',
                                         showEntryTypeRemoved
                                             ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
                                             : 'border-green-300 text-green-500 hover:bg-green-50'
@@ -1018,28 +1018,28 @@ onMounted(fetchData);
                                     v-model="entryTypeSearch"
                                     type="text"
                                     placeholder="Pesquise tipos de entrada..."
-                                    class="w-full px-4 py-3 border-2 border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                                    class="w-full px-4 py-3 border-2 border-green-200 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
                                 />
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start min-w-0">
                                 <div
                                     v-if="showNewEntryTypeInline"
                                     class="self-start border-2 border-green-300 rounded-lg p-4 shadow-sm bg-green-50/60"
                                 >
-                                    <div class="flex items-center gap-3">
+                                    <div class="flex min-w-0 items-center gap-3">
                                         <input
                                             ref="newEntryTypeInput"
                                             v-model="newEntryTypeName"
                                             type="text"
                                             placeholder="Digite o nome do novo tipo de entrada"
-                                            class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none"
+                                            class="w-0 min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none"
                                             :disabled="isEntryTypeModalLoading"
                                             @keydown.enter.prevent="saveNewEntryType"
                                             @keydown.esc.prevent="cancelNewEntryType"
                                         />
 
-                                        <div class="flex items-center gap-2">
+                                        <div class="flex shrink-0 items-center gap-2">
                                             <button
                                                 @click="saveNewEntryType"
                                                 :disabled="isEntryTypeModalLoading"
@@ -1081,18 +1081,18 @@ onMounted(fetchData);
                                 >
                                     <!-- Modo edição inline -->
                                     <div v-if="editingEntryType?.id === type.id && showEditEntryTypeInline" class="space-y-3">
-                                        <div class="flex items-center gap-3">
+                                        <div class="flex min-w-0 items-center gap-3">
                                             <input
                                                 ref="editingEntryTypeInputRef"
                                                 v-model="editingEntryTypeInlineName"
                                                 type="text"
-                                                class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                                class="w-0 min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
                                                 :disabled="isEntryTypeModalLoading"
                                                 @keydown.enter.prevent="saveEditEntryType"
                                                 @keydown.esc.prevent="cancelEditEntryType"
                                             />
 
-                                            <div class="flex items-center gap-2">
+                                            <div class="flex shrink-0 items-center gap-2">
                                                 <button
                                                     @click="saveEditEntryType"
                                                     :disabled="isEntryTypeModalLoading"
@@ -1120,12 +1120,12 @@ onMounted(fetchData);
                                     </div>
 
                                     <!-- Modo visualização normal -->
-                                    <div v-else class="flex justify-between items-start">
-                                        <div>
-                                            <p class="font-semibold text-gray-800">{{ type.name }}</p>
+                                    <div v-else class="flex min-w-0 justify-between items-start gap-3">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="font-semibold text-gray-800 break-words">{{ type.name }}</p>
                                             <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
                                         </div>
-                                        <div class="flex gap-2" v-if="!type.deleted_at">
+                                        <div class="flex shrink-0 gap-2" v-if="!type.deleted_at">
                                             <button
                                                 @click="handleEditEntryType(type)"
                                                 class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
@@ -1145,7 +1145,7 @@ onMounted(fetchData);
                                                 </svg>
                                             </button>
                                         </div>
-                                        <div v-else class="flex gap-2">
+                                        <div v-else class="flex shrink-0 gap-2">
                                             <button
                                                 @click="handleRestoreEntryType(type)"
                                                 :disabled="isEntryTypeRestoreLoading"
@@ -1174,14 +1174,14 @@ onMounted(fetchData);
                                         v-if="deletingEntryType?.id === type.id && showDeleteConfirmEntryTypeInline"
                                         class="border-l-4 border-green-500 bg-green-50/80 p-4 rounded mt-2 space-y-3"
                                     >
-                                        <p class="text-sm font-semibold text-gray-800">
-                                            Tem certeza que deseja remover "<span class="text-green-600">{{ type.name }}</span>"?
+                                        <p class="text-sm font-semibold text-gray-800 break-words">
+                                            Tem certeza que deseja remover "<span class="text-green-600 break-all">{{ type.name }}</span>"?
                                         </p>
-                                        <div class="flex gap-2 justify-end">
+                                        <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                                             <button
                                                 @click="cancelDeleteEntryType"
                                                 :disabled="isEntryTypeDeleteLoading"
-                                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                                             >
                                                 Cancelar
                                             </button>
@@ -1189,7 +1189,7 @@ onMounted(fetchData);
                                                 ref="entryTypeDeleteConfirmButtonRef"
                                                 @click="confirmDeleteEntryType"
                                                 :disabled="isEntryTypeDeleteLoading"
-                                                class="px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
                                             >
                                                 {{ isEntryTypeDeleteLoading ? 'Removendo...' : 'Remover' }}
                                             </button>
@@ -1204,7 +1204,7 @@ onMounted(fetchData);
                             >
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
-                                        <p class="text-sm font-medium text-gray-800">
+                                        <p class="text-sm font-medium text-gray-800 break-words">
                                             Nenhum tipo encontrado para "{{ entryTypeSearch.trim() }}".
                                         </p>
                                         <p class="text-sm text-gray-600">
@@ -1215,9 +1215,9 @@ onMounted(fetchData);
                                     <button
                                         @click="saveEntryTypeFromSearch"
                                         :disabled="isEntryTypeModalLoading"
-                                        class="inline-flex items-center justify-center rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600 disabled:opacity-50"
+                                        class="inline-flex w-full sm:w-auto max-w-full items-center justify-center rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600 disabled:opacity-50"
                                     >
-                                        {{ isEntryTypeModalLoading ? 'Criando...' : `Criar "${entryTypeSearch.trim()}"` }}
+                                        <span class="block max-w-full truncate">{{ isEntryTypeModalLoading ? 'Criando...' : `Criar "${entryTypeSearch.trim()}"` }}</span>
                                     </button>
                                 </div>
                             </div>
@@ -1228,25 +1228,25 @@ onMounted(fetchData);
                         </div>
 
                         <!-- Exit Types Section -->
-                        <div class="bg-white rounded-xl shadow-lg p-6">
-                            <div class="flex items-center gap-2 mb-4">
+                        <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                            <div class="flex items-center gap-2 mb-3 sm:mb-4">
                                 <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18l8 0M12 18l-8 0M12 18V6" />
                                 </svg>
-                                <h2 class="text-2xl font-bold text-gray-800">Tipos de Saídas</h2>
+                                <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Tipos de Saídas</h2>
                             </div>
 
-                            <div class="flex flex-wrap items-center gap-2 mb-4">
+                            <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-4">
                                 <button
                                     @click="handleNewExitType"
-                                    class="px-5 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                                    class="w-full sm:w-auto px-5 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-lg font-medium text-sm sm:text-base hover:shadow-lg transition-all"
                                 >
                                     + Novo Tipo
                                 </button>
                                 <button
                                     @click="toggleExitTypeRemoved"
                                     :class="[
-                                        'px-5 py-2 border-2 rounded-lg font-medium transition-all',
+                                        'w-full sm:w-auto px-5 py-2 border-2 rounded-lg font-medium text-sm sm:text-base transition-all',
                                         showExitTypeRemoved
                                             ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
                                             : 'border-red-300 text-red-500 hover:bg-red-50'
@@ -1261,28 +1261,28 @@ onMounted(fetchData);
                                     v-model="exitTypeSearch"
                                     type="text"
                                     placeholder="Pesquise tipos de saída..."
-                                    class="w-full px-4 py-3 border-2 border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
+                                    class="w-full px-4 py-3 border-2 border-red-200 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
                                 />
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start min-w-0">
                                 <div
                                     v-if="showNewExitTypeInline"
                                     class="self-start border-2 border-red-300 rounded-lg p-4 shadow-sm bg-red-50/60"
                                 >
-                                    <div class="flex items-center gap-3">
+                                    <div class="flex min-w-0 items-center gap-3">
                                         <input
                                             ref="newExitTypeInput"
                                             v-model="newExitTypeName"
                                             type="text"
                                             placeholder="Digite o nome do novo tipo de saída"
-                                            class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none"
+                                            class="w-0 min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none"
                                             :disabled="isExitTypeModalLoading"
                                             @keydown.enter.prevent="saveNewExitType"
                                             @keydown.esc.prevent="cancelNewExitType"
                                         />
 
-                                        <div class="flex items-center gap-2">
+                                        <div class="flex shrink-0 items-center gap-2">
                                             <button
                                                 @click="saveNewExitType"
                                                 :disabled="isExitTypeModalLoading"
@@ -1323,18 +1323,18 @@ onMounted(fetchData);
                                 >
                                     <!-- Modo edição inline -->
                                     <div v-if="editingExitType?.id === type.id && showEditExitTypeInline" class="space-y-3">
-                                        <div class="flex items-center gap-3">
+                                        <div class="flex min-w-0 items-center gap-3">
                                             <input
                                                 ref="editingExitTypeInputRef"
                                                 v-model="editingExitTypeInlineName"
                                                 type="text"
-                                                class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                                class="w-0 min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
                                                 :disabled="isExitTypeModalLoading"
                                                 @keydown.enter.prevent="saveEditExitType"
                                                 @keydown.esc.prevent="cancelEditExitType"
                                             />
 
-                                            <div class="flex items-center gap-2">
+                                            <div class="flex shrink-0 items-center gap-2">
                                                 <button
                                                     @click="saveEditExitType"
                                                     :disabled="isExitTypeModalLoading"
@@ -1362,12 +1362,12 @@ onMounted(fetchData);
                                     </div>
 
                                     <!-- Modo visualização normal -->
-                                    <div v-else class="flex justify-between items-start">
-                                        <div>
-                                            <p class="font-semibold text-gray-800">{{ type.name }}</p>
+                                    <div v-else class="flex min-w-0 justify-between items-start gap-3">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="font-semibold text-gray-800 break-words">{{ type.name }}</p>
                                             <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
                                         </div>
-                                        <div class="flex gap-2" v-if="!type.deleted_at">
+                                        <div class="flex shrink-0 gap-2" v-if="!type.deleted_at">
                                             <button
                                                 @click="handleEditExitType(type)"
                                                 class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
@@ -1387,7 +1387,7 @@ onMounted(fetchData);
                                                 </svg>
                                             </button>
                                         </div>
-                                        <div v-else class="flex gap-2">
+                                        <div v-else class="flex shrink-0 gap-2">
                                             <button
                                                 @click="handleRestoreExitType(type)"
                                                 :disabled="isExitTypeRestoreLoading"
@@ -1416,14 +1416,14 @@ onMounted(fetchData);
                                         v-if="deletingExitType?.id === type.id && showDeleteConfirmExitTypeInline"
                                         class="border-l-4 border-red-500 bg-red-50/80 p-4 rounded mt-2 space-y-3"
                                     >
-                                        <p class="text-sm font-semibold text-gray-800">
-                                            Tem certeza que deseja remover "<span class="text-red-600">{{ type.name }}</span>"?
+                                        <p class="text-sm font-semibold text-gray-800 break-words">
+                                            Tem certeza que deseja remover "<span class="text-red-600 break-all">{{ type.name }}</span>"?
                                         </p>
-                                        <div class="flex gap-2 justify-end">
+                                        <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                                             <button
                                                 @click="cancelDeleteExitType"
                                                 :disabled="isExitTypeDeleteLoading"
-                                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                                             >
                                                 Cancelar
                                             </button>
@@ -1431,7 +1431,7 @@ onMounted(fetchData);
                                                 ref="exitTypeDeleteConfirmButtonRef"
                                                 @click="confirmDeleteExitType"
                                                 :disabled="isExitTypeDeleteLoading"
-                                                class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
                                             >
                                                 {{ isExitTypeDeleteLoading ? 'Removendo...' : 'Remover' }}
                                             </button>
@@ -1446,7 +1446,7 @@ onMounted(fetchData);
                             >
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
-                                        <p class="text-sm font-medium text-gray-800">
+                                        <p class="text-sm font-medium text-gray-800 break-words">
                                             Nenhum tipo encontrado para "{{ exitTypeSearch.trim() }}".
                                         </p>
                                         <p class="text-sm text-gray-600">
@@ -1457,23 +1457,23 @@ onMounted(fetchData);
                                     <button
                                         @click="saveExitTypeFromSearch"
                                         :disabled="isExitTypeModalLoading"
-                                        class="inline-flex items-center justify-center rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                                        class="inline-flex w-full sm:w-auto max-w-full items-center justify-center rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
                                     >
-                                        {{ isExitTypeModalLoading ? 'Criando...' : `Criar "${exitTypeSearch.trim()}"` }}
+                                        <span class="block max-w-full truncate">{{ isExitTypeModalLoading ? 'Criando...' : `Criar "${exitTypeSearch.trim()}"` }}</span>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Settings Section -->
-                        <div class="bg-white rounded-xl shadow-lg p-6">
-                            <div class="flex items-center justify-between">
+                        <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <h2 class="text-xl font-bold text-gray-800">Configurações da Empresa</h2>
                                     <p class="text-sm text-gray-500">Alternar entre formulário simples e por tipo de serviço.</p>
                                 </div>
-                                <div class="flex items-center gap-3">
-                                    <span class="text-sm text-gray-600">Modo Tipo de Serviço</span>
+                                <div class="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-3">
+                                    <span class="text-sm text-gray-600 leading-tight">Modo Tipo de Serviço</span>
                                     <button
                                         @click="toggleServiceMode"
                                         :disabled="savingSettings"
@@ -1495,12 +1495,12 @@ onMounted(fetchData);
                         </div>
                         
                         <!-- Service Types Section -->
-                        <div :class="['bg-white rounded-xl shadow-lg p-6', !serviceModeOn ? 'opacity-60' : '']">
-                            <div class="flex items-center gap-2 mb-4">
+                        <div :class="['bg-white rounded-xl shadow-lg p-4 sm:p-6', !serviceModeOn ? 'opacity-60' : '']">
+                            <div class="flex items-center gap-2 mb-3 sm:mb-4">
                                 <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
-                                <h2 class="text-2xl font-bold text-gray-800">Tipos de Serviços</h2>
+                                <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Tipos de Serviços</h2>
                                 <span
                                     v-if="!serviceModeOn"
                                     class="ml-2 inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 border border-yellow-200"
@@ -1513,12 +1513,12 @@ onMounted(fetchData);
                                 O Modo Tipo de Serviço está desativado nas Configurações da Empresa. Este cadastro não é usado ao registrar entradas até ser reativado.
                             </div>
 
-                            <div class="flex flex-wrap items-center gap-2 mb-4">
+                            <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-4">
                                 <button
                                     @click="handleNewServiceType()"
                                     :disabled="!serviceModeOn"
                                     :class="[
-                                        'px-5 py-2 rounded-lg font-medium transition-all',
+                                        'w-full sm:w-auto px-5 py-2 rounded-lg font-medium text-sm sm:text-base transition-all',
                                         serviceModeOn
                                             ? 'bg-gradient-to-r from-blue-400 to-blue-500 text-white hover:shadow-lg'
                                             : 'bg-gray-200 text-gray-500 cursor-not-allowed'
@@ -1530,7 +1530,7 @@ onMounted(fetchData);
                                     @click="toggleServiceTypeRemoved"
                                     :disabled="!serviceModeOn"
                                     :class="[
-                                        'px-5 py-2 border-2 rounded-lg font-medium transition-all',
+                                        'w-full sm:w-auto px-5 py-2 border-2 rounded-lg font-medium text-sm sm:text-base transition-all',
                                         !serviceModeOn
                                             ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
                                             : (showServiceTypeRemoved
@@ -1547,11 +1547,11 @@ onMounted(fetchData);
                                     v-model="serviceTypeSearch"
                                     type="text"
                                     placeholder="Pesquise tipos de serviço..."
-                                    class="w-full px-4 py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                    class="w-full px-4 py-3 border-2 border-blue-200 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                                 />
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start min-w-0">
                                 <div
                                     v-if="showNewServiceTypeInline"
                                     class="col-span-full self-start border-2 border-blue-300 rounded-lg p-4 shadow-sm bg-blue-50/60"
@@ -1770,9 +1770,9 @@ onMounted(fetchData);
                                         </div>
                                     </div>
 
-                                    <div v-else class="flex justify-between items-start">
-                                        <div>
-                                            <p class="font-semibold text-gray-800">{{ type.name }}</p>
+                                    <div v-else class="flex min-w-0 justify-between items-start gap-3">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="font-semibold text-gray-800 break-words">{{ type.name }}</p>
                                             <p class="text-xs text-gray-500 mt-1">
                                                 Unidade: <span class="font-semibold">{{ type.unit }}</span>
                                             </p>
@@ -1784,7 +1784,7 @@ onMounted(fetchData);
                                             </p>
                                             <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
                                         </div>
-                                        <div class="flex gap-2" v-if="!type.deleted_at">
+                                        <div class="flex shrink-0 gap-2" v-if="!type.deleted_at">
                                             <button
                                                 @click="handleEditServiceType(type)"
                                                 :disabled="!serviceModeOn"
@@ -1812,7 +1812,7 @@ onMounted(fetchData);
                                                 </svg>
                                             </button>
                                         </div>
-                                        <div v-else class="flex gap-2">
+                                        <div v-else class="flex shrink-0 gap-2">
                                             <button
                                                 @click="handleRestoreServiceType(type)"
                                                 :disabled="isServiceTypeRestoreLoading"
@@ -1840,14 +1840,14 @@ onMounted(fetchData);
                                         v-if="deletingServiceType?.id === type.id && showDeleteConfirmServiceTypeInline"
                                         class="border-l-4 border-blue-500 bg-blue-50/80 p-4 rounded mt-2 space-y-3"
                                     >
-                                        <p class="text-sm font-semibold text-gray-800">
-                                            Tem certeza que deseja remover "<span class="text-blue-600">{{ type.name }}</span>"?
+                                        <p class="text-sm font-semibold text-gray-800 break-words">
+                                            Tem certeza que deseja remover "<span class="text-blue-600 break-all">{{ type.name }}</span>"?
                                         </p>
-                                        <div class="flex gap-2 justify-end">
+                                        <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                                             <button
                                                 @click="cancelDeleteServiceType"
                                                 :disabled="isServiceTypeDeleteLoading"
-                                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                                             >
                                                 Cancelar
                                             </button>
@@ -1855,7 +1855,7 @@ onMounted(fetchData);
                                                 ref="serviceTypeDeleteConfirmButtonRef"
                                                 @click="confirmDeleteServiceType"
                                                 :disabled="isServiceTypeDeleteLoading"
-                                                class="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
                                             >
                                                 {{ isServiceTypeDeleteLoading ? 'Removendo...' : 'Remover' }}
                                             </button>
@@ -1870,7 +1870,7 @@ onMounted(fetchData);
                             >
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
-                                        <p class="text-sm font-medium text-gray-800">
+                                        <p class="text-sm font-medium text-gray-800 break-words">
                                             Nenhum tipo encontrado para "{{ serviceTypeSearch.trim() }}".
                                         </p>
                                         <p class="text-sm text-gray-600">
@@ -1881,9 +1881,9 @@ onMounted(fetchData);
                                     <button
                                         @click="handleNewServiceType(serviceTypeSearch, true)"
                                         :disabled="isServiceTypeModalLoading"
-                                        class="inline-flex items-center justify-center rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+                                        class="inline-flex w-full sm:w-auto max-w-full items-center justify-center rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
                                     >
-                                        Criar "{{ serviceTypeSearch.trim() }}"
+                                        <span class="block max-w-full truncate">Criar "{{ serviceTypeSearch.trim() }}"</span>
                                     </button>
                                 </div>
                             </div>
