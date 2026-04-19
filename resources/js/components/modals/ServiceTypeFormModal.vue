@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue';
 import ModalShell from './ModalShell.vue';
 import UnsavedChangesModal from './UnsavedChangesModal.vue';
+import { useInputMasks } from '@/composables/useInputMasks';
 
 interface ServiceType {
     id?: number;
@@ -46,6 +47,7 @@ const initialFormData = ref<ServiceType>({
 
 const errors = ref<Record<string, string[]>>({});
 const isUpdatingCommission = ref(false); // Flag para evitar loop infinito
+const { formatCurrencyInput, parseCurrencyInput } = useInputMasks();
 
 const hasChanges = computed(() => {
     return JSON.stringify(formData.value) !== JSON.stringify(initialFormData.value);
@@ -56,8 +58,14 @@ watch(
     (newVal) => {
         if (newVal) {
             if (props.mode === 'edit' && props.serviceType) {
-                formData.value = { ...props.serviceType };
-                initialFormData.value = { ...props.serviceType };
+                const hydrated = {
+                    ...props.serviceType,
+                    service_value: formatCurrencyInput(props.serviceType.service_value || 0),
+                    commission_value: formatCurrencyInput(props.serviceType.commission_value || 0),
+                    resource_value: formatCurrencyInput(props.serviceType.resource_value || 0),
+                };
+                formData.value = hydrated;
+                initialFormData.value = { ...hydrated };
             } else {
                 const emptyForm = {
                     name: '',
@@ -81,12 +89,12 @@ watch(
     (newPercentage) => {
         if (isUpdatingCommission.value) return;
         
-        const serviceValue = Number(formData.value.service_value);
+        const serviceValue = parseCurrencyInput(formData.value.service_value);
         const percentage = Number(newPercentage);
         
         if (serviceValue > 0 && !isNaN(percentage)) {
             isUpdatingCommission.value = true;
-            formData.value.commission_value = (serviceValue * (percentage / 100)).toFixed(2);
+            formData.value.commission_value = formatCurrencyInput((serviceValue * (percentage / 100)).toFixed(2));
             setTimeout(() => {
                 isUpdatingCommission.value = false;
             }, 0);
@@ -100,8 +108,8 @@ watch(
     (newValue) => {
         if (isUpdatingCommission.value) return;
         
-        const serviceValue = Number(formData.value.service_value);
-        const commissionValue = Number(newValue);
+        const serviceValue = parseCurrencyInput(formData.value.service_value);
+        const commissionValue = parseCurrencyInput(newValue);
         
         if (serviceValue > 0 && !isNaN(commissionValue)) {
             isUpdatingCommission.value = true;
@@ -119,18 +127,23 @@ watch(
     (newServiceValue) => {
         if (isUpdatingCommission.value) return;
         
-        const serviceValue = Number(newServiceValue);
+        const serviceValue = parseCurrencyInput(newServiceValue);
         const percentage = Number(formData.value.commission_percentage);
         
         if (serviceValue > 0 && !isNaN(percentage) && percentage > 0) {
             isUpdatingCommission.value = true;
-            formData.value.commission_value = (serviceValue * (percentage / 100)).toFixed(2);
+            formData.value.commission_value = formatCurrencyInput((serviceValue * (percentage / 100)).toFixed(2));
             setTimeout(() => {
                 isUpdatingCommission.value = false;
             }, 0);
         }
     }
 );
+
+const handleCurrencyInput = (field: 'service_value' | 'resource_value' | 'commission_value', event: Event) => {
+    const target = event.target as HTMLInputElement;
+    formData.value[field] = formatCurrencyInput(target.value);
+};
 
 const handleClose = () => {
     if (hasChanges.value) {
@@ -168,6 +181,10 @@ const cancelDiscard = () => {
 
 const handleSave = () => {
     errors.value = {};
+    const serviceValue = parseCurrencyInput(formData.value.service_value);
+    const commissionPercentage = Number(formData.value.commission_percentage);
+    const commissionValue = parseCurrencyInput(formData.value.commission_value);
+    const resourceValue = parseCurrencyInput(formData.value.resource_value);
 
     if (!formData.value.name?.trim()) {
         errors.value.name = ['O nome é obrigatório'];
@@ -179,21 +196,21 @@ const handleSave = () => {
 
     if (!formData.value.service_value || formData.value.service_value === '') {
         errors.value.service_value = ['O valor do serviço é obrigatório'];
-    } else if (Number(formData.value.service_value) < 0) {
+    } else if (serviceValue < 0) {
         errors.value.service_value = ['O valor deve ser positivo'];
     }
 
     if (!formData.value.commission_percentage || formData.value.commission_percentage === '') {
         errors.value.commission_percentage = ['O percentual de comissão é obrigatório'];
-    } else if (Number(formData.value.commission_percentage) < 0 || Number(formData.value.commission_percentage) > 100) {
+    } else if (commissionPercentage < 0 || commissionPercentage > 100) {
         errors.value.commission_percentage = ['O percentual deve ser entre 0 e 100'];
     }
 
-    if (formData.value.commission_value && formData.value.commission_value !== '' && Number(formData.value.commission_value) < 0) {
+    if (formData.value.commission_value && formData.value.commission_value !== '' && commissionValue < 0) {
         errors.value.commission_value = ['O valor deve ser positivo'];
     }
 
-    if (formData.value.resource_value && formData.value.resource_value !== '' && Number(formData.value.resource_value) < 0) {
+    if (formData.value.resource_value && formData.value.resource_value !== '' && resourceValue < 0) {
         errors.value.resource_value = ['O valor deve ser positivo'];
     }
 
@@ -206,10 +223,10 @@ const handleSave = () => {
     emit('save', {
         name: formData.value.name.trim(),
         unit: formData.value.unit.trim(),
-        service_value: formData.value.service_value,
-        commission_percentage: formData.value.commission_percentage,
-        commission_value: formData.value.commission_value || 0,
-        resource_value: formData.value.resource_value || 0,
+        service_value: serviceValue,
+        commission_percentage: commissionPercentage,
+        commission_value: commissionValue,
+        resource_value: resourceValue,
     });
 };
 </script>
@@ -259,11 +276,11 @@ const handleSave = () => {
                     <label class="block text-sm font-medium text-gray-700 mb-1">Valor do Serviço (R$)</label>
                     <input
                         v-model="formData.service_value"
-                        type="number"
+                        type="text"
+                        inputmode="decimal"
                         @keydown.enter.prevent="handleSave"
                         placeholder="0,00"
-                        step="0.01"
-                        min="0"
+                        @input="(event) => { handleCurrencyInput('service_value', event); }"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                         :disabled="props.isLoading"
                     />
@@ -272,11 +289,11 @@ const handleSave = () => {
                     <label class="block text-sm font-medium text-gray-700 mb-1">Valor do Recurso (R$)</label>
                     <input
                         v-model="formData.resource_value"
-                        type="number"
+                        type="text"
+                        inputmode="decimal"
                         @keydown.enter.prevent="handleSave"
                         placeholder="0,00"
-                        step="0.01"
-                        min="0"
+                        @input="(event) => handleCurrencyInput('resource_value', event)"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                         :disabled="props.isLoading"
                     />
@@ -308,11 +325,11 @@ const handleSave = () => {
                     </label>
                     <input
                         v-model="formData.commission_value"
-                        type="number"
+                        type="text"
+                        inputmode="decimal"
                         @keydown.enter.prevent="handleSave"
                         placeholder="0,00"
-                        step="0.01"
-                        min="0"
+                        @input="(event) => { handleCurrencyInput('commission_value', event); }"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                         :disabled="props.isLoading"
                     />

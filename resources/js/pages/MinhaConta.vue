@@ -7,6 +7,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import Footer from '@/components/Footer.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
+import { useInputMasks } from '@/composables/useInputMasks';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
 import logoUrl from '../../img/icon-logo.svg';
 
@@ -24,6 +25,7 @@ type CompanyForm = {
 const page = usePage();
 const auth = useAuth();
 const toast = useToast();
+const { formatPhone, formatCpfCnpj } = useInputMasks();
 const company = ref<any>(null);
 const form = ref<CompanyForm>({
     name: '',
@@ -85,13 +87,23 @@ const fillForm = (data: any) => {
     form.value = {
         name: data.name ?? '',
         email: data.email ?? '',
-        phone: data.phone ?? '',
-        document: data.document ?? '',
+        phone: formatPhone(data.phone ?? ''),
+        document: formatCpfCnpj(data.document ?? ''),
         address: data.address ?? '',
         city: data.city ?? '',
         state: data.state ?? '',
         postal_code: data.postal_code ?? '',
     };
+};
+
+const handlePhoneInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    form.value.phone = formatPhone(target.value);
+};
+
+const handleDocumentInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    form.value.document = formatCpfCnpj(target.value);
 };
 
 const fetchCompany = async () => {
@@ -371,6 +383,7 @@ onMounted(async () => {
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
                                                 <input
                                                     v-model="form.phone"
+                                                    @input="handlePhoneInput"
                                                     type="tel"
                                                     :disabled="!canEdit"
                                                     placeholder="(11) 99999-9999"
@@ -381,6 +394,7 @@ onMounted(async () => {
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">CNPJ/CPF</label>
                                                 <input
                                                     v-model="form.document"
+                                                    @input="handleDocumentInput"
                                                     type="text"
                                                     :disabled="!canEdit"
                                                     placeholder="00.000.000/0000-00"

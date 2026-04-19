@@ -5,6 +5,7 @@ import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import { useAuth } from '@/composables/useAuth';
+import { useInputMasks } from '@/composables/useInputMasks';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import Footer from '@/components/Footer.vue';
 
@@ -26,6 +27,7 @@ const createEmptyCollaboratorForm = (): CollaboratorFormData => ({
 });
 
 const auth = useAuth();
+const { formatCpf } = useInputMasks();
 const collaborators = ref<Collaborator[]>([]);
 const isLoading = ref(false);
 const isListLoading = ref(false);
@@ -165,7 +167,7 @@ const cancelNew = () => {
 const saveNew = async () => {
     const payload = {
         name: newCollaboratorForm.value.name.trim(),
-        cpf: newCollaboratorForm.value.cpf.trim(),
+        cpf: formatCpf(newCollaboratorForm.value.cpf.trim()),
         active: newCollaboratorForm.value.active,
     };
 
@@ -206,7 +208,7 @@ const handleEdit = (collab: Collaborator) => {
     editingCollaborator.value = { ...collab };
     editCollaboratorForm.value = {
         name: collab.name,
-        cpf: collab.cpf,
+        cpf: formatCpf(collab.cpf),
         active: collab.active,
     };
     showEditInline.value = true;
@@ -225,7 +227,7 @@ const saveEdit = async () => {
 
     const payload = {
         name: editCollaboratorForm.value.name.trim(),
-        cpf: editCollaboratorForm.value.cpf.trim(),
+        cpf: formatCpf(editCollaboratorForm.value.cpf.trim()),
         active: editCollaboratorForm.value.active,
     };
 
@@ -320,6 +322,16 @@ const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages.value) {
         currentPage.value = page;
     }
+};
+
+const handleNewCpfInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    newCollaboratorForm.value.cpf = formatCpf(target.value);
+};
+
+const handleEditCpfInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    editCollaboratorForm.value.cpf = formatCpf(target.value);
 };
 
 onMounted(() => fetchCollaborators(true));
@@ -422,6 +434,7 @@ onMounted(() => fetchCollaborators(true));
                                 <div class="flex items-center gap-2">
                                     <input
                                         v-model="newCollaboratorForm.cpf"
+                                        @input="handleNewCpfInput"
                                         type="text"
                                         placeholder="CPF"
                                         class="flex-1 bg-transparent text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
@@ -443,7 +456,7 @@ onMounted(() => fetchCollaborators(true));
                             :class="[
                                 'self-start border rounded-lg p-4 shadow-sm transition-shadow',
                                 editingCollaborator?.id === collab.id && showEditInline
-                                    ? 'border-2 border-blue-300 bg-blue-50/60'
+                                    ? 'border-2 border-amber-300 bg-amber-50/60'
                                     : [
                                         'border-gray-200',
                                         collab.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
@@ -464,7 +477,7 @@ onMounted(() => fetchCollaborators(true));
                                         <button
                                             @click="saveEdit"
                                             :disabled="isFormLoading"
-                                            class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+                                            class="p-2 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors disabled:opacity-50"
                                             title="Salvar"
                                         >
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -486,13 +499,14 @@ onMounted(() => fetchCollaborators(true));
                                 <div class="flex items-center gap-2">
                                     <input
                                         v-model="editCollaboratorForm.cpf"
+                                        @input="handleEditCpfInput"
                                         type="text"
                                         class="flex-1 bg-transparent text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
                                         :disabled="isFormLoading"
                                         @keydown.enter.prevent="saveEdit"
                                     />
                                     <label class="inline-flex items-center gap-1 text-xs text-gray-700 shrink-0">
-                                        <input v-model="editCollaboratorForm.active" type="checkbox" class="rounded border-gray-300 text-blue-500 focus:ring-blue-400" :disabled="isFormLoading" />
+                                        <input v-model="editCollaboratorForm.active" type="checkbox" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400" :disabled="isFormLoading" />
                                         Ativo
                                     </label>
                                 </div>
@@ -502,7 +516,7 @@ onMounted(() => fetchCollaborators(true));
                             <div v-else class="flex justify-between items-start">
                                 <div>
                                     <p class="font-semibold text-gray-800">{{ collab.name }}</p>
-                                    <p class="text-xs text-gray-500">CPF: {{ collab.cpf }}</p>
+                                    <p class="text-xs text-gray-500">CPF: {{ formatCpf(collab.cpf) }}</p>
                                     <p class="mt-1 text-xs flex items-center gap-2">
                                         <span :class="collab.active ? 'text-green-600' : 'text-gray-400'">
                                             {{ collab.active ? 'Ativo' : 'Inativo' }}

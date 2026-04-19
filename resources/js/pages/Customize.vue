@@ -9,6 +9,7 @@ import ExitTypeFormModal from '@/components/modals/ExitTypeFormModal.vue';
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
+import { useInputMasks } from '@/composables/useInputMasks';
 import Footer from '@/components/Footer.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 
@@ -54,6 +55,7 @@ const createEmptyServiceTypeForm = (): ServiceTypeFormData => ({
 
 const auth = useAuth();
 const toast = useToast();
+const { formatCurrencyInput, parseCurrencyInput } = useInputMasks();
 
 // Entry Types
 const entryTypes = ref<EntryType[]>([]);
@@ -156,6 +158,10 @@ const applyRestoreLocally = <T extends { id: number; deleted_at?: string | null 
 );
 const validateServiceTypeForm = (form: ServiceTypeFormData) => {
     const errors: Record<string, string[]> = {};
+    const serviceValue = parseCurrencyInput(form.service_value);
+    const commissionPercentage = Number(form.commission_percentage);
+    const commissionValue = parseCurrencyInput(form.commission_value);
+    const resourceValue = parseCurrencyInput(form.resource_value);
 
     if (!form.name?.trim()) {
         errors.name = ['O nome é obrigatório'];
@@ -167,21 +173,21 @@ const validateServiceTypeForm = (form: ServiceTypeFormData) => {
 
     if (form.service_value === '' || form.service_value === null || form.service_value === undefined) {
         errors.service_value = ['O valor do serviço é obrigatório'];
-    } else if (Number(form.service_value) < 0) {
+    } else if (serviceValue < 0) {
         errors.service_value = ['O valor deve ser positivo'];
     }
 
     if (form.commission_percentage === '' || form.commission_percentage === null || form.commission_percentage === undefined) {
         errors.commission_percentage = ['O percentual de comissão é obrigatório'];
-    } else if (Number(form.commission_percentage) < 0 || Number(form.commission_percentage) > 100) {
+    } else if (commissionPercentage < 0 || commissionPercentage > 100) {
         errors.commission_percentage = ['O percentual deve ser entre 0 e 100'];
     }
 
-    if (form.commission_value !== '' && form.commission_value !== null && form.commission_value !== undefined && Number(form.commission_value) < 0) {
+    if (form.commission_value !== '' && form.commission_value !== null && form.commission_value !== undefined && commissionValue < 0) {
         errors.commission_value = ['O valor deve ser positivo'];
     }
 
-    if (form.resource_value !== '' && form.resource_value !== null && form.resource_value !== undefined && Number(form.resource_value) < 0) {
+    if (form.resource_value !== '' && form.resource_value !== null && form.resource_value !== undefined && resourceValue < 0) {
         errors.resource_value = ['O valor deve ser positivo'];
     }
 
@@ -190,34 +196,43 @@ const validateServiceTypeForm = (form: ServiceTypeFormData) => {
 const buildServiceTypePayload = (form: ServiceTypeFormData) => ({
     name: form.name.trim(),
     unit: form.unit.trim(),
-    service_value: form.service_value,
-    commission_percentage: form.commission_percentage,
-    commission_value: form.commission_value || 0,
-    resource_value: form.resource_value || 0,
+    service_value: parseCurrencyInput(form.service_value),
+    commission_percentage: Number(form.commission_percentage),
+    commission_value: parseCurrencyInput(form.commission_value),
+    resource_value: parseCurrencyInput(form.resource_value),
 });
 const syncCommissionValueFromPercentage = (form: ServiceTypeFormData) => {
-    const serviceValue = Number(form.service_value);
+    const serviceValue = parseCurrencyInput(form.service_value);
     const percentage = Number(form.commission_percentage);
 
     if (serviceValue > 0 && !Number.isNaN(percentage)) {
-        form.commission_value = (serviceValue * (percentage / 100)).toFixed(2);
+        form.commission_value = formatCurrencyInput((serviceValue * (percentage / 100)).toFixed(2));
     }
 };
 const syncCommissionPercentageFromValue = (form: ServiceTypeFormData) => {
-    const serviceValue = Number(form.service_value);
-    const commissionValue = Number(form.commission_value);
+    const serviceValue = parseCurrencyInput(form.service_value);
+    const commissionValue = parseCurrencyInput(form.commission_value);
 
     if (serviceValue > 0 && !Number.isNaN(commissionValue)) {
         form.commission_percentage = ((commissionValue / serviceValue) * 100).toFixed(2);
     }
 };
 const syncCommissionValueFromServiceValue = (form: ServiceTypeFormData) => {
-    const serviceValue = Number(form.service_value);
+    const serviceValue = parseCurrencyInput(form.service_value);
     const percentage = Number(form.commission_percentage);
 
     if (serviceValue > 0 && !Number.isNaN(percentage) && percentage > 0) {
-        form.commission_value = (serviceValue * (percentage / 100)).toFixed(2);
+        form.commission_value = formatCurrencyInput((serviceValue * (percentage / 100)).toFixed(2));
     }
+};
+
+const handleServiceTypeCurrencyInput = (
+    form: ServiceTypeFormData,
+    field: 'service_value' | 'resource_value' | 'commission_value',
+    event: Event,
+) => {
+    const target = event.target as HTMLInputElement;
+    form[field] = formatCurrencyInput(target.value);
 };
 
 watch(entryTypeSearch, (value) => {
@@ -860,10 +875,10 @@ const handleEditServiceType = (type: ServiceType) => {
     editingServiceTypeInlineForm.value = {
         name: type.name,
         unit: type.unit,
-        service_value: type.service_value,
+        service_value: formatCurrencyInput(type.service_value || 0),
         commission_percentage: type.commission_percentage,
-        commission_value: type.commission_value,
-        resource_value: type.resource_value,
+        commission_value: formatCurrencyInput(type.commission_value || 0),
+        resource_value: formatCurrencyInput(type.resource_value || 0),
     };
     nextTick(() => editingServiceTypeInputRef.value?.focus());
 };
@@ -1585,25 +1600,24 @@ onMounted(fetchData);
                                                 <label class="block text-xs font-medium text-gray-500 mb-1">Valor do serviço (R$)</label>
                                                 <input
                                                     v-model="newServiceTypeForm.service_value"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
+                                                    type="text"
+                                                    inputmode="decimal"
                                                     placeholder="0,00"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                                                     :disabled="isServiceTypeModalLoading"
-                                                    @input="syncCommissionValueFromServiceValue(newServiceTypeForm)"
+                                                    @input="(event) => { handleServiceTypeCurrencyInput(newServiceTypeForm, 'service_value', event); syncCommissionValueFromServiceValue(newServiceTypeForm); }"
                                                 />
                                             </div>
                                             <div>
                                                 <label class="block text-xs font-medium text-gray-500 mb-1">Valor do recurso (R$)</label>
                                                 <input
                                                     v-model="newServiceTypeForm.resource_value"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
+                                                    type="text"
+                                                    inputmode="decimal"
                                                     placeholder="0,00"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                                                     :disabled="isServiceTypeModalLoading"
+                                                    @input="(event) => handleServiceTypeCurrencyInput(newServiceTypeForm, 'resource_value', event)"
                                                 />
                                             </div>
                                         </div>
@@ -1627,13 +1641,12 @@ onMounted(fetchData);
                                                 <label class="block text-xs font-medium text-gray-500 mb-1">Comissão (R$)</label>
                                                 <input
                                                     v-model="newServiceTypeForm.commission_value"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
+                                                    type="text"
+                                                    inputmode="decimal"
                                                     placeholder="0,00"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                                                     :disabled="isServiceTypeModalLoading"
-                                                    @input="syncCommissionPercentageFromValue(newServiceTypeForm)"
+                                                    @input="(event) => { handleServiceTypeCurrencyInput(newServiceTypeForm, 'commission_value', event); syncCommissionPercentageFromValue(newServiceTypeForm); }"
                                                 />
                                             </div>
                                         </div>
@@ -1697,25 +1710,24 @@ onMounted(fetchData);
                                                 <label class="block text-xs font-medium text-gray-500 mb-1">Valor do serviço (R$)</label>
                                                 <input
                                                     v-model="editingServiceTypeInlineForm.service_value"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
+                                                    type="text"
+                                                    inputmode="decimal"
                                                     placeholder="0,00"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                                                     :disabled="isServiceTypeModalLoading"
-                                                    @input="syncCommissionValueFromServiceValue(editingServiceTypeInlineForm)"
+                                                    @input="(event) => { handleServiceTypeCurrencyInput(editingServiceTypeInlineForm, 'service_value', event); syncCommissionValueFromServiceValue(editingServiceTypeInlineForm); }"
                                                 />
                                             </div>
                                             <div>
                                                 <label class="block text-xs font-medium text-gray-500 mb-1">Valor do recurso (R$)</label>
                                                 <input
                                                     v-model="editingServiceTypeInlineForm.resource_value"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
+                                                    type="text"
+                                                    inputmode="decimal"
                                                     placeholder="0,00"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                                                     :disabled="isServiceTypeModalLoading"
+                                                    @input="(event) => handleServiceTypeCurrencyInput(editingServiceTypeInlineForm, 'resource_value', event)"
                                                 />
                                             </div>
                                         </div>
@@ -1739,13 +1751,12 @@ onMounted(fetchData);
                                                 <label class="block text-xs font-medium text-gray-500 mb-1">Comissão (R$)</label>
                                                 <input
                                                     v-model="editingServiceTypeInlineForm.commission_value"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
+                                                    type="text"
+                                                    inputmode="decimal"
                                                     placeholder="0,00"
                                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                                                     :disabled="isServiceTypeModalLoading"
-                                                    @input="syncCommissionPercentageFromValue(editingServiceTypeInlineForm)"
+                                                    @input="(event) => { handleServiceTypeCurrencyInput(editingServiceTypeInlineForm, 'commission_value', event); syncCommissionPercentageFromValue(editingServiceTypeInlineForm); }"
                                                 />
                                             </div>
                                         </div>

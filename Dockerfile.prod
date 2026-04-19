@@ -1,0 +1,57 @@
+# syntax=docker/dockerfile:1.7
+
+FROM composer:2.8 AS composer_deps
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --no-scripts \
+    --optimize-autoloader
+
+FROM node:22-alpine AS frontend_build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY resources ./resources
+COPY public ./public
+COPY vite.config.ts tsconfig.json eslint.config.js components.json ./
+RUN npm run build
+
+FROM php:8.3-fpm-alpine AS app
+
+RUN apk add --no-cache \
+    bash \
+    curl \
+    git \
+    icu-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    libzip-dev \
+    oniguruma-dev \
+    unzip \
+    zip \
+    shadow \
+    $PHPIZE_DEPS \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j"$(nproc)" pdo_mysql mbstring bcmath exif pcntl gd intl zip opcache \
+    && apk del $PHPIZE_DEPS
+
+WORKDIR /opt/app-src
+
+COPY . .
+COPY --from=composer_deps /app/vendor ./vendor
+COPY --from=frontend_build /app/public/build ./public/build
+
+COPY docker/prod/php/php.ini /usr/local/etc/php/conf.d/zz-app.ini
+COPY docker/prod/php/opcache.ini /usr/local/etc/php/conf.d/zz-opcache.ini
+COPY docker/prod/entrypoint.sh /usr/local/bin/entrypoint.sh
+
+RUN chmod +x /usr/local/bin/entrypoint.sh \
+    && mkdir -p /var/www/html \
+    && chown -R www-data:www-data /opt/app-src /var/www/html
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["php-fpm", "-F"]

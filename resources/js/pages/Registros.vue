@@ -3,6 +3,7 @@ import { Head, usePage } from '@inertiajs/vue3';
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
+import { useInputMasks } from '@/composables/useInputMasks';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -17,6 +18,7 @@ import AppInlineNotice from '@/components/AppInlineNotice.vue';
 const page = usePage();
 const auth = useAuth();
 const { isPrivacyMode } = usePrivacy();
+const { formatCurrencyInput, parseCurrencyInput } = useInputMasks();
 const registrationSuccessToastKey = 'registration_success_toast';
 const registrationSuccessMessage = ref('');
 const company = ref<any>(null);
@@ -97,7 +99,7 @@ interface EntryForm {
     date: string;
     amount: number | string;
     quantity: number;
-    discount: number;
+    discount: number | string;
     description: string;
 }
 
@@ -107,7 +109,7 @@ interface ExitForm {
     date: string;
     amount: number | string;
     quantity: number;
-    discount: number;
+    discount: number | string;
     description: string;
 }
 
@@ -118,7 +120,7 @@ const createEmptyEntryForm = (): EntryForm => ({
     date: new Date().toISOString().split('T')[0],
     amount: '',
     quantity: 1,
-    discount: 0,
+    discount: '',
     description: '',
 });
 
@@ -128,7 +130,7 @@ const createEmptyExitForm = (): ExitForm => ({
     date: new Date().toISOString().split('T')[0],
     amount: '',
     quantity: 1,
-    discount: 0,
+    discount: '',
     description: '',
 });
 
@@ -1266,6 +1268,26 @@ const clearSearchQuery = async () => {
     searchInputRef.value?.focus();
 };
 
+const handleEntryAmountInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    entryForm.value.amount = formatCurrencyInput(target.value);
+};
+
+const handleExitAmountInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    exitForm.value.amount = formatCurrencyInput(target.value);
+};
+
+const handleEntryDiscountInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    entryForm.value.discount = formatCurrencyInput(target.value);
+};
+
+const handleExitDiscountInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    exitForm.value.discount = formatCurrencyInput(target.value);
+};
+
 const captureScrollPosition = () => {
     if (typeof window === 'undefined') {
         return { x: 0, y: 0 };
@@ -1415,9 +1437,9 @@ const openEditRecord = async (id: number) => {
             service_type_id: raw.service_type_id ?? null,
             collaborator_id: raw.collaborator_id ?? null,
             date: datePart || raw.date,
-            amount: Number(raw.amount || 0),
+            amount: formatCurrencyInput(raw.amount || 0),
             quantity: raw.quantity || 1,
-            discount: Number(raw.discount || 0),
+            discount: formatCurrencyInput(raw.discount || 0),
             description: raw.description || '',
         };
     } else {
@@ -1426,9 +1448,9 @@ const openEditRecord = async (id: number) => {
             exit_type_id: raw.exit_type_id ?? null,
             collaborator_id: raw.collaborator_id ?? null,
             date: datePart || raw.date,
-            amount: Number(raw.amount || 0),
+            amount: formatCurrencyInput(raw.amount || 0),
             quantity: raw.quantity || 1,
-            discount: Number(raw.discount || 0),
+            discount: formatCurrencyInput(raw.discount || 0),
             description: raw.description || '',
         };
     }
@@ -1440,9 +1462,9 @@ const saveEntry = async () => {
     const scrollPosition = captureScrollPosition();
     const payload = {
         date: entryForm.value.date,
-        amount: entryForm.value.amount,
+        amount: parseCurrencyInput(entryForm.value.amount),
         quantity: entryForm.value.quantity,
-        discount: entryForm.value.discount,
+        discount: parseCurrencyInput(entryForm.value.discount),
         description: entryForm.value.description,
         type: 'entry',
         entry_type_id: entryForm.value.entry_type_id,
@@ -1488,9 +1510,9 @@ const saveExit = async () => {
     const scrollPosition = captureScrollPosition();
     const payload = {
         date: exitForm.value.date,
-        amount: exitForm.value.amount,
+        amount: parseCurrencyInput(exitForm.value.amount),
         quantity: exitForm.value.quantity,
-        discount: exitForm.value.discount,
+        discount: parseCurrencyInput(exitForm.value.discount),
         description: exitForm.value.description,
         type: 'exit',
         exit_type_id: exitForm.value.exit_type_id,
@@ -2101,55 +2123,19 @@ onBeforeUnmount(() => {
                         </div>
 
                         <div class="flex gap-1 sm:gap-2">
-                        <button
-                            v-if="hasOpenForm"
-                            type="button"
-                            @click="closeAllForms"
-                            class="flex-1 sm:flex-none px-3 sm:px-4 py-2 h-9 sm:h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors text-xs sm:text-sm"
-                            title="Fechar formulário"
-                            aria-label="Fechar formulário"
-                        >
-                            <svg class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14" />
-                            </svg>
-                            <span class="sm:hidden">Fechar</span>
-                        </button>
-
-                        <DropdownMenu v-else-if="!showRemoved">
-                            <DropdownMenuTrigger :as-child="true">
-                                <button
-                                    type="button"
-                                    class="flex-1 sm:flex-none px-3 sm:px-4 py-2 h-9 sm:h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors text-xs sm:text-sm"
-                                    title="Novo registro"
-                                    aria-label="Novo registro"
-                                >
-                                    <svg class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
-                                    </svg>
-                                    <span class="sm:hidden">Novo</span>
-                                </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" class="w-48 sm:w-48">
-                                <DropdownMenuItem :as-child="true">
-                                    <button
-                                        type="button"
-                                        class="w-full text-left"
-                                        @click="openCreateEntry"
-                                    >
-                                        Nova Entrada
-                                    </button>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem :as-child="true">
-                                    <button
-                                        type="button"
-                                        class="w-full text-left"
-                                        @click="openCreateExit"
-                                    >
-                                        Nova Saída
-                                    </button>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                            <button
+                                v-if="hasOpenForm"
+                                type="button"
+                                @click="closeAllForms"
+                                class="flex-1 sm:flex-none px-3 sm:px-4 py-2 h-9 sm:h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors text-xs sm:text-sm"
+                                title="Fechar formulário"
+                                aria-label="Fechar formulário"
+                            >
+                                <svg class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14" />
+                                </svg>
+                                <span class="sm:hidden">Fechar</span>
+                            </button>
                         </div>
                     </div>
 
@@ -2187,7 +2173,7 @@ onBeforeUnmount(() => {
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
-                                <input ref="entryAmountInput" type="number" step="0.01" min="0" v-model="entryForm.amount" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-xs sm:text-sm" placeholder="0,00" />
+                                <input ref="entryAmountInput" type="text" inputmode="numeric" v-model="entryForm.amount" @input="handleEntryAmountInput" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-xs sm:text-sm" placeholder="0,00" />
                             </div>
                             <div v-if="useServiceTypes">
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Qtd</label>
@@ -2195,7 +2181,7 @@ onBeforeUnmount(() => {
                             </div>
                             <div v-if="useServiceTypes">
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
-                                <input type="number" step="0.01" min="0" v-model="entryForm.discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                                <input type="text" inputmode="numeric" v-model="entryForm.discount" @input="handleEntryDiscountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
                             </div>
                             <div class="sm:col-span-2">
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
@@ -2244,7 +2230,7 @@ onBeforeUnmount(() => {
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
-                                <input ref="exitAmountInput" type="number" step="0.01" min="0" v-model="exitForm.amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                                <input ref="exitAmountInput" type="text" inputmode="numeric" v-model="exitForm.amount" @input="handleExitAmountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
@@ -2252,7 +2238,7 @@ onBeforeUnmount(() => {
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
-                                <input type="number" step="0.01" min="0" v-model="exitForm.discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                                <input type="text" inputmode="numeric" v-model="exitForm.discount" @input="handleExitDiscountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
                             </div>
                             <div class="sm:col-span-2">
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
@@ -2369,7 +2355,7 @@ onBeforeUnmount(() => {
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
-                                        <input type="number" step="0.01" min="0" v-model="entryForm.amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                                        <input type="text" inputmode="numeric" v-model="entryForm.amount" @input="handleEntryAmountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
                                     </div>
                                     <div v-if="useServiceTypes">
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
@@ -2377,7 +2363,7 @@ onBeforeUnmount(() => {
                                     </div>
                                     <div v-if="useServiceTypes">
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
-                                        <input type="number" step="0.01" min="0" v-model="entryForm.discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                                        <input type="text" inputmode="numeric" v-model="entryForm.discount" @input="handleEntryDiscountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
                                     </div>
                                     <div class="sm:col-span-2">
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
@@ -2426,7 +2412,7 @@ onBeforeUnmount(() => {
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
-                                        <input type="number" step="0.01" min="0" v-model="exitForm.amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                                        <input type="text" inputmode="numeric" v-model="exitForm.amount" @input="handleExitAmountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
@@ -2434,7 +2420,7 @@ onBeforeUnmount(() => {
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
-                                        <input type="number" step="0.01" min="0" v-model="exitForm.discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                                        <input type="text" inputmode="numeric" v-model="exitForm.discount" @input="handleExitDiscountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
                                     </div>
                                     <div class="sm:col-span-2">
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
@@ -2964,6 +2950,43 @@ onBeforeUnmount(() => {
                     </template>
                 </div>
             </main>
+
+            <div v-if="!showRemoved" class="fixed bottom-6 left-4 lg:left-[17rem] z-40">
+                <DropdownMenu>
+                    <DropdownMenuTrigger :as-child="true">
+                        <button
+                            type="button"
+                            class="h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white inline-flex items-center justify-center hover:shadow-xl transition-all"
+                            title="Adicionar registro"
+                            aria-label="Adicionar registro"
+                        >
+                            <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
+                            </svg>
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" class="w-52">
+                        <DropdownMenuItem :as-child="true">
+                            <button
+                                type="button"
+                                class="w-full text-left"
+                                @click="openCreateEntry"
+                            >
+                                Nova Entrada
+                            </button>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem :as-child="true">
+                            <button
+                                type="button"
+                                class="w-full text-left"
+                                @click="openCreateExit"
+                            >
+                                Nova Saída
+                            </button>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
             <Footer />
         </div>
 

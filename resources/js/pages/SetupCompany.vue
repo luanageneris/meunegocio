@@ -2,10 +2,12 @@
 import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
+import { useInputMasks } from '@/composables/useInputMasks';
 import logoUrl from '../../img/icon-logo.svg';
 
 const page = usePage();
 const auth = useAuth();
+const { formatPhone, formatCpfCnpj } = useInputMasks();
 const formData = ref({
     name: '',
     email: '',
@@ -57,6 +59,16 @@ const handleSubmit = async () => {
     }
 };
 
+const handlePhoneInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    formData.value.phone = formatPhone(target.value);
+};
+
+const handleDocumentInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    formData.value.document = formatCpfCnpj(target.value);
+};
+
 onMounted(() => {
     // Verificar autenticação
     if (!auth.isAuthenticated.value) {
@@ -67,6 +79,14 @@ onMounted(() => {
     // Preencher o nome da empresa existente se houver
     if (auth.user.value?.company?.name) {
         formData.value.name = auth.user.value.company.name;
+    }
+
+    if (auth.user.value?.company?.phone) {
+        formData.value.phone = formatPhone(auth.user.value.company.phone);
+    }
+
+    if (auth.user.value?.company?.document) {
+        formData.value.document = formatCpfCnpj(auth.user.value.company.document);
     }
 });
 </script>
@@ -152,6 +172,7 @@ onMounted(() => {
                         <input
                             id="phone"
                             v-model="formData.phone"
+                            @input="handlePhoneInput"
                             type="tel"
                             placeholder="(11) 9999-9999"
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
@@ -166,6 +187,7 @@ onMounted(() => {
                         <input
                             id="document"
                             v-model="formData.document"
+                            @input="handleDocumentInput"
                             type="text"
                             placeholder="00.000.000/0000-00"
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
