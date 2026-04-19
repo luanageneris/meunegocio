@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import {
@@ -41,6 +41,7 @@ const monthOptions = [
     { value: 12, label: 'Dezembro' },
 ];
 const searchQuery = ref('');
+const searchInputRef = ref<HTMLInputElement | null>(null);
 const currentPage = ref(1);
 const pagination = ref<{ total: number; per_page: number; current_page: number }>({
     total: 0,
@@ -60,6 +61,7 @@ const showNewEntryInline = ref(false);
 const showNewExitInline = ref(false);
 const editingRegistroId = ref<number | null>(null);
 const editingRegistroType = ref<'entrada' | 'saida' | null>(null);
+const selectedRecordId = ref<number | null>(null);
 const deletingRecordId = ref<number | null>(null);
 const isDeleteLoading = ref(false);
 const isRestoreLoading = ref(false);
@@ -84,6 +86,8 @@ const importDefaults = ref({
     default_exit_type_id: null as number | null,
     default_collaborator_id: null as number | null,
 });
+const entryAmountInput = ref<HTMLInputElement | null>(null);
+const exitAmountInput = ref<HTMLInputElement | null>(null);
 
 interface EntryForm {
     entry_type_id: number | null;
@@ -453,6 +457,8 @@ const totalPages = computed(() => {
 });
 
 const totalRegistros = computed(() => pagination.value?.total ?? filteredRegistros.value.length);
+
+const hasOpenForm = computed(() => showNewEntryInline.value || showNewExitInline.value || editingRegistroId.value !== null);
 
 const hasMorePages = computed(() => currentPage.value < totalPages.value);
 
@@ -973,6 +979,118 @@ const cancelDelete = () => {
     deletingRecordId.value = null;
 };
 
+const selectRecord = (id: number) => {
+    selectedRecordId.value = id;
+};
+
+const shouldIgnoreGlobalKeydown = (event: KeyboardEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) return false;
+
+    const tagName = target.tagName?.toLowerCase();
+    return tagName === 'input'
+        || tagName === 'textarea'
+        || tagName === 'select'
+        || Boolean(target.isContentEditable);
+};
+
+const handleGlobalDeleteShortcut = (event: KeyboardEvent) => {
+    if (event.key !== 'Delete') {
+        return;
+    }
+
+    if (showRemoved.value || isDeleteLoading.value || deletingRecordId.value !== null) {
+        return;
+    }
+
+    if (shouldIgnoreGlobalKeydown(event)) {
+        return;
+    }
+
+    if (!selectedRecordId.value) {
+        return;
+    }
+
+    const exists = viewRegistros.value.some((record) => record.id === selectedRecordId.value);
+    if (!exists) {
+        return;
+    }
+
+    event.preventDefault();
+    handleDelete(selectedRecordId.value);
+};
+
+const handleGlobalConfirmDeleteShortcut = (event: KeyboardEvent) => {
+    const isEnterKey = event.key === 'Enter' || event.key === 'NumpadEnter';
+
+    if (!isEnterKey) {
+        return;
+    }
+
+    if (!deletingRecordId.value || isDeleteLoading.value) {
+        return;
+    }
+
+    if (shouldIgnoreGlobalKeydown(event)) {
+        return;
+    }
+
+    event.preventDefault();
+    confirmDelete();
+};
+
+const handleGlobalListNavigationShortcut = (event: KeyboardEvent) => {
+    const isArrowDown = event.key === 'ArrowDown';
+    const isArrowUp = event.key === 'ArrowUp';
+    const isEnterKey = event.key === 'Enter' || event.key === 'NumpadEnter';
+
+    if (!isArrowDown && !isArrowUp && !isEnterKey) {
+        return;
+    }
+
+    if (shouldIgnoreGlobalKeydown(event)) {
+        return;
+    }
+
+    if (deletingRecordId.value !== null || hasOpenForm.value || isLoading.value || isListLoading.value) {
+        return;
+    }
+
+    const records = paginatedRegistros.value;
+
+    if (!records.length) {
+        return;
+    }
+
+    if (isEnterKey) {
+        if (showRemoved.value || !selectedRecordId.value) {
+            return;
+        }
+
+        const exists = records.some((record) => record.id === selectedRecordId.value);
+        if (!exists) {
+            return;
+        }
+
+        event.preventDefault();
+        openEditRecord(selectedRecordId.value);
+        return;
+    }
+
+    event.preventDefault();
+
+    const currentIndex = records.findIndex((record) => record.id === selectedRecordId.value);
+
+    if (isArrowDown) {
+        const nextIndex = currentIndex === -1 ? 0 : Math.min(currentIndex + 1, records.length - 1);
+        selectedRecordId.value = records[nextIndex].id;
+        return;
+    }
+
+    const previousIndex = currentIndex === -1 ? records.length - 1 : Math.max(currentIndex - 1, 0);
+    selectedRecordId.value = records[previousIndex].id;
+};
+
 const confirmDelete = async () => {
     if (!deletingRecordId.value) return;
 
@@ -1003,6 +1121,9 @@ const confirmDelete = async () => {
     } finally {
         isDeleteLoading.value = false;
         deletingRecordId.value = null;
+        if (!showRemoved.value) {
+            selectedRecordId.value = null;
+        }
     }
 };
 
@@ -1030,6 +1151,9 @@ const handleRestore = async (id: number) => {
     } finally {
         isRestoreLoading.value = false;
         restoringRecordId.value = null;
+        if (selectedRecordId.value === id) {
+            selectedRecordId.value = null;
+        }
     }
 };
 
@@ -1111,6 +1235,42 @@ const clearImportFile = () => {
     }
 };
 
+const clearSearchQuery = async () => {
+    if (!searchQuery.value) {
+        return;
+    }
+
+    searchQuery.value = '';
+    await nextTick();
+    searchInputRef.value?.focus();
+};
+
+const captureScrollPosition = () => {
+    if (typeof window === 'undefined') {
+        return { x: 0, y: 0 };
+    }
+
+    return {
+        x: window.scrollX,
+        y: window.scrollY,
+    };
+};
+
+const restoreScrollPosition = async (position: { x: number; y: number }) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    await nextTick();
+    window.requestAnimationFrame(() => {
+        window.scrollTo({
+            left: position.x,
+            top: position.y,
+            behavior: 'auto',
+        });
+    });
+};
+
 const confirmImport = async () => {
     if (!selectedImportFile.value) {
         importError.value = 'Selecione um arquivo Excel para continuar.';
@@ -1181,11 +1341,32 @@ const closeAllForms = () => {
     exitFormErrors.value = {};
 };
 
+const handleGlobalSaveShortcut = (event: KeyboardEvent) => {
+    const isSaveShortcut = event.ctrlKey && event.key.toLowerCase() === 's';
+
+    if (!isSaveShortcut) {
+        return;
+    }
+
+    if (showNewEntryInline.value || editingRegistroType.value === 'entrada') {
+        event.preventDefault();
+        saveEntry();
+        return;
+    }
+
+    if (showNewExitInline.value || editingRegistroType.value === 'saida') {
+        event.preventDefault();
+        saveExit();
+    }
+};
+
 const openCreateEntry = async () => {
     closeAllForms();
     await fetchOptions();
     entryForm.value = createEmptyEntryForm();
     showNewEntryInline.value = true;
+    await nextTick();
+    entryAmountInput.value?.focus();
 };
 
 const openCreateExit = async () => {
@@ -1193,6 +1374,8 @@ const openCreateExit = async () => {
     await fetchOptions();
     exitForm.value = createEmptyExitForm();
     showNewExitInline.value = true;
+    await nextTick();
+    exitAmountInput.value?.focus();
 };
 
 const openEditRecord = async (id: number) => {
@@ -1232,6 +1415,7 @@ const openEditRecord = async (id: number) => {
 const saveEntry = async () => {
     if (isEntryLoading.value) return;
     entryFormErrors.value = {};
+    const scrollPosition = captureScrollPosition();
     const payload = {
         date: entryForm.value.date,
         amount: entryForm.value.amount,
@@ -1267,6 +1451,7 @@ const saveEntry = async () => {
         }
         await fetchRegistros(currentPage.value);
         closeAllForms();
+        await restoreScrollPosition(scrollPosition);
     } catch (error) {
         console.error(error);
     } finally {
@@ -1277,6 +1462,7 @@ const saveEntry = async () => {
 const saveExit = async () => {
     if (isExitLoading.value) return;
     exitFormErrors.value = {};
+    const scrollPosition = captureScrollPosition();
     const payload = {
         date: exitForm.value.date,
         amount: exitForm.value.amount,
@@ -1311,6 +1497,7 @@ const saveExit = async () => {
         }
         await fetchRegistros(currentPage.value);
         closeAllForms();
+        await restoreScrollPosition(scrollPosition);
     } catch (error) {
         console.error(error);
     } finally {
@@ -1350,6 +1537,13 @@ watch(
 );
 
 onMounted(async () => {
+    if (typeof window !== 'undefined') {
+        window.addEventListener('keydown', handleGlobalSaveShortcut);
+        window.addEventListener('keydown', handleGlobalDeleteShortcut);
+        window.addEventListener('keydown', handleGlobalConfirmDeleteShortcut);
+        window.addEventListener('keydown', handleGlobalListNavigationShortcut);
+    }
+
     if (!auth.isAuthenticated.value) {
         window.location.href = '/login';
         return;
@@ -1381,9 +1575,19 @@ onMounted(async () => {
     syncFiltersToQueryString();
 
     setupInfiniteScroll();
+
+    await nextTick();
+    searchInputRef.value?.focus();
 });
 
 onBeforeUnmount(() => {
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('keydown', handleGlobalSaveShortcut);
+        window.removeEventListener('keydown', handleGlobalDeleteShortcut);
+        window.removeEventListener('keydown', handleGlobalConfirmDeleteShortcut);
+        window.removeEventListener('keydown', handleGlobalListNavigationShortcut);
+    }
+
     cleanupInfiniteScroll();
 });
 </script>
@@ -1502,8 +1706,7 @@ onBeforeUnmount(() => {
                 <!-- Content Card -->
                 <div class="bg-white rounded-lg shadow-lg p-6 ">
                     <!-- Action Buttons -->
-                    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div class="flex flex-col sm:flex-row flex-wrap gap-3">
+                    <div class="mb-6 flex justify-end">
                         <input
                             ref="importFileInput"
                             type="file"
@@ -1511,19 +1714,6 @@ onBeforeUnmount(() => {
                             class="hidden"
                             @change="onImportFileSelected"
                         />
-                        <button
-                            @click="openCreateEntry"
-                            class="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
-                        >
-                            Nova Entrada
-                        </button>
-                        <button
-                            @click="openCreateExit"
-                            class="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
-                        >
-                            Nova Saída
-                        </button>
-                        </div>
 
                         <div class="self-end sm:self-start">
                             <!-- Botão de troca para sair do modo gráfico -->
@@ -1730,127 +1920,6 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <!-- Inline Create Entry Form -->
-                    <div v-if="showNewEntryInline" class="mb-6 border-2 border-yellow-300 rounded-lg p-4 bg-yellow-50/50">
-                        <h3 class="text-sm font-semibold text-yellow-700 mb-4">Nova Entrada</h3>
-                        <div v-if="Object.keys(entryFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <p v-for="(errs, field) in entryFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Entrada</label>
-                                <select v-model="entryForm.entry_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
-                                    <option :value="null">Selecione</option>
-                                    <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
-                                </select>
-                            </div>
-                            <div v-if="useServiceTypes">
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Serviço</label>
-                                <select v-model="entryForm.service_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
-                                    <option :value="null">Selecione</option>
-                                    <option v-for="s in tiposServico" :key="s.id" :value="s.id">{{ s.name }}</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
-                                <select v-model="entryForm.collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
-                                    <option :value="null">Selecione</option>
-                                    <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
-                                <input type="date" v-model="entryForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
-                                <input type="number" step="0.01" min="0" v-model="entryForm.amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
-                            </div>
-                            <div v-if="useServiceTypes">
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
-                                <input type="number" min="1" v-model="entryForm.quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
-                            </div>
-                            <div v-if="useServiceTypes">
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
-                                <input type="number" step="0.01" min="0" v-model="entryForm.discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
-                            </div>
-                            <div class="sm:col-span-2">
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
-                                <input type="text" v-model="entryForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="Opcional" />
-                            </div>
-                            <div class="sm:col-span-2">
-                                <div class="rounded-lg border border-yellow-200 bg-white px-4 py-3">
-                                    <p class="text-xs font-medium text-gray-500">Valor total</p>
-                                    <p class="mt-1 text-lg font-semibold text-yellow-700">{{ formatCurrency(entryCalculatedTotal) }}</p>
-                                    <p v-if="useServiceTypes" class="mt-1 text-xs text-gray-500">Cálculo: valor x quantidade - desconto</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex justify-end gap-2 mt-4">
-                            <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-                            <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
-                                {{ isEntryLoading ? 'Salvando...' : 'Salvar' }}
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Inline Create Exit Form -->
-                    <div v-if="showNewExitInline" class="mb-6 border-2 border-orange-300 rounded-lg p-4 bg-orange-50/50">
-                        <h3 class="text-sm font-semibold text-orange-700 mb-4">Nova Saída</h3>
-                        <div v-if="Object.keys(exitFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <p v-for="(errs, field) in exitFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Saída</label>
-                                <select v-model="exitForm.exit_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
-                                    <option :value="null">Selecione</option>
-                                    <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
-                                <select v-model="exitForm.collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
-                                    <option :value="null">Selecione</option>
-                                    <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
-                                <input type="date" v-model="exitForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
-                                <input type="number" step="0.01" min="0" v-model="exitForm.amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
-                                <input type="number" min="1" v-model="exitForm.quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
-                                <input type="number" step="0.01" min="0" v-model="exitForm.discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
-                            </div>
-                            <div class="sm:col-span-2">
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
-                                <input type="text" v-model="exitForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="Opcional" />
-                            </div>
-                            <div class="sm:col-span-2">
-                                <div class="rounded-lg border border-orange-200 bg-white px-4 py-3">
-                                    <p class="text-xs font-medium text-gray-500">Valor total</p>
-                                    <p class="mt-1 text-lg font-semibold text-orange-700">{{ formatCurrency(exitCalculatedTotal) }}</p>
-                                    <p class="mt-1 text-xs text-gray-500">Cálculo: valor x quantidade - desconto</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex justify-end gap-2 mt-4">
-                            <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-                            <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
-                                {{ isExitLoading ? 'Salvando...' : 'Salvar' }}
-                            </button>
-                        </div>
-                    </div>
-
                     <template v-if="!isChartsView">
                     <!-- Summary -->
                     <div class="mb-6 space-y-4">
@@ -1928,40 +1997,226 @@ onBeforeUnmount(() => {
 
                     <!-- Search -->
                     <div class="mb-6">
-                        <input
-                            v-model="searchQuery"
-                            type="text"
-                            placeholder="Pesquisar"
-                            class="w-full px-4 py-3 border-2 border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                        />
+                        <div class="relative">
+                            <input
+                                ref="searchInputRef"
+                                v-model="searchQuery"
+                                type="text"
+                                placeholder="Pesquisar"
+                                class="w-full px-4 py-3 pr-11 border-2 border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                            />
+                            <button
+                                v-if="searchQuery"
+                                type="button"
+                                @click="clearSearchQuery"
+                                class="absolute inset-y-0 right-2 my-auto h-7 w-7 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                                aria-label="Limpar busca"
+                                title="Limpar busca"
+                            >
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Sorting Controls -->
-                    <div class="mb-4 flex flex-wrap items-center gap-3">
-                        <div class="flex items-center gap-2">
-                            <label class="text-sm text-gray-600">Ordenar por</label>
-                            <select
-                                v-model="sortKey"
-                                class="px-3 py-2 border border-yellow-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                            >
-                                <option value="registradoEm">Registrado em</option>
-                                <option value="dataOperacao">Data do movimento</option>
-                                <option value="valor">Valor</option>
-                                <option value="categoria">Categoria</option>
-                                <option value="colaborador">Colaborador</option>
-                                <option value="descricao">Descrição</option>
-                                <option value="tipo">Tipo</option>
-                            </select>
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600">Ordenar por</label>
+                                <select
+                                    v-model="sortKey"
+                                    class="px-3 py-2 border border-yellow-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                                >
+                                    <option value="registradoEm">Registrado em</option>
+                                    <option value="dataOperacao">Data do movimento</option>
+                                    <option value="valor">Valor</option>
+                                    <option value="categoria">Categoria</option>
+                                    <option value="colaborador">Colaborador</option>
+                                    <option value="descricao">Descrição</option>
+                                    <option value="tipo">Tipo</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600">Direção</label>
+                                <select
+                                    v-model="sortDir"
+                                    class="px-3 py-2 border border-yellow-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                                >
+                                    <option value="asc">Ascendente</option>
+                                    <option value="desc">Descendente</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <label class="text-sm text-gray-600">Direção</label>
-                            <select
-                                v-model="sortDir"
-                                class="px-3 py-2 border border-yellow-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                            >
-                                <option value="asc">Ascendente</option>
-                                <option value="desc">Descendente</option>
-                            </select>
+
+                        <button
+                            v-if="hasOpenForm"
+                            type="button"
+                            @click="closeAllForms"
+                            class="h-10 w-10 inline-flex items-center justify-center rounded-lg border-2 border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors"
+                            title="Fechar formulário"
+                            aria-label="Fechar formulário"
+                        >
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14" />
+                            </svg>
+                        </button>
+
+                        <DropdownMenu v-else>
+                            <DropdownMenuTrigger :as-child="true">
+                                <button
+                                    type="button"
+                                    class="h-10 w-10 inline-flex items-center justify-center rounded-lg border-2 border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors"
+                                    title="Novo registro"
+                                    aria-label="Novo registro"
+                                >
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
+                                    </svg>
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" class="w-48">
+                                <DropdownMenuItem :as-child="true">
+                                    <button
+                                        type="button"
+                                        class="w-full text-left"
+                                        @click="openCreateEntry"
+                                    >
+                                        Nova Entrada
+                                    </button>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem :as-child="true">
+                                    <button
+                                        type="button"
+                                        class="w-full text-left"
+                                        @click="openCreateExit"
+                                    >
+                                        Nova Saída
+                                    </button>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+
+                    <!-- Inline Create Entry Form -->
+                    <div v-if="showNewEntryInline" class="mb-6 border-2 border-yellow-300 rounded-lg p-4 bg-yellow-50/50">
+                        <h3 class="text-sm font-semibold text-yellow-700 mb-4">Nova Entrada</h3>
+                        <div v-if="Object.keys(entryFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p v-for="(errs, field) in entryFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Entrada</label>
+                                <select v-model="entryForm.entry_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                </select>
+                            </div>
+                            <div v-if="useServiceTypes">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Serviço</label>
+                                <select v-model="entryForm.service_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="s in tiposServico" :key="s.id" :value="s.id">{{ s.name }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
+                                <select v-model="entryForm.collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
+                                <input type="date" v-model="entryForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
+                                <input ref="entryAmountInput" type="number" step="0.01" min="0" v-model="entryForm.amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                            </div>
+                            <div v-if="useServiceTypes">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
+                                <input type="number" min="1" v-model="entryForm.quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
+                            </div>
+                            <div v-if="useServiceTypes">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
+                                <input type="number" step="0.01" min="0" v-model="entryForm.discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
+                                <input type="text" v-model="entryForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="Opcional" />
+                            </div>
+                            <div class="sm:col-span-2">
+                                <div class="rounded-lg border border-yellow-200 bg-white px-4 py-3">
+                                    <p class="text-xs font-medium text-gray-500">Valor total</p>
+                                    <p class="mt-1 text-lg font-semibold text-yellow-700">{{ formatCurrency(entryCalculatedTotal) }}</p>
+                                    <p v-if="useServiceTypes" class="mt-1 text-xs text-gray-500">Cálculo: valor x quantidade - desconto</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2 mt-4">
+                            <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
+                                {{ isEntryLoading ? 'Salvando...' : 'Salvar' }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Inline Create Exit Form -->
+                    <div v-if="showNewExitInline" class="mb-6 border-2 border-orange-300 rounded-lg p-4 bg-orange-50/50">
+                        <h3 class="text-sm font-semibold text-orange-700 mb-4">Nova Saída</h3>
+                        <div v-if="Object.keys(exitFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p v-for="(errs, field) in exitFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Saída</label>
+                                <select v-model="exitForm.exit_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
+                                <select v-model="exitForm.collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                    <option :value="null">Selecione</option>
+                                    <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
+                                <input type="date" v-model="exitForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
+                                <input ref="exitAmountInput" type="number" step="0.01" min="0" v-model="exitForm.amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
+                                <input type="number" min="1" v-model="exitForm.quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
+                                <input type="number" step="0.01" min="0" v-model="exitForm.discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
+                                <input type="text" v-model="exitForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="Opcional" />
+                            </div>
+                            <div class="sm:col-span-2">
+                                <div class="rounded-lg border border-orange-200 bg-white px-4 py-3">
+                                    <p class="text-xs font-medium text-gray-500">Valor total</p>
+                                    <p class="mt-1 text-lg font-semibold text-orange-700">{{ formatCurrency(exitCalculatedTotal) }}</p>
+                                    <p class="mt-1 text-xs text-gray-500">Cálculo: valor x quantidade - desconto</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2 mt-4">
+                            <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
+                                {{ isExitLoading ? 'Salvando...' : 'Salvar' }}
+                            </button>
                         </div>
                     </div>
 
@@ -2005,8 +2260,15 @@ onBeforeUnmount(() => {
                             v-else
                             v-for="registro in paginatedRegistros"
                             :key="registro.id"
+                            @click="selectRecord(registro.id)"
                             class="border border-gray-200 rounded-lg transition-shadow"
-                            :class="editingRegistroId === registro.id ? 'ring-2 ring-yellow-300 shadow-md' : 'hover:shadow-md'"
+                            :class="[
+                                editingRegistroId === registro.id
+                                    ? 'ring-2 ring-yellow-300 shadow-md'
+                                    : selectedRecordId === registro.id
+                                        ? 'ring-2 ring-orange-200 shadow-sm'
+                                        : 'hover:shadow-md'
+                            ]"
                         >
                             <!-- Inline edit form for Entry -->
                             <div v-if="editingRegistroId === registro.id && editingRegistroType === 'entrada'" class="p-4">
