@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
-import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
 import Footer from '@/components/Footer.vue';
 import { Info, MessageCircle } from 'lucide-vue-next';
@@ -15,11 +14,11 @@ interface SupportRequest {
     email?: string;
 }
 
-const auth = useAuth();
+const page = usePage();
 const toast = useToast();
 const isLoading = ref(false);
 
-const isAuthenticated = computed(() => !!auth.token.value);
+const isAuthenticated = computed(() => Boolean((page.props as Record<string, any>)?.auth?.user));
 
 const form = ref<SupportRequest>({
     subject: '',
@@ -71,6 +70,15 @@ const handleKeydown = (e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         handleSubmit();
     }
+};
+
+const goBack = () => {
+    if (window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+
+    window.location.href = '/';
 };
 </script>
 
@@ -139,13 +147,15 @@ const handleKeydown = (e: KeyboardEvent) => {
                 </div>
             </div>
             <div class="flex items-center gap-3">
-                <Link
-                    href="/"
+                <button
+                    type="button"
+                    @click="goBack"
                     class="px-4 py-2 rounded-full font-semibold border border-orange-200 text-orange-700 hover:border-orange-400 hover:text-orange-800 transition"
                 >
                     Voltar
-                </Link>
+                </button>
                 <Link
+                    v-if="!isAuthenticated"
                     href="/login"
                     class="px-5 py-2 rounded-full font-semibold bg-orange-500 text-white shadow-md hover:bg-orange-600 transition"
                 >
@@ -163,43 +173,36 @@ const handleKeydown = (e: KeyboardEvent) => {
                     </p>
                 </div>
 
-                <div class="bg-orange-50 border border-orange-200 rounded-lg p-6 space-y-3">
-                    <div class="flex gap-3">
-                        <Info class="h-5 w-5 text-orange-600 mt-1 shrink-0" />
-                        <div>
-                            <p class="font-semibold text-gray-900">Não tem conta?</p>
-                            <p class="text-sm text-gray-700">Crie sua primeira conta para acessar o suporte e gerenciar sua empresa.</p>
-                            <Link href="/register" class="inline-block mt-2 px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition text-sm">
-                                Criar conta
-                            </Link>
-                        </div>
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-6 space-y-4">
+                    <p class="font-semibold text-gray-900 flex items-center gap-2">
+                        <Info class="h-5 w-5 text-orange-600 shrink-0" />
+                        <span>Acesso ao suporte</span>
+                    </p>
+                    <p class="text-sm text-gray-700">
+                        Use sua conta para abrir solicitações de suporte. Se ainda não tiver cadastro, crie uma conta para começar.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <Link
+                            href="/login"
+                            class="px-5 py-2 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition text-sm text-center"
+                        >
+                            Fazer login
+                        </Link>
+                        <Link
+                            href="/register"
+                            class="px-5 py-2 rounded-lg border border-orange-300 text-orange-700 font-semibold hover:border-orange-500 hover:text-orange-800 transition text-sm text-center"
+                        >
+                            Criar conta
+                        </Link>
                     </div>
-                </div>
-
-                <div class="bg-green-50 border border-green-200 rounded-lg p-6">
-                    <p class="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                        <MessageCircle class="h-5 w-5 text-green-600" />
-                        <span>Precisa de ajuda?</span>
+                    <p class="text-sm text-gray-700 flex items-center gap-2">
+                        <MessageCircle class="h-4 w-4 text-orange-600 shrink-0" />
+                        <span>Contato alternativo: suporte@meunegocio.app</span>
                     </p>
-                    <p class="text-sm text-gray-700 mb-3">
-                        Você também pode enviar uma solicitação de suporte diretamente por e-mail:
-                    </p>
-                    <a href="mailto:suporte@meunegocio.app" class="inline-block px-4 py-2 rounded-lg bg-green-500 text-white font-semibold hover:bg-green-600 transition text-sm">
-                        Enviar e-mail para suporte
-                    </a>
-                </div>
-
-                <div class="border-t pt-6">
-                    <Link
-                        href="/login"
-                        class="w-full block text-center px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold shadow-lg hover:bg-primary/90 transition"
-                    >
-                        Fazer login para enviar mensagem
-                    </Link>
                 </div>
             </div>
+            <Footer />
         </main>
     </div>
-    <Footer />
 </template>
 
