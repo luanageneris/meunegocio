@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreWorkShiftRequest extends FormRequest
 {
@@ -19,11 +20,16 @@ class StoreWorkShiftRequest extends FormRequest
      */
     public function rules(): array
     {
+        $companyId = (int) $this->user()->company_id;
+
         return [
             'date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
-            'collaborator_id' => 'required|exists:collaborators,id',
+            'collaborator_id' => [
+                'required',
+                Rule::exists('collaborators', 'id')->where('company_id', $companyId),
+            ],
         ];
     }
 

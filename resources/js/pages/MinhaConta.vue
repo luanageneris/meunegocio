@@ -7,7 +7,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import Footer from '@/components/Footer.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
-import logoUrl from '@/../../resources/img/icon-logo.svg';
+import logoUrl from '../../img/icon-logo.svg';
 
 type CompanyForm = {
     name: string;

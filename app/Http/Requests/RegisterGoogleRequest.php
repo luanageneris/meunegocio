@@ -23,6 +23,10 @@ class RegisterGoogleRequest extends FormRequest
     {
         return [
             'company_name' => 'nullable|string|min:3|max:255|unique:companies,name',
+            'google_user' => 'nullable|array',
+            'google_user.name' => 'nullable|string|max:255',
+            'google_user.email' => 'required_with:google_user|email|max:255',
+            'google_user.google_id' => 'required_with:google_user|string|max:255',
         ];
     }
 

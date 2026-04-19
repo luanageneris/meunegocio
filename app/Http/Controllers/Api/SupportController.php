@@ -36,10 +36,11 @@ class SupportController extends Controller
             return response()->json([
                 'message' => 'Mensagem enviada com sucesso!',
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            report($e);
+
             return response()->json([
                 'message' => 'Erro ao enviar mensagem. Tente novamente mais tarde.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }

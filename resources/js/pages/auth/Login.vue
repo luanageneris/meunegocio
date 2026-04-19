@@ -2,21 +2,30 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
+import { useApiUrl } from '@/composables/useApiUrl';
 import { usePrivacy } from '@/composables/usePrivacy';
 import { useToast } from '@/composables/useToast';
 import { Eye, EyeOff } from 'lucide-vue-next';
-import logoUrl from '@/../../resources/img/icon-logo.svg';
+import logoUrl from '../../../img/icon-logo.svg';
+import Footer from '@/components/Footer.vue';
+import AppInlineNotice from '@/components/AppInlineNotice.vue';
 
 const auth = useAuth();
+const { getApiUrl } = useApiUrl();
 const toast = useToast();
 const isLoading = ref(false);
 const showCookieBanner = ref(false);
+const inlineErrorMessage = ref('');
 const { isPrivacyMode, togglePrivacy } = usePrivacy();
+
+const dismissInlineErrorMessage = () => {
+    inlineErrorMessage.value = '';
+};
 
 const handleGoogleLogin = async () => {
     isLoading.value = true;
     try {
-        window.location.href = '/auth/google';
+        window.location.href = getApiUrl('/auth/google');
     } catch (error: any) {
         isLoading.value = false;
         toast.error('Erro ao conectar', {
@@ -41,6 +50,13 @@ onMounted(() => {
     const accepted = localStorage.getItem('cookiesAccepted');
     if (!accepted) {
         showCookieBanner.value = true;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+
+    if (error === 'session_expired') {
+        inlineErrorMessage.value = 'Sua sessão expirou durante o login. Tente novamente.';
     }
 });
 </script>
@@ -101,7 +117,7 @@ onMounted(() => {
         </div>
 
         <!-- Right Side - Login Form -->
-        <div class="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gradient-to-br from-amber-50 to-orange-50">
+        <div class="w-full lg:w-1/2 flex items-center justify-center p-2 bg-gradient-to-br from-amber-50 to-orange-50">
             <div class="w-full max-w-md">
                 <!-- Logo for mobile -->
                 <div class="lg:hidden text-center mb-8">
@@ -110,11 +126,20 @@ onMounted(() => {
                 </div>
 
                 <!-- Login Card -->
-                <div class="bg-white rounded-2xl shadow-2xl p-8 md:p-12 border border-orange-100">
+                <div class="bg-white rounded-2xl shadow-2xl p-4 md:p-12 border border-orange-100">
                     <div class="text-center mb-8">
                         <h3 class="text-2xl font-bold text-gray-800 mb-2">Bem-vindo!</h3>
                         <p class="text-gray-600">Faça login para continuar</p>
                     </div>
+
+                    <AppInlineNotice
+                        v-if="inlineErrorMessage"
+                        class="mb-6"
+                        variant="error"
+                        title="Sessão expirada"
+                        :message="inlineErrorMessage"
+                        @dismiss="dismissInlineErrorMessage"
+                    />
 
                     <!-- Google Login Button -->
                     <button
@@ -138,7 +163,7 @@ onMounted(() => {
                     </button>
 
                     <!-- Privacy Mode Toggle -->
-                    <div class="mt-6 pt-6 border-t border-gray-200 space-y-4">
+                    <div class="mt-4 space-y-4">
                         <button
                             @click="togglePrivacy"
                             class="w-full flex items-center justify-between gap-3 bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-gray-700 hover:bg-gray-100 hover:border-orange-300 transition-all duration-200"
@@ -177,27 +202,19 @@ onMounted(() => {
                         <!-- Registration Link -->
                         <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
                             <p class="text-sm text-gray-700 mb-2">Primeira vez aqui?</p>
-                            <Link 
-                                href="/registre-se" 
-                                class="inline-block px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all text-sm"
+                            <button 
+                                @click="handleGoogleLogin"
+                                :disabled="isLoading"
+                                class="inline-block px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Criar conta
-                            </Link>
+                            </button>
                         </div>
-                    </div>
-        
-                </div>
-
-                <!-- Footer -->
-                <div class="mt-8 text-center text-sm text-gray-500 space-y-2">
-                    <p>&copy; {{ new Date().getFullYear() }} | MEU NEGÓCIO. Todos os direitos reservados.</p>
-                    <div class="flex justify-center gap-4 text-xs font-semibold">
-                        <Link href="/politica-de-privacidade" class="text-orange-600 hover:text-orange-700 underline">Política de Privacidade</Link>
-                        <Link href="/suporte" class="text-orange-600 hover:text-orange-700 underline">Ajuda e Suporte</Link>
                     </div>
                 </div>
             </div>
         </div>
         </div>
     </div>
+    <Footer />
 </template>

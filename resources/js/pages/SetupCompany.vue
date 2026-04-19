@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
-import logoUrl from '@/../../resources/img/icon-logo.svg';
+import logoUrl from '../../img/icon-logo.svg';
 
 const auth = useAuth();
 const formData = ref({
@@ -20,13 +20,14 @@ const handleSubmit = async () => {
     error.value = null;
 
     try {
+        // ⭐ CRÍTICO: Usar credentials para enviar cookies de sessão
         const response = await fetch('/api/company', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${auth.token.value}`,
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
             },
+            credentials: 'include', // Envia cookies de sessão
             body: JSON.stringify(formData.value),
         });
 

@@ -1,19 +1,35 @@
 import { ref, computed } from 'vue';
 import axios from 'axios';
 
-const token = ref<string | null>(localStorage.getItem('auth_token'));
-const user = ref<any>(localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
+// ⭐ CRÍTICO: Configurar axios globalmente para enviar cookies
+axios.defaults.withCredentials = true;
+
+let token = ref<string | null>(null);
+let user = ref<any>(null);
 const isLoading = ref(false);
 
 export const useAuth = () => {
-    // Configurar axios com token (apenas uma vez)
+    // Carregar usuário atual do servidor (via sessão/cookie)
+    const fetchCurrentUser = async () => {
+        try {
+            const response = await axios.get('/api/auth/user', {
+                withCredentials: true, // ⭐ CRÍTICO: Enviar cookies entre portas
+            });
+            const userData = response.data?.user;
+            if (userData) {
+                user.value = userData;
+                return userData;
+            }
+        } catch (error) {
+            // Usuário não autenticado
+            user.value = null;
+        }
+        return null;
+    };
+
     const setupAxiosInterceptor = () => {
         axios.interceptors.request.use(
             (config) => {
-                // Always get token from ref (atualizado em tempo real)
-                if (token.value) {
-                    config.headers.Authorization = `Bearer ${token.value}`;
-                }
                 return config;
             },
             (error) => Promise.reject(error)
@@ -22,11 +38,20 @@ export const useAuth = () => {
         axios.interceptors.response.use(
             (response) => response,
             (error) => {
-                // Se erro 401, limpar token e redirecionar para login
+                // Se erro 401, usuário não está mais autenticado
                 if (error.response?.status === 401) {
                     logout();
                     if (typeof window !== 'undefined') {
-                        window.location.href = '/login?error=unauthorized';
+                        // ⭐ NÃO redirecionar se já estamos em página de login/registro
+                        const currentPath = window.location.pathname;
+                        const isAuthPage = currentPath.includes('/login') || 
+                                          currentPath.includes('/registre-se') || 
+                                          currentPath.includes('/oauth/callback') ||
+                                          currentPath.includes('/auth/google');
+                        
+                        if (!isAuthPage) {
+                            window.location.href = '/login?error=unauthorized';
+                        }
                     }
                 }
                 return Promise.reject(error);
@@ -34,34 +59,22 @@ export const useAuth = () => {
         );
     };
 
-    // Inicializar interceptor ao criar composable
     setupAxiosInterceptor();
-
-    const setToken = (newToken: string) => {
-        token.value = newToken;
-        localStorage.setItem('auth_token', newToken);
-    };
 
     const setUser = (newUser: any) => {
         user.value = newUser;
-        localStorage.setItem('user', JSON.stringify(newUser));
     };
 
     const logout = () => {
         token.value = null;
         user.value = null;
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
     };
 
-    const isAuthenticated = computed(() => !!token.value && !!user.value);
+    const isAuthenticated = computed(() => !!user.value);
 
     const getUserName = computed(() => user.value?.name || 'Usuário');
 
     const getCompanyName = computed(() => user.value?.company?.name || 'Empresa');
-
-    // Configurar interceptador ao inicializar
-    setupAxiosInterceptor();
 
     return {
         token: computed(() => token.value),
@@ -70,8 +83,8 @@ export const useAuth = () => {
         isAuthenticated,
         getUserName,
         getCompanyName,
-        setToken,
         setUser,
         logout,
+        fetchCurrentUser,
     };
 };

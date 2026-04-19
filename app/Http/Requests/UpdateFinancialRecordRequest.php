@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateFinancialRecordRequest extends FormRequest
 {
@@ -19,6 +20,8 @@ class UpdateFinancialRecordRequest extends FormRequest
      */
     public function rules(): array
     {
+        $companyId = (int) $this->user()->company_id;
+
         return [
             'date' => 'required|date',
             'amount' => 'required|numeric|min:0.01',
@@ -26,11 +29,26 @@ class UpdateFinancialRecordRequest extends FormRequest
             'discount' => 'nullable|numeric|min:0',
             'description' => 'nullable|string|max:500',
             'type' => 'required|in:entry,exit',
-            'entry_type_id' => 'nullable|exists:entry_types,id',
-            'exit_type_id' => 'nullable|exists:exit_types,id',
-            'service_type_id' => 'nullable|exists:service_types,id',
-            'collaborator_id' => 'nullable|exists:collaborators,id',
-            'work_shift_id' => 'nullable|exists:work_shifts,id',
+            'entry_type_id' => [
+                'nullable',
+                Rule::exists('entry_types', 'id')->where('company_id', $companyId),
+            ],
+            'exit_type_id' => [
+                'nullable',
+                Rule::exists('exit_types', 'id')->where('company_id', $companyId),
+            ],
+            'service_type_id' => [
+                'nullable',
+                Rule::exists('service_types', 'id')->where('company_id', $companyId),
+            ],
+            'collaborator_id' => [
+                'nullable',
+                Rule::exists('collaborators', 'id')->where('company_id', $companyId),
+            ],
+            'work_shift_id' => [
+                'nullable',
+                Rule::exists('work_shifts', 'id')->where('company_id', $companyId),
+            ],
         ];
     }
 

@@ -37,48 +37,47 @@ class AuthController extends Controller
     /**
      * Processar callback do Google OAuth
      */
-    public function handleGoogleCallback()
+    public function handleGoogleCallback(Request $request)
     {
         try {
             $googleUser = Socialite::driver('google')->user();
-            
+            $googleEmail = strtolower(trim((string) $googleUser->getEmail()));
+
             // Encontrar usuário existente
-            $user = User::where('email', $googleUser->getEmail())->first();
+            $user = User::whereRaw('LOWER(email) = ?', [$googleEmail])->first();
 
             if (!$user) {
                 $pendingData = [
-                    'name' => $googleUser->getName() ?? $googleUser->getEmail(),
-                    'email' => $googleUser->getEmail(),
+                    'name' => $googleUser->getName() ?? $googleEmail,
+                    'email' => $googleEmail,
                     'google_id' => $googleUser->getId(),
-                    'expires_at' => now()->addMinutes(10)->timestamp,
                 ];
 
-                $cookie = cookie(
-                    'pending_registration',
-                    json_encode($pendingData),
-                    10,
-                    null,
-                    null,
-                    false,
-                    true,
-                    false,
-                    'Lax'
-                );
-
-                return redirect('/registre-se')->withCookie($cookie);
+                session(['pending_registration' => $pendingData]);
+                // ⭐ CRÍTICO: Codificar dados em Base64 e passar via URL
+                $encoded = base64_encode(json_encode($pendingData));
+                return redirect("/registre-se?google_data={$encoded}");
             }
 
-            // Gerar token Sanctum
-            $token = $user->createToken('auth_token')->plainTextToken;
-            $userData = $user->load('company')->toArray();
+            // ⭐ CRÍTICO: Criar sessão (para Sanctum SPA stateful) + gerar token
+            \Illuminate\Support\Facades\Auth::login($user, remember: true);
 
-            // Redirecionar para página de processamento OAuth com token na URL
-            return redirect('/oauth/callback?' . http_build_query([
-                'token' => $token,
-                'user' => json_encode($userData),
-            ]));
-        } catch (\Exception $e) {
-            return redirect('/login?error=' . urlencode($e->getMessage()));
+            // Evita que uma pendência antiga force redirecionamento para registro.
+            session()->forget('pending_registration');
+            
+            // Gerar token Sanctum para futura autenticação
+            $token = $user->createToken('auth_token')->plainTextToken;
+            
+            // Armazenar na sessão também
+            session(['sanctum_token' => $token]);
+
+            return redirect('/oauth/callback');
+        } catch (\Throwable $e) {
+            Log::warning('Google callback failed.', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return redirect('/login?error=oauth_failed');
         }
     }
 
@@ -129,9 +128,13 @@ class AuthController extends Controller
                     'is_new_user' => false,
                 ],
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::warning('Google login failed.', [
+                'message' => $e->getMessage(),
+            ]);
+
             return response()->json([
-                'message' => 'Erro ao autenticar: ' . $e->getMessage(),
+                'message' => 'Erro ao autenticar. Tente novamente em instantes.',
             ], 500);
         }
     }
@@ -141,20 +144,14 @@ class AuthController extends Controller
      */
     public function pendingRegistration(Request $request)
     {
-        $pending = $this->readPendingRegistrationCookie($request);
+        // ⭐ Ler da sessão ao invés de cookie
+        $pending = session('pending_registration');
 
         if (!$pending) {
             return response()->json([
                 'data' => null,
                 'pending' => false,
             ]);
-        }
-
-        if (($pending['expires_at'] ?? 0) < now()->timestamp) {
-            Cookie::queue(Cookie::forget('pending_registration'));
-            return response()->json([
-                'message' => 'Registro pendente expirado.',
-            ], 410);
         }
 
         return response()->json([
@@ -169,23 +166,30 @@ class AuthController extends Controller
     public function registerGoogle(RegisterGoogleRequest $request)
     {
         try {
-            $pending = $this->readPendingRegistrationCookie($request);
+            // Prioridade 1: sessão pendente (fluxo padrão OAuth)
+            $pending = session('pending_registration');
+
+            // Fallback: usar payload enviado pelo frontend quando a sessão expirar
+            if (!$pending) {
+                $googleUser = $request->input('google_user');
+
+                if (is_array($googleUser) && !empty($googleUser['email']) && !empty($googleUser['google_id'])) {
+                    $pending = [
+                        'name' => $googleUser['name'] ?? $googleUser['email'],
+                        'email' => $googleUser['email'],
+                        'google_id' => $googleUser['google_id'],
+                    ];
+                }
+            }
 
             if (!$pending) {
                 return response()->json([
-                    'message' => 'Registro pendente não encontrado ou expirado.',
-                ], 410);
-            }
-
-            if (($pending['expires_at'] ?? 0) < now()->timestamp) {
-                Cookie::queue(Cookie::forget('pending_registration'));
-                return response()->json([
-                    'message' => 'Registro pendente expirado.',
+                    'message' => 'Registro pendente não encontrado. Por favor, faça login novamente.',
                 ], 410);
             }
 
             if (User::where('email', $pending['email'])->exists()) {
-                Cookie::queue(Cookie::forget('pending_registration'));
+                session()->forget('pending_registration');
                 return response()->json([
                     'message' => 'Este email já possui uma conta ativa.',
                 ], 409);
@@ -221,15 +225,17 @@ class AuthController extends Controller
                 return [$company, $user];
             });
 
-            Cookie::queue(Cookie::forget('pending_registration'));
+            session()->forget('pending_registration');
 
-            // Gerar token Sanctum
+            // ⭐ CRÍTICO: Criar sessão para Sanctum + gerar token
+            \Illuminate\Support\Facades\Auth::login($user, remember: true);
+            
             $token = $user->createToken('auth_token')->plainTextToken;
+            session(['sanctum_token' => $token]);
 
             return response()->json([
                 'data' => [
                     'user' => $user->load('company'),
-                    'token' => $token,
                     'is_new_user' => true,
                     'message' => 'Conta criada com sucesso!',
                 ],
@@ -308,33 +314,6 @@ class AuthController extends Controller
         return response()->json([
             'user' => $request->user()->load('company'),
         ]);
-    }
-
-    private function readPendingRegistrationCookie(Request $request): ?array
-    {
-        $cookieValue = $request->cookie('pending_registration');
-
-        if (!$cookieValue || !is_string($cookieValue)) {
-            return null;
-        }
-
-        // New format: plain JSON stored in cookie (Laravel middleware encrypts at rest)
-        $plainJson = json_decode($cookieValue, true);
-        if (is_array($plainJson) && isset($plainJson['email'], $plainJson['google_id'])) {
-            return $plainJson;
-        }
-
-        // Legacy format: encrypted payload created manually before storing cookie
-        try {
-            $decryptedJson = json_decode(decrypt($cookieValue), true);
-            if (is_array($decryptedJson) && isset($decryptedJson['email'], $decryptedJson['google_id'])) {
-                return $decryptedJson;
-            }
-        } catch (DecryptException | \Throwable $e) {
-            // Ignore and treat as missing/invalid pending registration
-        }
-
-        return null;
     }
 
     /**

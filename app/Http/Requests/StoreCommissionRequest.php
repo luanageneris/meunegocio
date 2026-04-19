@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCommissionRequest extends FormRequest
 {
@@ -19,11 +20,19 @@ class StoreCommissionRequest extends FormRequest
      */
     public function rules(): array
     {
+        $companyId = (int) $this->user()->company_id;
+
         return [
             'date' => 'required|date',
             'amount' => 'required|numeric|min:0.01',
-            'collaborator_id' => 'required|exists:collaborators,id',
-            'financial_record_id' => 'nullable|exists:financial_records,id',
+            'collaborator_id' => [
+                'required',
+                Rule::exists('collaborators', 'id')->where('company_id', $companyId),
+            ],
+            'financial_record_id' => [
+                'nullable',
+                Rule::exists('financial_records', 'id')->where('company_id', $companyId),
+            ],
             'paid_at' => 'nullable|date',
             'notes' => 'nullable|string|max:500',
         ];

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
-import logoUrl from '@/../../resources/img/icon-logo.svg';
+import logoUrl from '../../img/icon-logo.svg';
 import { Eye, EyeOff } from 'lucide-vue-next';
 
 const props = defineProps<{

@@ -34,40 +34,43 @@ Route::get('/oauth/callback', function () {
 // Setup de Empresa
 Route::get('/setup-empresa', function () {
     return Inertia::render('SetupCompany');
-})->name('setup.company');
+})->middleware(['auth:sanctum', 'verified'])->name('setup.company');
 
 // Painel Principal (legado -> redireciona para Registros)
 Route::redirect('/painel', '/registros')->name('painel');
 
-// Registros
-Route::get('/registros', function () {
-    return Inertia::render('Registros');
-})->name('registros');
+// Rotas privadas - require authentication
+Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+    // Registros
+    Route::get('/registros', function () {
+        return Inertia::render('Registros');
+    })->name('registros');
 
-// Personalizar
-Route::get('/personalizar', function () {
-    return Inertia::render('Customize');
-})->name('personalizar');
+    // Personalizar
+    Route::get('/personalizar', function () {
+        return Inertia::render('Customize');
+    })->name('personalizar');
 
-// Minha conta
-Route::get('/minha-conta', function () {
-    return Inertia::render('MinhaConta');
-})->name('minha-conta');
+    // Minha conta
+    Route::get('/minha-conta', function () {
+        return Inertia::render('MinhaConta');
+    })->name('minha-conta');
 
-// Colaboradores
-Route::get('/colaboradores', function () {
-    return Inertia::render('Colaboradores');
-})->name('colaboradores');
+    // Colaboradores
+    Route::get('/colaboradores', function () {
+        return Inertia::render('Colaboradores');
+    })->name('colaboradores');
 
-// Histórico (Auditoria)
-Route::get('/historico', function () {
-    return Inertia::render('Historico');
-})->name('historico');
+    // Histórico (Auditoria)
+    Route::get('/historico', function () {
+        return Inertia::render('Historico');
+    })->name('historico');
 
-// Ajuda e Suporte
-Route::get('/suporte', function () {
-    return Inertia::render('Suporte');
-})->name('suporte');
+    // Ajuda e Suporte
+    Route::get('/suporte', function () {
+        return Inertia::render('Suporte');
+    })->name('suporte');
+});
 
 // Política de Privacidade (LGPD Brasil e Portugal)
 Route::get('/politica-de-privacidade', function () {

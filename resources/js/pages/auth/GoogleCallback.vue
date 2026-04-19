@@ -1,44 +1,63 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
+import axios from 'axios';
 import { useAuth } from '@/composables/useAuth';
+import { useApiUrl } from '@/composables/useApiUrl';
 
 const auth = useAuth();
+const { getApiUrl } = useApiUrl();
+
+const hasPendingRegistration = async (): Promise<boolean> => {
+    try {
+        const response = await axios.get(getApiUrl('/api/auth/pending-registration'), {
+            withCredentials: true,
+        });
+
+        return response.data?.pending === true;
+    } catch {
+        return false;
+    }
+};
 
 onMounted(async () => {
-    // Pegar o token e user da URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    const userJson = urlParams.get('user');
+    try {
+        const response = await axios.get(getApiUrl('/api/auth/user'), {
+            withCredentials: true,
+        });
+        const userData = response.data?.user;
 
-    if (token && userJson) {
-        try {
-            const userData = JSON.parse(userJson);
-            
-            // Armazenar no composable (que já persiste em localStorage)
-            auth.setToken(token);
-            auth.setUser(userData);
-            
-            console.log('Token e usuário salvos com sucesso');
-            
-            // Verificar se a empresa tem nome (precisa de setup)
-            const needsSetup = !userData.company?.name || userData.company.name === '';
-            
-            // Redirecionar para a página apropriada
-            setTimeout(() => {
-                if (needsSetup) {
-                    window.location.href = '/setup-empresa';
-                } else {
-                    window.location.href = '/registros';
-                }
-            }, 800);
-        } catch (error) {
-            console.error('Erro ao processar autenticação:', error);
-            window.location.href = '/login?error=parse_failed';
+        if (!userData) {
+            window.location.href = getApiUrl('/login?error=no_user_data');
+            return;
         }
-    } else {
-        // Se não tiver token, redirecionar para login
-        const error = urlParams.get('error');
-        window.location.href = `/login?error=${error || 'no_token'}`;
+
+        auth.setUser(userData);
+
+        const needsSetup = !userData.company?.name || userData.company.name === '';
+
+        setTimeout(() => {
+            if (needsSetup) {
+                window.location.href = getApiUrl('/setup-empresa');
+            } else {
+                window.location.href = getApiUrl('/registros');
+            }
+        }, 800);
+    } catch (error: any) {
+        console.error('Erro ao processar autenticação:', error);
+
+        // Só redireciona para registro se houver pendência real.
+        if (error.response?.status === 401) {
+            const pending = await hasPendingRegistration();
+
+            if (pending) {
+                window.location.href = getApiUrl('/registre-se');
+                return;
+            }
+
+            window.location.href = getApiUrl('/login?error=session_expired');
+        } else {
+            window.location.href = getApiUrl('/login?error=oauth_failed');
+        }
     }
 });
 </script>
