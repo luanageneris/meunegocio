@@ -11,6 +11,10 @@ class Company extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $attributes = [
+        'use_service_types' => false,
+    ];
+
     protected $fillable = [
         'owner_id',
         'name',

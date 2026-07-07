@@ -18,6 +18,7 @@ class CompanyFactory extends Factory
             'phone' => $this->faker->phoneNumber(),
             'document' => $this->faker->numerify('##.###.###/####-##'),
             'address' => $this->faker->address(),
+            'use_service_types' => false,
         ];
     }
 }

@@ -25,6 +25,7 @@ class CompanySeeder extends Seeder
                 'state' => 'SP',
                 'postal_code' => '01000-000',
                 'active' => true,
+                'use_service_types' => false,
             ]
         );
     }

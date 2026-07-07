@@ -205,6 +205,7 @@ class AuthController extends Controller
                 $company = Company::create([
                     'name' => $resolvedCompanyName,
                     'slug' => $this->generateUniqueCompanySlug($resolvedCompanyName),
+                    'use_service_types' => false,
                 ]);
 
                 $user = User::create([

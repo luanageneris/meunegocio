@@ -13,6 +13,7 @@ const auth = useAuth();
 const { isPrivacyMode, togglePrivacy } = usePrivacy();
 const isOpen = ref(true);
 const showMobileNav = ref(true);
+const showLogoutModal = ref(false);
 
 onMounted(() => {
     // Restaurar estado do sidebar do localStorage
@@ -154,7 +155,7 @@ const toggleMobileNav = () => {
                 <!-- Logout Button -->
                 <div class="p-4 border-t border-gray-200">
                     <button
-                        @click="handleLogout"
+                        @click="showLogoutModal = true"
                         class="flex items-center gap-3 w-full px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all duration-200"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -224,5 +225,29 @@ const toggleMobileNav = () => {
                 />
             </svg>
         </button>
+    <!-- Logout Confirmation Modal -->
+    <Teleport to="body">
+        <div v-if="showLogoutModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">Sair da conta</h2>
+                <p class="text-gray-600 text-sm mb-6">Tem certeza que deseja sair?</p>
+                <div class="flex gap-3 justify-end">
+                    <button
+                        @click="showLogoutModal = false"
+                        class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        @click="handleLogout"
+                        class="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition"
+                    >
+                        Sair
+                    </button>
+                </div>
+            </div>
+        </div>
+    </Teleport>
+
     </div>
 </template>
