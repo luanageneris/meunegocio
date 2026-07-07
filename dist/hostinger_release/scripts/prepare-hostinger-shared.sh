@@ -44,8 +44,12 @@ rsync -a \
   --exclude='.env' \
   --exclude='.env.testing' \
   --exclude='.env.production' \
+  --exclude='public/hot' \
   --exclude='dist' \
   "$ROOT_DIR/" "$RELEASE_DIR/"
+
+# Safety net: never ship Vite dev-server marker file to production.
+rm -f "$RELEASE_DIR/public/hot"
 
 echo "[2/3] Gerando pacote..."
 rm -f "$DIST_DIR"/my_business_hostinger_*.tar.gz
