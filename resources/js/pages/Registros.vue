@@ -2,7 +2,7 @@
 import { Head, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
-import { Info } from 'lucide-vue-next';
+import { Eye, EyeOff, Info } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import { useInputMasks } from '@/composables/useInputMasks';
@@ -26,7 +26,7 @@ import {
 
 const page = usePage();
 const auth = useAuth();
-const { isPrivacyMode } = usePrivacy();
+const { isPrivacyMode, togglePrivacy } = usePrivacy();
 const { formatCurrencyInput, parseCurrencyInput } = useInputMasks();
 const registrationSuccessToastKey = 'registration_success_toast';
 const registrationSuccessMessage = ref('');
@@ -421,6 +421,9 @@ const getRecordDeleteLabel = (record: { categoria?: string; descricao?: string; 
         || normalizedValue(record.colaborador)
         || (record.tipo === 'entrada' ? 'esta entrada' : 'esta saída');
 };
+
+const privacyOptionLabel = computed(() => (isPrivacyMode.value ? 'Mostrar valores sensíveis' : 'Ocultar valores sensíveis'));
+const privacyStatusLabel = computed(() => (isPrivacyMode.value ? 'Ocultos' : 'Visíveis'));
 
 const viewRegistros = computed(() => registros.value.map((r: any) => ({
     id: r.id,
@@ -1860,6 +1863,17 @@ onBeforeUnmount(() => {
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" class="w-48 sm:w-56">
+                                    <DropdownMenuItem :as-child="true">
+                                        <button
+                                            type="button"
+                                            class="w-full text-left inline-flex items-center justify-between gap-2"
+                                            @click="togglePrivacy"
+                                        >
+                                            <span>{{ privacyOptionLabel }}</span>
+                                            <EyeOff v-if="isPrivacyMode" class="h-4 w-4 text-orange-500" />
+                                            <Eye v-else class="h-4 w-4 text-gray-500" />
+                                        </button>
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem :as-child="true">
                                         <button
                                             type="button"
