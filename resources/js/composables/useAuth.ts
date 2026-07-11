@@ -7,6 +7,27 @@ axios.defaults.withCredentials = true;
 let token = ref<string | null>(null);
 let user = ref<any>(null);
 const isLoading = ref(false);
+const DRAFT_STORAGE_PREFIX = 'draft:';
+
+const clearDraftStorage = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const keysToRemove: string[] = [];
+
+    for (let index = 0; index < window.sessionStorage.length; index += 1) {
+        const key = window.sessionStorage.key(index);
+
+        if (key && key.startsWith(DRAFT_STORAGE_PREFIX)) {
+            keysToRemove.push(key);
+        }
+    }
+
+    keysToRemove.forEach((key) => {
+        window.sessionStorage.removeItem(key);
+    });
+};
 
 export const useAuth = () => {
     // Carregar usuário atual do servidor (via sessão/cookie)
@@ -68,6 +89,7 @@ export const useAuth = () => {
     const logout = () => {
         token.value = null;
         user.value = null;
+        clearDraftStorage();
     };
 
     const isAuthenticated = computed(() => !!user.value);

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useApiUrl } from '@/composables/useApiUrl';
 import logoUrl from '../../../img/icon-logo.svg';
@@ -13,7 +13,7 @@ const isLoading = ref(false);
 const isSubmitting = ref(false);
 const inlineSuccessMessage = ref('');
 const inlineErrorMessage = ref('');
-const companyNameStorageKey = 'registration_company_name';
+const registerDraftStorageKey = 'draft:auth.register';
 const autoSubmitStorageKey = 'registration_auto_submit';
 const registrationSuccessToastKey = 'registration_success_toast';
 
@@ -38,39 +38,45 @@ const getRegisterErrorDescription = (result: any) => {
     return 'Nao foi possivel concluir o cadastro agora. Tente novamente em instantes.';
 };
 
-const restoreCompanyName = () => {
+const restoreFormDraft = () => {
     if (typeof window === 'undefined') {
         return;
     }
 
-    const savedCompanyName = window.sessionStorage.getItem(companyNameStorageKey);
+    const savedDraft = window.sessionStorage.getItem(registerDraftStorageKey);
 
-    if (savedCompanyName && !form.value.company_name) {
-        form.value.company_name = savedCompanyName;
+    if (!savedDraft) {
+        return;
+    }
+
+    try {
+        const parsed = JSON.parse(savedDraft);
+        const draftCompanyName = parsed?.company_name;
+
+        if (typeof draftCompanyName === 'string' && !form.value.company_name) {
+            form.value.company_name = draftCompanyName;
+        }
+    } catch {
+        window.sessionStorage.removeItem(registerDraftStorageKey);
     }
 };
 
-const persistCompanyName = () => {
+const persistFormDraft = () => {
     if (typeof window === 'undefined') {
         return;
     }
 
-    const companyName = form.value.company_name.trim();
-
-    if (!companyName) {
-        window.sessionStorage.removeItem(companyNameStorageKey);
-        return;
-    }
-
-    window.sessionStorage.setItem(companyNameStorageKey, companyName);
+    window.sessionStorage.setItem(registerDraftStorageKey, JSON.stringify({
+        company_name: form.value.company_name,
+    }));
 };
 
-const clearStoredCompanyName = () => {
+const clearFormDraft = () => {
     if (typeof window === 'undefined') {
         return;
     }
 
-    window.sessionStorage.removeItem(companyNameStorageKey);
+    window.sessionStorage.removeItem(registerDraftStorageKey);
 };
 
 const shouldAutoSubmit = () => {
@@ -185,7 +191,7 @@ const initializeRegistrationFlow = async () => {
         return;
     }
 
-    restoreCompanyName();
+    restoreFormDraft();
     // ⭐ CRÍTICO: Verificar se google_data está na URL (vindo do callback)
     const urlParams = new URLSearchParams(window.location.search);
     const googleDataParam = urlParams.get('google_data');
@@ -218,8 +224,16 @@ onMounted(() => {
     initializeRegistrationFlow();
 });
 
+watch(
+    () => form.value,
+    () => {
+        persistFormDraft();
+    },
+    { deep: true }
+);
+
 const handleGoogleConnect = () => {
-    persistCompanyName();
+    persistFormDraft();
     markAutoSubmit();
     window.location.href = getApiUrl('/auth/google');
 };
@@ -234,7 +248,7 @@ const handleSubmit = async () => {
     errors.value = {};
     inlineErrorMessage.value = '';
     inlineSuccessMessage.value = '';
-    persistCompanyName();
+    persistFormDraft();
 
     try {
         const csrfToken = await ensureCsrfToken();
@@ -269,7 +283,7 @@ const handleSubmit = async () => {
 
         // Salvar usuário
         auth.setUser(result.data.user);
-        clearStoredCompanyName();
+        clearFormDraft();
         clearAutoSubmit();
         const successMessage = result?.data?.message || 'Conta criada com sucesso!';
         inlineSuccessMessage.value = successMessage;
