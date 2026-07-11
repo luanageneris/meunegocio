@@ -53,6 +53,7 @@ const monthOptions = [
     { value: 12, label: 'Dezembro' },
 ];
 const searchQuery = ref('');
+const financialTypeFilter = ref<'entrada' | 'saida' | 'comissao' | null>(null);
 const searchInputRef = ref<HTMLInputElement | null>(null);
 const currentPage = ref(1);
 const pagination = ref<{ total: number; per_page: number; current_page: number }>({
@@ -179,6 +180,7 @@ const sortDir = ref<'asc' | 'desc'>('desc');
 
 const validTabs = ['hoje', 'ultimos7dias', 'mensal', 'anual', 'todos'] as const;
 const validSortKeys = ['valor', 'categoria', 'colaborador', 'descricao', 'dataOperacao', 'registradoEm', 'tipo'] as const;
+const validFinancialFilters = ['entrada', 'saida', 'comissao'] as const;
 const yearOptions = computed(() => Array.from({ length: 5 }, (_, index) => selectedYear.value - 2 + index));
 
 const applyFiltersFromQueryString = () => {
@@ -221,6 +223,11 @@ const applyFiltersFromQueryString = () => {
         sortDir.value = sortDirParam;
     }
 
+    const financialTypeParam = params.get('financial_type');
+    if (financialTypeParam && validFinancialFilters.includes(financialTypeParam as typeof validFinancialFilters[number])) {
+        financialTypeFilter.value = financialTypeParam as typeof financialTypeFilter.value;
+    }
+
     showRemoved.value = params.get('removed') === '1';
     isChartsView.value = params.get('charts') === '1';
 };
@@ -256,6 +263,10 @@ const syncFiltersToQueryString = () => {
 
     if (sortDir.value !== 'desc') {
         params.set('sort_dir', sortDir.value);
+    }
+
+    if (financialTypeFilter.value) {
+        params.set('financial_type', financialTypeFilter.value);
     }
 
     if (showRemoved.value) {
@@ -433,6 +444,30 @@ const getRecordDeleteLabel = (record: { categoria?: string; descricao?: string; 
 const privacyOptionLabel = computed(() => (isPrivacyMode.value ? 'Mostrar valores sensíveis' : 'Ocultar valores sensíveis'));
 const privacyStatusLabel = computed(() => (isPrivacyMode.value ? 'Ocultos' : 'Visíveis'));
 
+const activeFinancialFilterLabel = computed(() => {
+    if (financialTypeFilter.value === 'entrada') return 'Entradas';
+    if (financialTypeFilter.value === 'saida') return 'Saidas';
+    if (financialTypeFilter.value === 'comissao') return 'Comissoes';
+    return '';
+});
+
+const normalizeFilterText = (value: string) => value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+const isCommissionRecord = (record: { tipo: string; categoria?: string; descricao?: string }) => {
+    if (record.tipo !== 'saida') {
+        return false;
+    }
+
+    const category = normalizeFilterText(record.categoria || '');
+    const description = normalizeFilterText(record.descricao || '');
+
+    return category.includes('comissao') || description.includes('comissao');
+};
+
 const viewRegistros = computed(() => registros.value.map((r: any) => ({
     id: r.id,
     // Determina tipo com base no campo type do banco de dados
@@ -451,6 +486,14 @@ const filteredRegistros = computed(() => {
     // Backend já filtra por deleted status, então não precisamos filtrar novamente aqui
     // Apenas aplicamos o filtro de busca se houver
     let filtered = viewRegistros.value;
+
+    if (financialTypeFilter.value === 'entrada') {
+        filtered = filtered.filter((r) => r.tipo === 'entrada');
+    } else if (financialTypeFilter.value === 'saida') {
+        filtered = filtered.filter((r) => r.tipo === 'saida');
+    } else if (financialTypeFilter.value === 'comissao') {
+        filtered = filtered.filter((r) => isCommissionRecord(r));
+    }
 
     if (searchQuery.value && !showRemoved.value) {
         const query = searchQuery.value.toLowerCase();
@@ -1331,6 +1374,16 @@ const clearSearchQuery = async () => {
     searchInputRef.value?.focus();
 };
 
+const applyFinancialTypeFilter = (type: 'entrada' | 'saida' | 'comissao') => {
+    financialTypeFilter.value = type;
+    selectedRecordId.value = null;
+};
+
+const clearFinancialTypeFilter = () => {
+    financialTypeFilter.value = null;
+    selectedRecordId.value = null;
+};
+
 const handleEntryAmountInput = (event: Event) => {
     const target = event.target as HTMLInputElement;
     entryForm.value.amount = formatCurrencyInput(target.value);
@@ -1617,6 +1670,7 @@ const saveExit = async () => {
 const handleVerRemovidos = () => {
     showRemoved.value = !showRemoved.value;
     selectedRecordId.value = null;
+    financialTypeFilter.value = null;
     currentPage.value = 1;
     searchQuery.value = '';
     fetchRegistros(1);
@@ -1641,7 +1695,7 @@ watch(infiniteScrollTrigger, (newEl, oldEl) => {
 });
 
 watch(
-    [activeTab, selectedMonth, selectedYear, searchQuery, sortKey, sortDir, showRemoved, currentPage, isChartsView],
+    [activeTab, selectedMonth, selectedYear, searchQuery, financialTypeFilter, sortKey, sortDir, showRemoved, currentPage, isChartsView],
     () => {
         syncFiltersToQueryString();
     }
@@ -2178,19 +2232,31 @@ onBeforeUnmount(() => {
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100">
-                                        <tr>
+                                        <tr
+                                            @click="applyFinancialTypeFilter('entrada')"
+                                            class="cursor-pointer transition-colors"
+                                            :class="financialTypeFilter === 'entrada' ? 'bg-yellow-50/70' : 'hover:bg-yellow-50/40'"
+                                        >
                                             <td class="px-3 sm:px-4 py-2 text-slate-700">Entradas</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-semibold text-slate-700">{{ formatCurrency(totalEntradasBrutas) }}</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-semibold text-amber-700">{{ formatCurrency(totalDescontosEntradas) }}</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-semibold text-yellow-700">{{ formatCurrency(totalEntradas) }}</td>
                                         </tr>
-                                        <tr>
+                                        <tr
+                                            @click="applyFinancialTypeFilter('saida')"
+                                            class="cursor-pointer transition-colors"
+                                            :class="financialTypeFilter === 'saida' ? 'bg-orange-50/70' : 'hover:bg-orange-50/40'"
+                                        >
                                             <td class="px-3 sm:px-4 py-2 text-slate-700">Saídas</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-semibold text-orange-700">{{ formatCurrency(totalSaidas) }}</td>
                                             <td class="px-3 sm:px-4 py-2 text-right text-slate-400">-</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-semibold text-orange-700">{{ formatCurrency(totalSaidas) }}</td>
                                         </tr>
-                                        <tr>
+                                        <tr
+                                            @click="applyFinancialTypeFilter('comissao')"
+                                            class="cursor-pointer transition-colors"
+                                            :class="financialTypeFilter === 'comissao' ? 'bg-blue-50/70' : 'hover:bg-blue-50/40'"
+                                        >
                                             <td class="px-3 sm:px-4 py-2 text-slate-700">Comissões</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-semibold text-blue-700">{{ formatCurrency(totalComissoes) }}</td>
                                             <td class="px-3 sm:px-4 py-2 text-right text-slate-400">-</td>
@@ -2228,6 +2294,23 @@ onBeforeUnmount(() => {
                             >
                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="!showRemoved && financialTypeFilter" class="mb-4">
+                        <div class="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs sm:text-sm text-orange-800">
+                            <span>Filtro ativo: apenas {{ activeFinancialFilterLabel }}</span>
+                            <button
+                                type="button"
+                                @click="clearFinancialTypeFilter"
+                                class="inline-flex h-5 w-5 items-center justify-center rounded-full text-orange-700 hover:bg-orange-100"
+                                aria-label="Remover filtro financeiro"
+                                title="Remover filtro"
+                            >
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
@@ -2439,6 +2522,9 @@ onBeforeUnmount(() => {
                         >
                             <template v-if="showRemoved">
                                 Nenhum registro removido encontrado
+                            </template>
+                            <template v-else-if="financialTypeFilter">
+                                Nenhum registro encontrado para o filtro {{ activeFinancialFilterLabel }}
                             </template>
                             <template v-else>
                                 Nenhum registro encontrado
