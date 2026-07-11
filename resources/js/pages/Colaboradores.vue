@@ -334,6 +334,11 @@ const handleEditCpfInput = (event: Event) => {
     editCollaboratorForm.value.cpf = formatCpf(target.value);
 };
 
+const clearSearch = () => {
+    search.value = '';
+    currentPage.value = 1;
+};
+
 onMounted(() => fetchCollaborators(true));
 </script>
 
@@ -375,12 +380,26 @@ onMounted(() => fetchCollaborators(true));
                     </div>
 
                     <div class="mb-4">
-                        <input
-                            v-model="search"
-                            type="text"
-                            placeholder="Pesquise por nome ou CPF"
-                            class="w-full px-4 py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-                        />
+                        <div class="relative">
+                            <input
+                                v-model="search"
+                                type="text"
+                                placeholder="Pesquise por nome ou CPF"
+                                class="w-full px-4 py-3 pr-12 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                            />
+                            <button
+                                v-if="search.trim()"
+                                @click="clearSearch"
+                                type="button"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                                title="Limpar filtro"
+                                aria-label="Limpar filtro"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     <div v-if="errorMessage" class="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
