@@ -29,6 +29,8 @@ const auth = useAuth();
 const { isPrivacyMode, togglePrivacy } = usePrivacy();
 const { formatCurrencyInput, parseCurrencyInput } = useInputMasks();
 const registrationSuccessToastKey = 'registration_success_toast';
+const entryCreateDraftStorageKey = 'draft:registros.entry.create';
+const exitCreateDraftStorageKey = 'draft:registros.exit.create';
 const registrationSuccessMessage = ref('');
 const company = ref<any>(null);
 const isLoading = ref(false);
@@ -150,6 +152,96 @@ const createEmptyExitForm = (): ExitForm => ({
     discount: '',
     description: '',
 });
+
+const restoreEntryCreateDraft = (): EntryForm => {
+    if (typeof window === 'undefined') {
+        return createEmptyEntryForm();
+    }
+
+    const empty = createEmptyEntryForm();
+    const raw = window.sessionStorage.getItem(entryCreateDraftStorageKey);
+
+    if (!raw) {
+        return empty;
+    }
+
+    try {
+        const parsed = JSON.parse(raw);
+        return {
+            ...empty,
+            ...parsed,
+            quantity: Number(parsed?.quantity ?? empty.quantity) || 1,
+            date: typeof parsed?.date === 'string' && parsed.date ? parsed.date : empty.date,
+            amount: parsed?.amount ?? empty.amount,
+            discount: parsed?.discount ?? empty.discount,
+            description: typeof parsed?.description === 'string' ? parsed.description : empty.description,
+        };
+    } catch {
+        window.sessionStorage.removeItem(entryCreateDraftStorageKey);
+        return empty;
+    }
+};
+
+const restoreExitCreateDraft = (): ExitForm => {
+    if (typeof window === 'undefined') {
+        return createEmptyExitForm();
+    }
+
+    const empty = createEmptyExitForm();
+    const raw = window.sessionStorage.getItem(exitCreateDraftStorageKey);
+
+    if (!raw) {
+        return empty;
+    }
+
+    try {
+        const parsed = JSON.parse(raw);
+        return {
+            ...empty,
+            ...parsed,
+            quantity: Number(parsed?.quantity ?? empty.quantity) || 1,
+            date: typeof parsed?.date === 'string' && parsed.date ? parsed.date : empty.date,
+            amount: parsed?.amount ?? empty.amount,
+            discount: parsed?.discount ?? empty.discount,
+            description: typeof parsed?.description === 'string' ? parsed.description : empty.description,
+        };
+    } catch {
+        window.sessionStorage.removeItem(exitCreateDraftStorageKey);
+        return empty;
+    }
+};
+
+const persistEntryCreateDraft = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.sessionStorage.setItem(entryCreateDraftStorageKey, JSON.stringify(entryForm.value));
+};
+
+const persistExitCreateDraft = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.sessionStorage.setItem(exitCreateDraftStorageKey, JSON.stringify(exitForm.value));
+};
+
+const clearEntryCreateDraft = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.sessionStorage.removeItem(entryCreateDraftStorageKey);
+};
+
+const clearExitCreateDraft = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.sessionStorage.removeItem(exitCreateDraftStorageKey);
+};
 
 const entryForm = ref<EntryForm>(createEmptyEntryForm());
 const exitForm = ref<ExitForm>(createEmptyExitForm());
@@ -606,14 +698,14 @@ const openCreateForm = async (type: 'entry' | 'exit') => {
     await fetchOptions();
 
     if (type === 'entry') {
-        entryForm.value = createEmptyEntryForm();
+        entryForm.value = restoreEntryCreateDraft();
         showNewEntryInline.value = true;
         await nextTick();
         entryAmountInput.value?.focus();
         return;
     }
 
-    exitForm.value = createEmptyExitForm();
+    exitForm.value = restoreExitCreateDraft();
     showNewExitInline.value = true;
     await nextTick();
     exitAmountInput.value?.focus();
@@ -632,14 +724,14 @@ const confirmUnsavedCreateChanges = async () => {
     await fetchOptions();
 
     if (action === 'entry') {
-        entryForm.value = createEmptyEntryForm();
+        entryForm.value = restoreEntryCreateDraft();
         showNewEntryInline.value = true;
         await nextTick();
         entryAmountInput.value?.focus();
         return;
     }
 
-    exitForm.value = createEmptyExitForm();
+    exitForm.value = restoreExitCreateDraft();
     showNewExitInline.value = true;
     await nextTick();
     exitAmountInput.value?.focus();
@@ -1768,6 +1860,11 @@ const saveEntry = async () => {
             entryFormErrors.value = errData?.errors || { _: [errData?.message || 'Erro ao salvar entrada'] };
             return;
         }
+
+        if (!isEdit) {
+            clearEntryCreateDraft();
+        }
+
         await fetchRegistros(currentPage.value);
         closeAllForms();
         await restoreScrollPosition(scrollPosition);
@@ -1815,6 +1912,11 @@ const saveExit = async () => {
             exitFormErrors.value = errData?.errors || { _: [errData?.message || 'Erro ao salvar saída'] };
             return;
         }
+
+        if (!isEdit) {
+            clearExitCreateDraft();
+        }
+
         await fetchRegistros(currentPage.value);
         closeAllForms();
         await restoreScrollPosition(scrollPosition);
@@ -1857,6 +1959,26 @@ watch(
     () => {
         syncFiltersToQueryString();
     }
+);
+
+watch(
+    () => entryForm.value,
+    () => {
+        if (showNewEntryInline.value && editingRegistroId.value === null) {
+            persistEntryCreateDraft();
+        }
+    },
+    { deep: true }
+);
+
+watch(
+    () => exitForm.value,
+    () => {
+        if (showNewExitInline.value && editingRegistroId.value === null) {
+            persistExitCreateDraft();
+        }
+    },
+    { deep: true }
 );
 
 onMounted(async () => {
