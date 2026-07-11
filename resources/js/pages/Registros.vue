@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { Info } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import { useInputMasks } from '@/composables/useInputMasks';
@@ -8,6 +10,13 @@ import Sidebar from '@/components/Sidebar.vue';
 import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
 import Footer from '@/components/Footer.vue';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -79,6 +88,8 @@ const colaboradoresOptions = ref<any[]>([]);
 const optionsLoaded = ref(false);
 const importFileInput = ref<HTMLInputElement | null>(null);
 const showImportPanel = ref(false);
+const showImportHelpModal = ref(false);
+const importTemplateError = ref('');
 const selectedImportFile = ref<File | null>(null);
 const importError = ref('');
 const importSuccess = ref('');
@@ -1227,6 +1238,44 @@ const openImportPicker = async () => {
     importFileInput.value?.click();
 };
 
+const openImportHelpModal = () => {
+    importTemplateError.value = '';
+    showImportHelpModal.value = true;
+};
+
+const closeImportHelpModal = () => {
+    showImportHelpModal.value = false;
+};
+
+const downloadImportTemplate = async () => {
+    importTemplateError.value = '';
+
+    try {
+        const downloadResponse = await axios.get('/api/registros/template/download', {
+            responseType: 'blob',
+            withCredentials: true,
+            headers: {
+                'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            },
+        });
+
+        const blob = new Blob([downloadResponse.data], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = 'template-importacao-entradas-saidas.xlsx';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+        importTemplateError.value = 'Não foi possível baixar o template. Verifique seu acesso e tente novamente.';
+        console.error('Erro ao baixar template:', error);
+    }
+};
+
 const onImportFileSelected = (event: Event) => {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0] ?? null;
@@ -1858,11 +1907,22 @@ onBeforeUnmount(() => {
 
                     <!-- Import Panel (hidden when viewing removed items) -->
                     <div v-if="showImportPanel && !showRemoved" class="mb-4 border-2 border-orange-200 rounded-lg p-3 sm:p-4 bg-orange-50/60">
-                        <div class="flex items-center gap-2 mb-3 sm:mb-4">
-                            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <h3 class="text-xs sm:text-sm font-semibold text-orange-700">Importar Entradas e Saídas</h3>
+                        <div class="flex items-center justify-between gap-3 mb-3 sm:mb-4">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <h3 class="text-xs sm:text-sm font-semibold text-orange-700">Importar Entradas e Saídas</h3>
+                            </div>
+                            <button
+                                type="button"
+                                @click="openImportHelpModal"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-orange-300 bg-white text-orange-700 transition-colors hover:bg-orange-100"
+                                aria-label="Abrir instruções de importação"
+                                title="Ver instruções"
+                            >
+                                <Info class="h-4 w-4" />
+                            </button>
                         </div>
 
                         <div v-if="selectedImportFile" class="mb-3 p-2 sm:p-3 bg-white border border-orange-200 rounded-lg flex items-center justify-between gap-2">
@@ -1996,6 +2056,51 @@ onBeforeUnmount(() => {
                                 </svg>
                             </button>
                         </div>
+
+                        <Dialog :open="showImportHelpModal" @update:open="showImportHelpModal = $event">
+                            <DialogContent class="sm:max-w-2xl">
+                                <DialogHeader>
+                                    <DialogTitle>Instruções para importação</DialogTitle>
+                                    <DialogDescription>
+                                        Siga estas orientações para evitar falhas durante o processamento do arquivo Excel.
+                                    </DialogDescription>
+                                </DialogHeader>
+
+                                <div class="space-y-3 text-sm text-gray-700">
+                                    <button
+                                        type="button"
+                                        @click="downloadImportTemplate"
+                                        class="inline-flex items-center gap-2 rounded-lg border border-orange-300 bg-white px-3 py-2 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-50"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4m-7 8h6" />
+                                        </svg>
+                                        Baixar template
+                                    </button>
+
+                                    <p v-if="importTemplateError" class="text-sm text-red-600">
+                                        {{ importTemplateError }}
+                                    </p>
+
+                                    <ul class="list-disc space-y-2 pl-5">
+                                        <li>Use um arquivo Excel nos formatos <strong>.xlsx</strong> ou <strong>.xls</strong>.</li>
+                                        <li>Confira se cada aba segue a estrutura com 6 colunas: Data, Total de Entrada, Total de Comissões, Pagamentos (Saída), Total Final e motivo da saída.</li>
+                                        <li>Garanta que a coluna A tenha datas no formato <strong>d/m/Y</strong>.</li>
+                                        <li>Não inclua linhas vazias antes dos dados e mantenha a linha final com <strong>Total</strong> na coluna A.</li>
+                                        <li>Valores iguais a zero, vazios ou inválidos nas colunas B, C e D serão ignorados.</li>
+                                        <li>Se uma linha tiver apenas comissão, a comissão será importada normalmente.</li>
+                                        <li>Quando não houver identificação específica, revise os valores padrão selecionados antes de confirmar.</li>
+                                        <li>Se houver saída, a coluna F será usada como descrição do registro.</li>
+                                        <li>O arquivo pode conter várias abas e todas serão processadas.</li>
+                                    </ul>
+
+                                    <div class="rounded-lg border border-orange-200 bg-orange-50 p-3 text-orange-900">
+                                        <p class="font-medium">Dica prática</p>
+                                        <p class="mt-1">Antes de importar, confirme se os itens "Não definido" estão selecionados para entrada, saída e colaborador, caso a planilha não informe esses dados.</p>
+                                    </div>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                     </div>
 
                     <template v-if="!isChartsView">

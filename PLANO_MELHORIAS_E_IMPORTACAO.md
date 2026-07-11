@@ -23,55 +23,7 @@ Este documento organiza os pedidos de ajuste, melhorias e a nova funcionalidade 
 feito
 
 ## Fase 2. Importação de Excel
-
-### Escopo backend
-
-- Criar o serviço de importação para ler múltiplas abas.
-- Processar apenas abas com a estrutura esperada.
-- Ler as colunas:
-  - Data
-  - Total de Entrada
-  - Total de Comissões
-  - Pagamentos (Saída)
-  - Total Final
-  - motivo da saída
-- Parar a leitura quando a coluna A contiver "Total".
-- Tratar apenas datas no formato `d/m/Y` nesta versão.
-- Ignorar valores `0`, vazios ou inválidos em B, C e D.
-- Permitir duplicação de importação do mesmo arquivo.
-- Criar os registros conforme a linha contenha:
-  - entrada apenas
-  - saída apenas
-  - comissão apenas
-  - os três juntos
-- Aplicar os defaults configuráveis quando a linha não tiver identificação específica.
-
-### Escopo frontend
-
-- Adicionar o botão "Importar Entradas e Saídas" na área de Registros.
-- Abrir o explorer para selecionar o arquivo Excel.
-- Exibir nome do arquivo, tamanho e ações de confirmar ou cancelar.
-- Permitir trocar o arquivo por um novo usando um ícone de atualização.
-- Permitir alterar os defaults antes de confirmar a importação.
-- Exibir loading de processamento durante a importação.
-- Mostrar resumo final com:
-  - `entries_created`
-  - `exits_created`
-  - `commissions_created`
-  - `rows_processed`
-  - `sheets_processed`
-- Exibir mensagem de erro clara em português quando algo falhar.
-
-### Entregáveis
-
-- Import service no backend.
-- Formulário de importação no frontend.
-- Resposta padronizada com resumo do processamento.
-- Testes para linhas parciais, linhas completas e múltiplas abas.
-
-### Critério de pronto
-
-- Um arquivo Excel pode ser selecionado, revisado, confirmado e processado com feedback claro.
+feito
 
 ## Fase 3. Registros, histórico e formulários
 

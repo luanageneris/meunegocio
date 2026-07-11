@@ -7,9 +7,13 @@ use App\Models\ImportLog;
 use App\Services\FinancialRecordsExcelImportService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Storage;
 
 class ImportController extends Controller
 {
+    private const TEMPLATE_FILE_NAME = 'template_meu_negocio.xlsx';
+    private const TEMPLATE_DOWNLOAD_NAME = 'template-importacao-entradas-saidas.xlsx';
+
     public function __construct(private FinancialRecordsExcelImportService $financialRecordsExcelImportService)
     {
     }
@@ -65,5 +69,22 @@ class ImportController extends Controller
                 'current_page' => $logs->currentPage(),
             ],
         ]);
+    }
+
+    public function template()
+    {
+        $relativePath = self::TEMPLATE_FILE_NAME;
+
+        if (!Storage::disk('public')->exists($relativePath)) {
+            abort(404, 'O template de importação não foi encontrado.');
+        }
+
+        $filePath = Storage::disk('public')->path($relativePath);
+
+        return response()->download(
+            $filePath,
+            self::TEMPLATE_DOWNLOAD_NAME,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        );
     }
 }

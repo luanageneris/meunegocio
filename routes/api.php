@@ -110,6 +110,8 @@ Route::middleware(['auth:sanctum', 'company.isolation'])->group(function () {
         Route::get('commissions/collaborator/{collaboratorId}', [CommissionController::class, 'collaboratorCommissions']);
         
         Route::get('balance', [BalanceController::class, 'history']);
+        
+        Route::get('template/download', [ImportController::class, 'template'])->name('download');
     });
 
     // Import logs (leitura)
