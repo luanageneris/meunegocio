@@ -47,7 +47,7 @@ class ExitTypeController extends Controller
         }
 
         if ($this->isProtectedDefault($exitType->name)) {
-            return response()->json(['message' => 'O tipo padrão "Não definido" não pode ser renomeado'], 422);
+            return response()->json(['message' => 'Este tipo padrão não pode ser renomeado'], 422);
         }
 
         $exitType->update($request->validated());
@@ -66,7 +66,7 @@ class ExitTypeController extends Controller
         }
 
         if ($this->isProtectedDefault($exitType->name)) {
-            return response()->json(['message' => 'O tipo padrão "Não definido" não pode ser removido'], 422);
+            return response()->json(['message' => 'Este tipo padrão não pode ser removido'], 422);
         }
 
         $exitType->delete();
@@ -115,7 +115,13 @@ class ExitTypeController extends Controller
     {
         $normalized = mb_strtolower(trim($name));
         $defaultName = mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL);
+        $commissionDefaultName = mb_strtolower(CompanyDefaultsService::DEFAULT_EXIT_TYPE_COMMISSION_LABEL);
 
-        return $normalized === $defaultName || $normalized === 'nao definido';
+        return in_array($normalized, [
+            $defaultName,
+            'nao definido',
+            $commissionDefaultName,
+            'comissao',
+        ], true);
     }
 }

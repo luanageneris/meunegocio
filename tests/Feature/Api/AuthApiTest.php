@@ -161,6 +161,10 @@ class AuthApiTest extends TestCase
             'company_id' => $company->id,
             'name' => 'Não definido',
         ]);
+        $this->assertDatabaseHas('exit_types', [
+            'company_id' => $company->id,
+            'name' => 'Comissão',
+        ]);
         $this->assertDatabaseHas('collaborators', [
             'company_id' => $company->id,
             'name' => 'Não definido',

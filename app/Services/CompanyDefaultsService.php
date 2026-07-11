@@ -9,6 +9,7 @@ use App\Models\ExitType;
 class CompanyDefaultsService
 {
     public const DEFAULT_LABEL = 'Não definido';
+    public const DEFAULT_EXIT_TYPE_COMMISSION_LABEL = 'Comissão';
 
     public function ensureForCompany(int $companyId): array
     {
@@ -26,19 +27,8 @@ class CompanyDefaultsService
             $entryType->restore();
         }
 
-        $exitType = ExitType::withTrashed()
-            ->where('company_id', $companyId)
-            ->where('name', self::DEFAULT_LABEL)
-            ->first();
-
-        if (!$exitType) {
-            $exitType = ExitType::create([
-                'company_id' => $companyId,
-                'name' => self::DEFAULT_LABEL,
-            ]);
-        } elseif ($exitType->trashed()) {
-            $exitType->restore();
-        }
+        $exitType = $this->ensureExitType($companyId, self::DEFAULT_LABEL);
+        $commissionExitType = $this->ensureExitType($companyId, self::DEFAULT_EXIT_TYPE_COMMISSION_LABEL);
 
         $cpf = $this->defaultCpf($companyId);
         $collaborator = Collaborator::withTrashed()
@@ -72,8 +62,30 @@ class CompanyDefaultsService
         return [
             'entry_type' => $entryType,
             'exit_type' => $exitType,
+            'commission_exit_type' => $commissionExitType,
             'collaborator' => $collaborator,
         ];
+    }
+
+    private function ensureExitType(int $companyId, string $name): ExitType
+    {
+        $exitType = ExitType::withTrashed()
+            ->where('company_id', $companyId)
+            ->where('name', $name)
+            ->first();
+
+        if (!$exitType) {
+            return ExitType::create([
+                'company_id' => $companyId,
+                'name' => $name,
+            ]);
+        }
+
+        if ($exitType->trashed()) {
+            $exitType->restore();
+        }
+
+        return $exitType;
     }
 
     private function defaultCpf(int $companyId): string

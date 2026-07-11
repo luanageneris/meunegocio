@@ -91,7 +91,7 @@ class ExitTypeApiTest extends TestCase
     public function test_can_update_exit_type()
     {
         $exitType = ExitType::create([
-            'name' => 'Comissão',
+            'name' => 'Material',
             'company_id' => $this->company->id
         ]);
 
@@ -110,7 +110,7 @@ class ExitTypeApiTest extends TestCase
     public function test_can_delete_exit_type()
     {
         $exitType = ExitType::create([
-            'name' => 'Comissão',
+            'name' => 'Energia',
             'company_id' => $this->company->id
         ]);
 
@@ -156,5 +156,26 @@ class ExitTypeApiTest extends TestCase
 
         $deleteResponse->assertStatus(422);
         $this->assertDatabaseHas('exit_types', ['id' => $default->id, 'deleted_at' => null]);
+    }
+
+    public function test_cannot_update_or_delete_default_commission_exit_type(): void
+    {
+        $defaultCommission = ExitType::create([
+            'name' => CompanyDefaultsService::DEFAULT_EXIT_TYPE_COMMISSION_LABEL,
+            'company_id' => $this->company->id,
+        ]);
+
+        $updateResponse = $this->actingAs($this->rootUser, 'sanctum')
+            ->putJson("/api/personalizar/exit-types/{$defaultCommission->id}", [
+                'name' => 'Outro nome',
+            ]);
+
+        $updateResponse->assertStatus(422);
+
+        $deleteResponse = $this->actingAs($this->rootUser, 'sanctum')
+            ->deleteJson("/api/personalizar/exit-types/{$defaultCommission->id}");
+
+        $deleteResponse->assertStatus(422);
+        $this->assertDatabaseHas('exit_types', ['id' => $defaultCommission->id, 'deleted_at' => null]);
     }
 }
