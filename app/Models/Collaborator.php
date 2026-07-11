@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Traits\BelongsToCompany;
+use App\Traits\ProtectsDefaultRecords;
 
 class Collaborator extends Model
 {
-    use HasFactory, SoftDeletes, BelongsToCompany;
+    use HasFactory, SoftDeletes, BelongsToCompany, ProtectsDefaultRecords;
 
     protected $fillable = [
         'company_id',
@@ -45,5 +46,15 @@ class Collaborator extends Model
     public function commissions(): HasMany
     {
         return $this->hasMany(Commission::class);
+    }
+
+    protected function protectedDefaultNames(): array
+    {
+        return ['Não definido', 'Nao definido'];
+    }
+
+    protected function protectedDefaultAttributes(): array
+    {
+        return ['name'];
     }
 }

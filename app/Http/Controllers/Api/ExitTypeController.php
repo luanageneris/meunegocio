@@ -13,10 +13,13 @@ class ExitTypeController extends Controller
 {
     public function index(Request $request)
     {
-        $types = ExitType::forCompany()
-            ->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido'])
-            ->orderBy('name')
-            ->get();
+        $query = ExitType::forCompany();
+
+        if (!$request->boolean('include_defaults')) {
+            $query->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido']);
+        }
+
+        $types = $query->orderBy('name')->get();
 
         return response()->json($types);
     }

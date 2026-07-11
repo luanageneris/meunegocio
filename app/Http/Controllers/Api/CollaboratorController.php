@@ -16,10 +16,13 @@ class CollaboratorController extends Controller
      */
     public function index(Request $request)
     {
-        $collaborators = Collaborator::forCompany()
-            ->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido'])
-            ->orderBy('name')
-            ->get();
+        $query = Collaborator::forCompany();
+
+        if (!$request->boolean('include_defaults')) {
+            $query->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido']);
+        }
+
+        $collaborators = $query->orderBy('name')->get();
 
         return response()->json($collaborators);
     }

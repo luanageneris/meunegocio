@@ -1180,17 +1180,18 @@ const handleRestore = async (id: number) => {
     }
 };
 
-const fetchOptions = async () => {
-    if (optionsLoaded.value) return;
+const fetchOptions = async (includeDefaults = false) => {
+    if (optionsLoaded.value && !includeDefaults) return;
     try {
         const headers: HeadersInit = {
             'Authorization': `Bearer ${auth.token.value}`,
             'Accept': 'application/json',
         };
+        const query = includeDefaults ? '?include_defaults=1' : '';
         const [entryRes, exitRes, collabRes, serviceRes] = await Promise.all([
-            fetch('/api/personalizar/entry-types', { headers }),
-            fetch('/api/personalizar/exit-types', { headers }),
-            fetch('/api/personalizar/collaborators', { headers }),
+            fetch(`/api/personalizar/entry-types${query}`, { headers }),
+            fetch(`/api/personalizar/exit-types${query}`, { headers }),
+            fetch(`/api/personalizar/collaborators${query}`, { headers }),
             fetch('/api/personalizar/service-types', { headers }),
         ]);
         const [entryData, exitData, collabData, serviceData] = await Promise.all([
@@ -1203,14 +1204,16 @@ const fetchOptions = async () => {
         tiposSaida.value = exitData?.data ?? exitData ?? [];
         colaboradoresOptions.value = collabData?.data ?? collabData ?? [];
         tiposServico.value = serviceData?.data ?? serviceData ?? [];
-        optionsLoaded.value = true;
+        if (!includeDefaults) {
+            optionsLoaded.value = true;
+        }
     } catch (e) {
         console.error('Erro ao carregar opções:', e);
     }
 };
 
 const openImportPicker = async () => {
-    await fetchOptions();
+    await fetchOptions(true);
     showImportPanel.value = true;
     importError.value = '';
     importSuccess.value = '';
