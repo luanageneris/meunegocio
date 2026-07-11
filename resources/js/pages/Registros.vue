@@ -91,6 +91,8 @@ const optionsLoaded = ref(false);
 const importFileInput = ref<HTMLInputElement | null>(null);
 const showImportPanel = ref(false);
 const showImportHelpModal = ref(false);
+const showUnsavedCreateChangesModal = ref(false);
+const pendingCreateFormAction = ref<'entry' | 'exit' | null>(null);
 const importTemplateError = ref('');
 const selectedImportFile = ref<File | null>(null);
 const importError = ref('');
@@ -540,6 +542,106 @@ const totalPages = computed(() => {
 const totalRegistros = computed(() => pagination.value?.total ?? filteredRegistros.value.length);
 
 const hasOpenForm = computed(() => showNewEntryInline.value || showNewExitInline.value || editingRegistroId.value !== null);
+
+const isCreateEntryFormDirty = computed(() => {
+    if (!showNewEntryInline.value) return false;
+
+    const form = entryForm.value;
+    const defaultDate = new Date().toISOString().split('T')[0];
+
+    return Boolean(
+        form.entry_type_id !== null
+        || form.service_type_id !== null
+        || form.collaborator_id !== null
+        || form.date !== defaultDate
+        || String(form.amount ?? '').trim() !== ''
+        || Number(form.quantity ?? 1) !== 1
+        || String(form.discount ?? '').trim() !== ''
+        || String(form.description ?? '').trim() !== ''
+    );
+});
+
+const isCreateExitFormDirty = computed(() => {
+    if (!showNewExitInline.value) return false;
+
+    const form = exitForm.value;
+    const defaultDate = new Date().toISOString().split('T')[0];
+
+    return Boolean(
+        form.exit_type_id !== null
+        || form.collaborator_id !== null
+        || form.date !== defaultDate
+        || String(form.amount ?? '').trim() !== ''
+        || Number(form.quantity ?? 1) !== 1
+        || String(form.discount ?? '').trim() !== ''
+        || String(form.description ?? '').trim() !== ''
+    );
+});
+
+const hasUnsavedCreateFormChanges = computed(() => isCreateEntryFormDirty.value || isCreateExitFormDirty.value);
+
+const handleUnsavedCreateChangesModalOpenChange = (isOpen: boolean) => {
+    showUnsavedCreateChangesModal.value = isOpen;
+
+    if (!isOpen) {
+        pendingCreateFormAction.value = null;
+    }
+};
+
+const cancelUnsavedCreateChanges = () => {
+    showUnsavedCreateChangesModal.value = false;
+    pendingCreateFormAction.value = null;
+};
+
+const openCreateForm = async (type: 'entry' | 'exit') => {
+    if (hasUnsavedCreateFormChanges.value) {
+        pendingCreateFormAction.value = type;
+        showUnsavedCreateChangesModal.value = true;
+        return;
+    }
+
+    closeAllForms();
+    await fetchOptions();
+
+    if (type === 'entry') {
+        entryForm.value = createEmptyEntryForm();
+        showNewEntryInline.value = true;
+        await nextTick();
+        entryAmountInput.value?.focus();
+        return;
+    }
+
+    exitForm.value = createEmptyExitForm();
+    showNewExitInline.value = true;
+    await nextTick();
+    exitAmountInput.value?.focus();
+};
+
+const confirmUnsavedCreateChanges = async () => {
+    const action = pendingCreateFormAction.value;
+    showUnsavedCreateChangesModal.value = false;
+    pendingCreateFormAction.value = null;
+
+    if (!action) {
+        return;
+    }
+
+    closeAllForms();
+    await fetchOptions();
+
+    if (action === 'entry') {
+        entryForm.value = createEmptyEntryForm();
+        showNewEntryInline.value = true;
+        await nextTick();
+        entryAmountInput.value?.focus();
+        return;
+    }
+
+    exitForm.value = createEmptyExitForm();
+    showNewExitInline.value = true;
+    await nextTick();
+    exitAmountInput.value?.focus();
+};
 
 const hasMorePages = computed(() => currentPage.value < totalPages.value);
 
@@ -1520,22 +1622,74 @@ const handleGlobalSaveShortcut = (event: KeyboardEvent) => {
     }
 };
 
+const handleGlobalEnterToSave = (event: KeyboardEvent) => {
+    const isEnterKey = event.key === 'Enter' || event.key === 'NumpadEnter';
+
+    if (!isEnterKey) {
+        return;
+    }
+
+    if (event.ctrlKey || event.altKey || event.metaKey) {
+        return;
+    }
+
+    if (deletingRecordId.value !== null || isDeleteLoading.value) {
+        return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    const tagName = target?.tagName?.toLowerCase();
+
+    // Preserve native behavior for multiline/content-editable controls.
+    if (tagName === 'textarea' || Boolean(target?.isContentEditable)) {
+        return;
+    }
+
+    if (showNewEntryInline.value || editingRegistroType.value === 'entrada') {
+        event.preventDefault();
+        saveEntry();
+        return;
+    }
+
+    if (showNewExitInline.value || editingRegistroType.value === 'saida') {
+        event.preventDefault();
+        saveExit();
+    }
+};
+
+const handleGlobalCreateShortcut = async (event: KeyboardEvent) => {
+    if (shouldIgnoreGlobalKeydown(event)) {
+        return;
+    }
+
+    if (!event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) {
+        return;
+    }
+
+    if (showRemoved.value || isChartsView.value || isLoading.value || isListLoading.value) {
+        return;
+    }
+
+    const key = event.key.toLowerCase();
+
+    if (key === 'e') {
+        event.preventDefault();
+        await openCreateEntry();
+        return;
+    }
+
+    if (key === 's') {
+        event.preventDefault();
+        await openCreateExit();
+    }
+};
+
 const openCreateEntry = async () => {
-    closeAllForms();
-    await fetchOptions();
-    entryForm.value = createEmptyEntryForm();
-    showNewEntryInline.value = true;
-    await nextTick();
-    entryAmountInput.value?.focus();
+    await openCreateForm('entry');
 };
 
 const openCreateExit = async () => {
-    closeAllForms();
-    await fetchOptions();
-    exitForm.value = createEmptyExitForm();
-    showNewExitInline.value = true;
-    await nextTick();
-    exitAmountInput.value?.focus();
+    await openCreateForm('exit');
 };
 
 const openEditRecord = async (id: number) => {
@@ -1704,6 +1858,8 @@ watch(
 onMounted(async () => {
     if (typeof window !== 'undefined') {
         window.addEventListener('keydown', handleGlobalSaveShortcut);
+        window.addEventListener('keydown', handleGlobalEnterToSave);
+        window.addEventListener('keydown', handleGlobalCreateShortcut);
         window.addEventListener('keydown', handleGlobalDeleteShortcut);
         window.addEventListener('keydown', handleGlobalConfirmDeleteShortcut);
         window.addEventListener('keydown', handleGlobalListNavigationShortcut);
@@ -1754,6 +1910,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
     if (typeof window !== 'undefined') {
         window.removeEventListener('keydown', handleGlobalSaveShortcut);
+        window.removeEventListener('keydown', handleGlobalEnterToSave);
+        window.removeEventListener('keydown', handleGlobalCreateShortcut);
         window.removeEventListener('keydown', handleGlobalDeleteShortcut);
         window.removeEventListener('keydown', handleGlobalConfirmDeleteShortcut);
         window.removeEventListener('keydown', handleGlobalListNavigationShortcut);
@@ -2185,7 +2343,36 @@ onBeforeUnmount(() => {
                                 </div>
                             </DialogContent>
                         </Dialog>
+
                     </div>
+
+                    <Dialog :open="showUnsavedCreateChangesModal" @update:open="handleUnsavedCreateChangesModalOpenChange">
+                        <DialogContent class="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>Descartar alterações?</DialogTitle>
+                                <DialogDescription>
+                                    Você tem dados não salvos no formulário atual. Se continuar, essas alterações serão perdidas.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div class="mt-2 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                                <button
+                                    type="button"
+                                    @click="cancelUnsavedCreateChanges"
+                                    class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="confirmUnsavedCreateChanges"
+                                    class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all"
+                                >
+                                    Continuar e descartar
+                                </button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
 
                     <template v-if="!isChartsView">
                     <!-- Summary (hidden when viewing removed items) -->
@@ -2343,21 +2530,7 @@ onBeforeUnmount(() => {
                             </select>
                         </div>
 
-                        <div class="flex gap-1 sm:gap-2">
-                            <button
-                                v-if="hasOpenForm"
-                                type="button"
-                                @click="closeAllForms"
-                                class="flex-1 sm:flex-none px-3 sm:px-4 py-2 h-9 sm:h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors text-xs sm:text-sm"
-                                title="Fechar formulário"
-                                aria-label="Fechar formulário"
-                            >
-                                <svg class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14" />
-                                </svg>
-                                <span class="sm:hidden">Fechar</span>
-                            </button>
-                        </div>
+                        <div class="flex gap-1 sm:gap-2"></div>
                     </div>
 
                     <!-- Inline Create Entry Form (hidden when viewing removed items) -->
@@ -3187,8 +3360,8 @@ onBeforeUnmount(() => {
                 <button
                     type="button"
                     class="h-9 w-9 rounded-full shadow-lg bg-gradient-to-r from-orange-400 to-amber-400 text-white inline-flex items-center justify-center cursor-pointer transform hover:scale-110 hover:shadow-xl transition-all duration-200 border-2 border-white"
-                    title="Nova Entrada"
-                    aria-label="Nova Entrada"
+                    title="Nova Entrada (Shift + E)"
+                    aria-label="Nova Entrada (Shift + E)"
                     @click="openCreateEntry"
                 >
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3200,8 +3373,8 @@ onBeforeUnmount(() => {
                 <button
                     type="button"
                     class="h-9 w-9 rounded-full shadow-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white inline-flex items-center justify-center cursor-pointer transform hover:scale-110 hover:shadow-xl transition-all duration-200 border-2 border-white"
-                    title="Nova Saída"
-                    aria-label="Nova Saída"
+                    title="Nova Saída (Shift + S)"
+                    aria-label="Nova Saída (Shift + S)"
                     @click="openCreateExit"
                 >
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
