@@ -79,6 +79,7 @@ const isDeleteLoading = ref(false);
 const isRestoreLoading = ref(false);
 const restoringRecordId = ref<number | null>(null);
 const showRemoved = ref(false);
+const isMobileNavVisible = ref(true);
 
 // Dropdown options
 const tiposEntrada = ref<any[]>([]);
@@ -151,6 +152,13 @@ const entryFormErrors = ref<Record<string, string[]>>({});
 const exitFormErrors = ref<Record<string, string[]>>({});
 const isEntryLoading = ref(false);
 const isExitLoading = ref(false);
+
+const handleMobileNavVisibilityChanged = (event: Event) => {
+    const customEvent = event as CustomEvent<{ visible?: boolean }>;
+    if (typeof customEvent.detail?.visible === 'boolean') {
+        isMobileNavVisible.value = customEvent.detail.visible;
+    }
+};
 
 const useServiceTypes = computed(() => company.value?.use_service_types !== false);
 
@@ -1645,6 +1653,12 @@ onMounted(async () => {
         window.addEventListener('keydown', handleGlobalDeleteShortcut);
         window.addEventListener('keydown', handleGlobalConfirmDeleteShortcut);
         window.addEventListener('keydown', handleGlobalListNavigationShortcut);
+        window.addEventListener('mobile-nav-visibility-changed', handleMobileNavVisibilityChanged);
+
+        const savedMobileNavState = localStorage.getItem('mobileNavVisible');
+        if (savedMobileNavState !== null) {
+            isMobileNavVisible.value = savedMobileNavState === 'true';
+        }
     }
 
     if (!auth.isAuthenticated.value) {
@@ -1689,6 +1703,7 @@ onBeforeUnmount(() => {
         window.removeEventListener('keydown', handleGlobalDeleteShortcut);
         window.removeEventListener('keydown', handleGlobalConfirmDeleteShortcut);
         window.removeEventListener('keydown', handleGlobalListNavigationShortcut);
+        window.removeEventListener('mobile-nav-visibility-changed', handleMobileNavVisibilityChanged);
     }
 
     cleanupInfiniteScroll();
@@ -3074,16 +3089,23 @@ onBeforeUnmount(() => {
                 </div>
             </main>
 
-            <div v-if="!showRemoved" class="fixed top-6 right-4 lg:top-auto lg:bottom-6 lg:right-4 z-40 flex flex-col gap-3">
+            <div
+                v-if="!showRemoved && !isChartsView"
+                :class="[
+                    'fixed right-4 lg:right-4 z-40 flex flex-col gap-3 transition-all duration-300 ease-out',
+                    isMobileNavVisible ? 'bottom-28 sm:bottom-32' : 'bottom-18 sm:bottom-20',
+                    'lg:bottom-6'
+                ]"
+            >
                 <!-- Botão Nova Entrada -->
                 <button
                     type="button"
-                    class="h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-orange-400 to-amber-400 text-white inline-flex items-center justify-center hover:shadow-xl transition-all border-2 border-white"
+                    class="h-9 w-9 rounded-full shadow-lg bg-gradient-to-r from-orange-400 to-amber-400 text-white inline-flex items-center justify-center cursor-pointer transform hover:scale-110 hover:shadow-xl transition-all duration-200 border-2 border-white"
                     title="Nova Entrada"
                     aria-label="Nova Entrada"
                     @click="openCreateEntry"
                 >
-                    <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14" />
                     </svg>
                 </button>
@@ -3091,12 +3113,12 @@ onBeforeUnmount(() => {
                 <!-- Botão Nova Saída -->
                 <button
                     type="button"
-                    class="h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white inline-flex items-center justify-center hover:shadow-xl transition-all border-2 border-white"
+                    class="h-9 w-9 rounded-full shadow-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white inline-flex items-center justify-center cursor-pointer transform hover:scale-110 hover:shadow-xl transition-all duration-200 border-2 border-white"
                     title="Nova Saída"
                     aria-label="Nova Saída"
                     @click="openCreateExit"
                 >
-                    <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14" />
                     </svg>
                 </button>

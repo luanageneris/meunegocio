@@ -24,6 +24,17 @@ onMounted(() => {
         // No mobile, começar fechado; no desktop, começar aberto
         isOpen.value = window.innerWidth >= 1024;
     }
+
+    const savedMobileNavState = localStorage.getItem('mobileNavVisible');
+    if (savedMobileNavState !== null) {
+        showMobileNav.value = savedMobileNavState === 'true';
+    }
+
+    window.dispatchEvent(
+        new CustomEvent('mobile-nav-visibility-changed', {
+            detail: { visible: showMobileNav.value },
+        }),
+    );
 });
 
 const companyName = computed(() => auth.getCompanyName.value || 'Empresa');
@@ -61,6 +72,12 @@ const toggleSidebar = () => {
 
 const toggleMobileNav = () => {
     showMobileNav.value = !showMobileNav.value;
+    localStorage.setItem('mobileNavVisible', showMobileNav.value ? 'true' : 'false');
+    window.dispatchEvent(
+        new CustomEvent('mobile-nav-visibility-changed', {
+            detail: { visible: showMobileNav.value },
+        }),
+    );
 };
 </script>
 
@@ -171,7 +188,7 @@ const toggleMobileNav = () => {
             v-if="showMobileNav"
             class="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-orange-100 bg-white/95 backdrop-blur shadow-2xl"
         >
-            <div class="flex items-center w-full justify-start gap-1 sm:gap-2 px-2 sm:px-3 py-2 overflow-x-auto scroll-smooth scrollbar-hide min-h-20">
+            <div class="flex items-center w-full justify-start sm:justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 overflow-x-auto sm:overflow-visible scroll-smooth scrollbar-hide min-h-20">
                 <a
                     v-for="item in menuItems"
                     :key="item.key"
