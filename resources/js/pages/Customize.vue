@@ -131,6 +131,7 @@ const isLoading = ref(false);
 const errorMessage = ref('');
 const company = ref<any>(null);
 const savingSettings = ref(false);
+const showServiceModeInfo = ref(false);
 const serviceModeOn = computed(() => company.value?.use_service_types !== false);
 
 const normalizeNullableString = (value: string | null | undefined) => value ?? '';
@@ -1488,7 +1489,31 @@ onMounted(fetchData);
                                     <p class="text-sm text-gray-500">Alternar entre formulário simples e por tipo de serviço.</p>
                                 </div>
                                 <div class="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-3">
-                                    <span class="text-sm text-gray-600 leading-tight">Modo Tipo de Serviço</span>
+                                    <div class="relative flex items-center gap-2">
+                                        <span class="text-sm text-gray-600 leading-tight">Modo Tipo de Serviço</span>
+                                        <button
+                                            type="button"
+                                            @click="showServiceModeInfo = !showServiceModeInfo"
+                                            class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100"
+                                            aria-label="Informações sobre o Modo Tipo de Serviço"
+                                            :aria-expanded="showServiceModeInfo"
+                                        >
+                                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </button>
+
+                                        <div
+                                            v-if="showServiceModeInfo"
+                                            class="absolute right-0 top-8 z-20 w-72 rounded-lg border border-blue-100 bg-white p-3 text-left text-sm text-gray-600 shadow-xl"
+                                        >
+                                            <p>
+                                                Ative esta opção para registrar entradas usando os tipos de serviço cadastrados, com unidade,
+                                                valor e comissão configurados. Ao desativar, o sistema volta ao formulário simples e esses
+                                                tipos deixam de ser usados nos registros.
+                                            </p>
+                                        </div>
+                                    </div>
                                     <button
                                         @click="toggleServiceMode"
                                         :disabled="savingSettings"
