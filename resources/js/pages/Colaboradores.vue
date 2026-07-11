@@ -3,7 +3,7 @@ import { Head } from '@inertiajs/vue3';
 import { ref, computed, onMounted, nextTick } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
-import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
+import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useInputMasks } from '@/composables/useInputMasks';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
@@ -349,7 +349,7 @@ onMounted(() => fetchCollaborators(true));
         <Sidebar active-route="colaboradores" />
 
         <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
-            <PageHeaderTitle
+            <FixedPageHeaderTitle
                 title="Colaboradores"
                 subtitle="Gerencie os colaboradores da sua empresa"
             />

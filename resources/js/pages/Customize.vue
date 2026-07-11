@@ -3,7 +3,7 @@ import { Head } from '@inertiajs/vue3';
 import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
-import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
+import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import EntryTypeFormModal from '@/components/modals/EntryTypeFormModal.vue';
 import ExitTypeFormModal from '@/components/modals/ExitTypeFormModal.vue';
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal.vue';
@@ -988,7 +988,7 @@ onMounted(fetchData);
         <Sidebar active-route="personalizar" />
 
         <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
-            <PageHeaderTitle title="Personalizar" subtitle="Gerencie tipos de entrada, saída e serviços"/>
+            <FixedPageHeaderTitle title="Personalizar" subtitle="Gerencie tipos de entrada, saída e serviços" />
             
             <!-- Main Content -->
             <main class="w-full min-w-0 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">

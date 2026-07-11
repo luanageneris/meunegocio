@@ -7,7 +7,7 @@ import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import { useInputMasks } from '@/composables/useInputMasks';
 import Sidebar from '@/components/Sidebar.vue';
-import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
+import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import Footer from '@/components/Footer.vue';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
 import {
@@ -1701,8 +1701,8 @@ onBeforeUnmount(() => {
 
         <!-- Main Content -->
         <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
-            <PageHeaderTitle 
-                title="Registros" 
+            <FixedPageHeaderTitle
+                title="Registros"
                 subtitle="Gerencie suas entradas, saídas e comissões"
             />
 

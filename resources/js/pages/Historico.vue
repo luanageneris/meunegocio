@@ -3,7 +3,7 @@ import { onMounted, ref, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
 import Sidebar from '@/components/Sidebar.vue';
-import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
+import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import { useAuth } from '@/composables/useAuth';
 import Footer from '@/components/Footer.vue';
@@ -580,9 +580,9 @@ onMounted(() => {
 
     <Sidebar active-route="historico" />
 
-    <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden">
-      <PageHeaderTitle 
-        title="Histórico" 
+    <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
+      <FixedPageHeaderTitle
+        title="Histórico"
         subtitle="Acompanhe todas as alterações realizadas no sistema"
       />
 

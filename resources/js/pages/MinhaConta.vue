@@ -2,7 +2,7 @@
 import { Head, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
 import Sidebar from '@/components/Sidebar.vue';
-import PageHeaderTitle from '@/components/PageHeaderTitle.vue';
+import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import Footer from '@/components/Footer.vue';
 import { useAuth } from '@/composables/useAuth';
@@ -322,8 +322,8 @@ onMounted(async () => {
         <Sidebar active-route="conta" />
 
         <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
-            <PageHeaderTitle 
-                title="Minha Conta" 
+            <FixedPageHeaderTitle
+                title="Minha Conta"
                 subtitle="Gerencie as informações da sua empresa e acesso"
             />
             
