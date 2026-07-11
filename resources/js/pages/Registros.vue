@@ -2277,7 +2277,7 @@ onBeforeUnmount(() => {
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
-                                <input type="date" v-model="entryForm.date" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-xs sm:text-sm" />
+                                <input type="date" v-model="entryForm.date" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg font-normal leading-normal [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-yellow-400 text-xs sm:text-sm" />
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
@@ -2334,7 +2334,7 @@ onBeforeUnmount(() => {
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
-                                <input type="date" v-model="exitForm.date" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" />
+                                <input type="date" v-model="exitForm.date" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg font-normal leading-normal [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" />
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
@@ -2459,7 +2459,7 @@ onBeforeUnmount(() => {
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
-                                        <input type="date" v-model="entryForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
+                                        <input type="date" v-model="entryForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-normal leading-normal [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
@@ -2516,7 +2516,7 @@ onBeforeUnmount(() => {
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
-                                        <input type="date" v-model="exitForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+                                        <input type="date" v-model="exitForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-normal leading-normal [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
