@@ -37,6 +37,7 @@ const form = ref<CompanyForm>({
     state: '',
     postal_code: '',
 });
+const initialForm = ref<CompanyForm | null>(null);
 const errors = ref<Record<string, string[]>>({});
 const isLoading = ref(true);
 const isSaving = ref(false);
@@ -65,6 +66,12 @@ const canEdit = computed(() => {
     return role === 'root' || role === 'owner';
 });
 
+const hasChanges = computed(() => {
+    if (!initialForm.value) return false;
+
+    return JSON.stringify(form.value) !== JSON.stringify(initialForm.value);
+});
+
 const createdAtText = computed(() => {
     const date = company.value?.created_at;
     if (!date) return '-';
@@ -84,7 +91,7 @@ const createdAtText = computed(() => {
 const fillForm = (data: any) => {
     if (!data) return;
     company.value = data;
-    form.value = {
+    const nextForm: CompanyForm = {
         name: data.name ?? '',
         email: data.email ?? '',
         phone: formatPhone(data.phone ?? ''),
@@ -94,6 +101,9 @@ const fillForm = (data: any) => {
         state: data.state ?? '',
         postal_code: data.postal_code ?? '',
     };
+
+    form.value = nextForm;
+    initialForm.value = { ...nextForm };
 };
 
 const handlePhoneInput = (event: Event) => {
@@ -132,6 +142,10 @@ const fetchCompany = async () => {
 const save = async () => {
     if (!canEdit.value) {
         toast.info('Acesso somente leitura', { description: 'Somente o usuário root pode editar a conta.' });
+        return;
+    }
+
+    if (!hasChanges.value) {
         return;
     }
 
@@ -472,19 +486,11 @@ onMounted(async () => {
                             <div class="flex flex-col sm:flex-row flex-wrap gap-3 justify-end">
                                 <button
                                     type="button"
-                                    :disabled="isSaving || !canEdit"
+                                    :disabled="isSaving || !canEdit || !hasChanges"
                                     @click="save"
                                     class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {{ isSaving ? 'Salvando...' : 'Salvar alterações' }}
-                                </button>
-                                <button
-                                    type="button"
-                                    :disabled="isSaving"
-                                    @click="fetchCompany"
-                                    class="w-full sm:w-auto px-4 py-3 border border-amber-200 text-orange-600 rounded-lg font-medium hover:bg-orange-50 transition-all disabled:opacity-50"
-                                >
-                                    Recarregar dados
                                 </button>
                             </div>
 
