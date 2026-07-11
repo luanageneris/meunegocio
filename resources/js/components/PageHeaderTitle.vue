@@ -71,7 +71,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div class="bg-gradient-to-r from-orange-400 to-amber-500 shadow-lg">
+    <div class="bg-gradient-to-r from-orange-400 to-amber-500 shadow-lg select-none" @copy.prevent>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
             <div class="lg:ml-0 flex items-center justify-between gap-3">
                 <div class="min-w-0">
