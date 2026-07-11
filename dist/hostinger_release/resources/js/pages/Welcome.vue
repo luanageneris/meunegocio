@@ -16,7 +16,7 @@ const props = defineProps<{
                 <div class="h-12 w-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center text-2xl font-black shadow-lg">MN</div>
                 <div>
                     <p class="text-sm uppercase tracking-[0.2em] text-orange-600">Meu Negocio</p>
-                    <p class="text-lg font-semibold text-gray-800">Business Management and Commissions</p>
+                    <p class="text-lg font-semibold text-gray-800">Gestão de Negócios e Comissões</p>
                 </div>
             </div>
         </header>
@@ -25,7 +25,7 @@ const props = defineProps<{
             <section class="grid lg:grid-cols-2 gap-10 items-center">
                 <div class="space-y-6">
                     <h1 class="text-4xl sm:text-5xl font-black text-gray-900 leading-tight">
-                        Financial and Commission Management for Your Business
+                        Gestão Financeira e de Comissões para o seu Negócio
                     </h1>
                     <p class="text-lg text-gray-700 leading-relaxed">
                         Registre entradas, saídas, calcule comissões por colaborador, visualize lucro diário, mensal e anual. Com organização e segurança.
