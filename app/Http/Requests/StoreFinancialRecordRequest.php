@@ -91,9 +91,9 @@ class StoreFinancialRecordRequest extends FormRequest
         return [
             'date.required' => 'A data é obrigatória',
             'date.date' => 'A data deve ser válida',
-            'amount.required' => 'O valor é obrigatório',
+            'amount.required' => 'Informe um valor por favor',
             'amount.numeric' => 'O valor deve ser numérico',
-            'amount.min' => 'O valor deve ser maior que 0',
+            'amount.min' => 'Por favor, informe um valor maior que zero',
             'type.required' => 'O tipo é obrigatório',
             'type.in' => 'O tipo deve ser "entry" ou "exit"',
             'entry_type_id.exists' => 'O tipo de entrada selecionado não existe',

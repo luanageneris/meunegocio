@@ -2705,7 +2705,7 @@ onBeforeUnmount(() => {
                                 class="border border-gray-200 rounded-lg p-3 sm:p-4 bg-gray-50"
                             >
                                 <!-- Mobile skeleton -->
-                                <div class="md:hidden space-y-2">
+                                <div class="lg:hidden space-y-2">
                                     <div class="flex justify-between">
                                         <div class="h-5 w-1/2 bg-gray-200 rounded animate-pulse"></div>
                                         <div class="h-5 w-16 bg-gray-200 rounded animate-pulse"></div>
@@ -2717,7 +2717,7 @@ onBeforeUnmount(() => {
                                     <div class="h-3 w-24 bg-gray-200 rounded animate-pulse"></div>
                                 </div>
                                 <!-- Desktop skeleton -->
-                                <div class="hidden md:flex md:items-center gap-4">
+                                <div class="hidden lg:flex lg:items-center gap-4">
                                     <div class="w-24 h-5 bg-gray-200 rounded animate-pulse"></div>
                                     <div class="w-32 h-5 bg-gray-200 rounded animate-pulse"></div>
                                     <div class="w-40 h-5 bg-gray-200 rounded animate-pulse"></div>
@@ -2923,7 +2923,7 @@ onBeforeUnmount(() => {
                             <template v-else>
                             <div class="p-3 sm:p-4">
                                 <!-- Mobile layout -->
-                                <div class="md:hidden">
+                                <div class="lg:hidden">
                                     <div class="flex items-start justify-between gap-2 mb-2">
                                         <div class="flex items-center gap-2 min-w-0">
                                             <span :class="['inline-flex text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0', registro.tipo === 'entrada' ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700']">
@@ -2980,7 +2980,7 @@ onBeforeUnmount(() => {
                                 </div>
 
                                 <!-- Desktop layout -->
-                                <div class="hidden md:flex md:items-center gap-4">
+                                <div class="hidden lg:flex lg:items-center gap-4">
                                     <!-- Valor -->
                                     <div class="w-24 flex-shrink-0">
                                         <span :class="['font-bold text-sm', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
