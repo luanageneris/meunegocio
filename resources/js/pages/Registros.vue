@@ -1768,6 +1768,7 @@ onBeforeUnmount(() => {
                         Anual
                     </button>
                     <button
+                        v-if="!isChartsView"
                         @click="changeTab('todos')"
                         :class="[
                             'px-6 py-2 rounded-full font-medium transition-all',
