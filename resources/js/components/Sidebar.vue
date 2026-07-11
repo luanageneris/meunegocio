@@ -34,8 +34,6 @@ const menuItems = [
     { name: 'Colaboradores', icon: 'people', route: '/colaboradores', key: 'colaboradores' },
     { name: 'Histórico', icon: 'history', route: '/historico', key: 'historico' },
     { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },
-    { name: 'Ajuda e Suporte', icon: 'help', route: '/suporte', key: 'suporte' },
-    { name: 'Política de Privacidade', icon: 'shield', route: '/politica-de-privacidade', key: 'privacidade' },
 ];
 
 const handleLogout = async () => {
