@@ -53,7 +53,79 @@ const perPage = ref(20);
 const totalPages = ref(1);
 const totalRecords = ref(0);
 const expandedLog = ref<number | null>(null);
-const expandedInfoLogs = ref<Set<number>>(new Set());
+const activeQuickFilter = ref<'all' | 'create' | 'update' | 'delete' | null>(null);
+
+const quickFilterCardClass = (action: 'all' | 'create' | 'update' | 'delete') => {
+  const isActive = activeQuickFilter.value === action;
+
+  return [
+    'bg-white rounded-xl p-4 shadow-sm border transition text-left w-full min-h-[110px]',
+    isActive ? 'ring-2 ring-orange-400 border-orange-300 shadow-md' : 'hover:shadow-md',
+    action === 'all' ? 'border-orange-200' : '',
+    action === 'create' ? 'border-green-200' : '',
+    action === 'update' ? 'border-blue-200' : '',
+    action === 'delete' ? 'border-red-200' : '',
+  ];
+};
+
+const getLast30DaysRange = () => {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 29);
+
+  const toInput = to.toISOString().split('T')[0];
+  const fromInput = from.toISOString().split('T')[0];
+
+  return { fromInput, toInput };
+};
+
+const applyQuickFilter = (action: 'all' | 'create' | 'update' | 'delete') => {
+  const { fromInput, toInput } = getLast30DaysRange();
+
+  activeQuickFilter.value = action;
+  selectedFilter.value = action;
+  dateFrom.value = fromInput;
+  dateTo.value = toInput;
+  currentPage.value = 1;
+  fetchLogs(1);
+};
+
+const clearAllFilters = () => {
+  activeQuickFilter.value = null;
+  selectedFilter.value = 'all';
+  selectedModel.value = '';
+  dateFrom.value = '';
+  dateTo.value = '';
+  currentPage.value = 1;
+  fetchLogs(1);
+};
+
+const hasActiveFilters = () => {
+  return selectedFilter.value !== 'all' || selectedModel.value !== '' || dateFrom.value !== '' || dateTo.value !== '';
+};
+
+const formatInputDate = (value: string) => {
+  const parts = value.split('-');
+  if (parts.length !== 3) return value;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+};
+
+const removeActionFilter = () => {
+  selectedFilter.value = 'all';
+  activeQuickFilter.value = null;
+};
+
+const removeModelFilter = () => {
+  selectedModel.value = '';
+};
+
+const removeDateFromFilter = () => {
+  dateFrom.value = '';
+};
+
+const removeDateToFilter = () => {
+  dateTo.value = '';
+};
 
 // Funções helpers
 const getActionBadgeClass = (action: string) => {
@@ -74,15 +146,6 @@ const getActionLabel = (action: string) => {
   }[action] || action;
 };
 
-const getActionIconClass = (action: string) => {
-  return {
-    'create': 'text-green-600 bg-green-100',
-    'update': 'text-blue-600 bg-blue-100',
-    'delete': 'text-red-600 bg-red-100',
-    'restore': 'text-amber-600 bg-amber-100',
-  }[action] || 'text-gray-600 bg-gray-100';
-};
-
 const getModelLabel = (model: string) => {
   const modelName = model.split('\\').pop() || model;
   return {
@@ -96,6 +159,24 @@ const getModelLabel = (model: string) => {
     'DailyClosure': 'Fechamento Diário',
     'Balance': 'Saldo',
   }[modelName] || modelName;
+};
+
+const stripEntityId = (text: string) => {
+  return text
+    .replace(/\s*#\d+\b/g, '')
+    .replace(/\bID\s*\d+\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+};
+
+const getDisplayModelLabel = (log: AuditLog) => {
+  const raw = log.model_label || getModelLabel(log.model);
+  return stripEntityId(raw);
+};
+
+const getDisplaySummary = (log: AuditLog) => {
+  const raw = log.summary || (getActionLabel(log.action) + ' ' + getModelLabel(log.model));
+  return stripEntityId(raw);
 };
 
 const fieldLabels: Record<string, Record<string, string>> = {
@@ -175,6 +256,16 @@ const fieldLabels: Record<string, Record<string, string>> = {
   },
 };
 
+const genericFieldLabels: Record<string, string> = {
+  use_service_types: 'Usar Tipos de Serviço',
+  use_entry_types: 'Usar Tipos de Entrada',
+  use_exit_types: 'Usar Tipos de Saída',
+  required_collaborator: 'Colaborador obrigatório',
+  default_collaborator_id: 'Colaborador padrão',
+  default_entry_type_id: 'Tipo de entrada padrão',
+  default_exit_type_id: 'Tipo de saída padrão',
+};
+
 const formatKey = (key: unknown) => {
   if (key === null || key === undefined) return '';
   const safeKey = typeof key === 'string' ? key : String(key);
@@ -190,12 +281,12 @@ const getFieldLabel = (model: unknown, field: unknown) => {
   const modelName = modelSafe.split('\\').pop() || modelSafe;
   const fieldKey = typeof field === 'string' ? field : String(field ?? '');
 
-  return fieldLabels[modelName]?.[fieldKey] || formatKey(fieldKey);
+  return fieldLabels[modelName]?.[fieldKey] || genericFieldLabels[fieldKey] || formatKey(fieldKey);
 };
 
 const shouldHideField = (field: unknown) => {
   const key = typeof field === 'string' ? field : String(field ?? '');
-  const hidden = ['id', 'company_id', 'created_at', 'updated_at', 'deleted_at', 'pivot', 'collaborator_id', 'endpoint'];
+  const hidden = ['id', 'company_id', 'created_at', 'updated_at', 'deleted_at', 'pivot', 'collaborator_id', 'endpoint', 'required_collaborator'];
   return hidden.includes(key) || key.endsWith('_id');
 };
 
@@ -535,32 +626,10 @@ watch([selectedFilter, selectedModel, dateFrom, dateTo], () => {
 const toggleDetails = (logId: number) => {
   const isClosing = expandedLog.value === logId;
   expandedLog.value = isClosing ? null : logId;
-
-  if (isClosing) {
-    const updated = new Set(expandedInfoLogs.value);
-    updated.delete(logId);
-    expandedInfoLogs.value = updated;
-  }
 };
 
 const isExpanded = (logId: number) => {
   return expandedLog.value === logId;
-};
-
-const toggleInfoSection = (logId: number) => {
-  const updated = new Set(expandedInfoLogs.value);
-
-  if (updated.has(logId)) {
-    updated.delete(logId);
-  } else {
-    updated.add(logId);
-  }
-
-  expandedInfoLogs.value = updated;
-};
-
-const isInfoExpanded = (logId: number) => {
-  return expandedInfoLogs.value.has(logId);
 };
 
 onMounted(() => {
@@ -583,43 +652,100 @@ onMounted(() => {
     <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
       <FixedPageHeaderTitle
         title="Histórico"
-        subtitle="Acompanhe todas as alterações realizadas no sistema"
+       subtitle="Acompanhe todas as alterações realizadas no sistema"
       />
 
       <main class="w-full min-w-0 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
         <!-- Stats Cards -->
-        <div v-if="stats" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div class="bg-white rounded-xl p-6 shadow-sm border border-orange-200 hover:shadow-md transition">
-            <p class="text-gray-600 text-sm font-semibold mb-2">Total de Alterações</p>
-            <p class="text-4xl font-black text-orange-600">{{ stats.total }}</p>
-            <p class="text-xs text-gray-500 mt-2">Últimos 30 dias</p>
-          </div>
-          <div class="bg-white rounded-xl p-6 shadow-sm border border-green-200 hover:shadow-md transition">
-            <p class="text-gray-600 text-sm font-semibold mb-2">Criações</p>
-            <p class="text-4xl font-black text-green-600">{{ stats.by_action.create }}</p>
-            <p class="text-xs text-gray-500 mt-2">Novos registros</p>
-          </div>
-          <div class="bg-white rounded-xl p-6 shadow-sm border border-blue-200 hover:shadow-md transition">
-            <p class="text-gray-600 text-sm font-semibold mb-2">Atualizações</p>
-            <p class="text-4xl font-black text-blue-600">{{ stats.by_action.update }}</p>
-            <p class="text-xs text-gray-500 mt-2">Registros modificados</p>
-          </div>
-          <div class="bg-white rounded-xl p-6 shadow-sm border border-red-200 hover:shadow-md transition">
-            <p class="text-gray-600 text-sm font-semibold mb-2">Deletações</p>
-            <p class="text-4xl font-black text-red-600">{{ stats.by_action.delete }}</p>
-            <p class="text-xs text-gray-500 mt-2">Registros removidos</p>
-          </div>
+        <div v-if="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+          <button type="button" :class="quickFilterCardClass('all')" @click="applyQuickFilter('all')">
+            <p class="text-gray-600 text-xs font-semibold text-center">Últimos 30 dias</p>
+            <p class="text-3xl font-black text-orange-600 text-center mt-2">{{ stats.total }}</p>
+          </button>
+          <button type="button" :class="quickFilterCardClass('create')" @click="applyQuickFilter('create')">
+            <p class="text-gray-600 text-xs font-semibold text-center">Novos registros</p>
+            <p class="text-3xl font-black text-green-600 text-center mt-2">{{ stats.by_action.create }}</p>
+          </button>
+          <button type="button" :class="quickFilterCardClass('update')" @click="applyQuickFilter('update')">
+            <p class="text-gray-600 text-xs font-semibold text-center">Registros modificados</p>
+            <p class="text-3xl font-black text-blue-600 text-center mt-2">{{ stats.by_action.update }}</p>
+          </button>
+          <button type="button" :class="quickFilterCardClass('delete')" @click="applyQuickFilter('delete')">
+            <p class="text-gray-600 text-xs font-semibold text-center">Registros removidos</p>
+            <p class="text-3xl font-black text-red-600 text-center mt-2">{{ stats.by_action.delete }}</p>
+          </button>
         </div>
 
         <!-- Filters -->
         <div class="bg-white rounded-xl p-6 shadow-sm border border-orange-200 mb-8">
-          <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="mb-4 flex items-center justify-between gap-3 flex-wrap">
+            <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            Filtros
-          </h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              </svg>
+              Filtros
+            </h2>
+
+            <button
+              type="button"
+              :disabled="!hasActiveFilters()"
+              :class="[
+                'px-4 py-2 rounded-lg border-2 transition font-semibold',
+                hasActiveFilters()
+                  ? 'border-orange-200 text-orange-700 hover:bg-orange-100'
+                  : 'border-gray-200 text-gray-400 cursor-not-allowed bg-gray-100',
+              ]"
+              @click="clearAllFilters"
+            >
+              Limpar filtros
+            </button>
+          </div>
+
+          <div v-if="hasActiveFilters()" class="mb-4 flex flex-wrap items-center gap-2">
+            <span class="text-sm font-semibold text-gray-700">Filtros aplicados:</span>
+
+            <button
+              v-if="selectedFilter !== 'all'"
+              type="button"
+              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold border border-orange-200 hover:bg-orange-200 transition"
+              @click="removeActionFilter"
+            >
+              Ação: {{ getActionLabel(selectedFilter) }}
+              <span aria-hidden="true">×</span>
+            </button>
+
+            <button
+              v-if="selectedModel"
+              type="button"
+              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold border border-orange-200 hover:bg-orange-200 transition"
+              @click="removeModelFilter"
+            >
+              Tipo: {{ getModelLabel(selectedModel) }}
+              <span aria-hidden="true">×</span>
+            </button>
+
+            <button
+              v-if="dateFrom"
+              type="button"
+              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold border border-orange-200 hover:bg-orange-200 transition"
+              @click="removeDateFromFilter"
+            >
+              De: {{ formatInputDate(dateFrom) }}
+              <span aria-hidden="true">×</span>
+            </button>
+
+            <button
+              v-if="dateTo"
+              type="button"
+              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold border border-orange-200 hover:bg-orange-200 transition"
+              @click="removeDateToFilter"
+            >
+              Até: {{ formatInputDate(dateTo) }}
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <!-- Action Filter -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">Ação</label>
@@ -661,7 +787,7 @@ onMounted(() => {
               <input
                 v-model="dateFrom"
                 type="date"
-                class="w-full px-4 py-2 border-2 border-amber-200 rounded-lg font-normal leading-normal [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                class="w-full h-11 px-4 py-2 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               />
             </div>
 
@@ -671,7 +797,7 @@ onMounted(() => {
               <input
                 v-model="dateTo"
                 type="date"
-                class="w-full px-4 py-2 border-2 border-amber-200 rounded-lg font-normal leading-normal [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                class="w-full h-11 px-4 py-2 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -700,32 +826,16 @@ onMounted(() => {
               <!-- Log Row -->
               <div class="px-6 py-4 flex items-center justify-between">
                 <div class="flex items-center gap-4 flex-1">
-                  <span :class="['inline-flex items-center justify-center w-10 h-10 rounded-lg', getActionIconClass(log.action)]">
-                    <svg v-if="log.action === 'create'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <svg v-else-if="log.action === 'update'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5h2m-1 0v14m-7-7h14" />
-                    </svg>
-                    <svg v-else-if="log.action === 'delete'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12m-9 0V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v12m4-12v12" />
-                    </svg>
-                    <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </span>
                   <div class="flex-1">
                     <div class="flex items-center gap-3 mb-1 flex-wrap">
                       <span :class="['px-3 py-1 rounded-full text-xs font-bold', getActionBadgeClass(log.action)]">
                         {{ log.action_label || getActionLabel(log.action) }}
                       </span>
-                      <span class="font-semibold text-gray-900">{{ log.model_label || getModelLabel(log.model) }}</span>
-                      <span class="text-xs font-semibold text-gray-500">ID {{ log.entity_reference || '#' + log.model_id }}</span>
+                      <span class="font-semibold text-gray-900">{{ getDisplayModelLabel(log) }}</span>
                       <span v-if="(log.changed_fields_count || 0) > 0" class="px-2 py-1 text-xs rounded-full bg-slate-100 text-slate-700 font-semibold">
                         {{ log.changed_fields_count }} campo(s)
                       </span>
                     </div>
-                    <div class="text-sm text-gray-800 font-medium mb-1">{{ log.summary || (getActionLabel(log.action) + ' ' + getModelLabel(log.model)) }}</div>
                     <div class="text-sm text-gray-600">
                       Por <span class="font-semibold">{{ log.user?.name || 'Sistema' }}</span>
                       • {{ formatDate(log.created_at) }}
@@ -785,25 +895,6 @@ onMounted(() => {
 
                     <div v-if="!hasMeaningfulDetails(log)" class="bg-white rounded-lg p-4 border border-orange-100 text-sm text-gray-600">
                       Este evento foi registrado sem mudanças detalhadas de campos.
-                    </div>
-
-                    <!-- Meta Information -->
-                    <div class="bg-white rounded-lg border border-orange-100 overflow-hidden">
-                      <button
-                        type="button"
-                        class="group w-full px-4 py-3 flex items-center justify-between text-left transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
-                        @click.stop="toggleInfoSection(log.id)"
-                      >
-                        <h4 class="font-bold text-gray-900 transition-colors group-hover:text-orange-700">Informações</h4>
-                        <span class="text-gray-500 text-sm transition-colors group-hover:text-orange-600">{{ isInfoExpanded(log.id) ? '▲' : '▼' }}</span>
-                      </button>
-
-                      <div v-if="isInfoExpanded(log.id)" class="px-4 pb-4 space-y-1 text-sm text-gray-600">
-                        <p><span class="font-semibold">Usuário:</span> {{ log.user?.name || 'Sistema' }}</p>
-                        <p><span class="font-semibold">Registro afetado:</span> {{ log.model_label || getModelLabel(log.model) }} {{ log.entity_reference || ('#' + log.model_id) }}</p>
-                        <p><span class="font-semibold">IP:</span> {{ log.ip_address || '—' }}</p>
-                        <p><span class="font-semibold">Data/Hora:</span> {{ formatDate(log.created_at) }}</p>
-                      </div>
                     </div>
                   </div>
                 </div>
