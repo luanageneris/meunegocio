@@ -92,6 +92,7 @@ Route::middleware(['auth:sanctum', 'company.isolation'])->group(function () {
     // Registros - Leitura (GET apenas)
     Route::prefix('registros')->group(function () {
         Route::get('financial-records', [FinancialRecordController::class, 'index']);
+        Route::get('financial-records/export', [FinancialRecordController::class, 'exportBetweenDates']);
         Route::get('financial-records/{financialRecord}', [FinancialRecordController::class, 'show']);
         Route::get('financial-records/by-date/{date}', [FinancialRecordController::class, 'byDate']);
         

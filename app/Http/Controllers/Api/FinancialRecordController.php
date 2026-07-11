@@ -9,6 +9,8 @@ use App\Http\Requests\UpdateFinancialRecordRequest;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class FinancialRecordController
 {
@@ -169,6 +171,149 @@ class FinancialRecordController
                 'current_page' => $records->currentPage(),
             ],
             'totals' => $totals,
+        ]);
+    }
+
+    /**
+     * Export financial records and commissions for a date range
+     */
+    public function exportBetweenDates(Request $request)
+    {
+        $request->validate([
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $records = FinancialRecord::forCompany()
+            ->whereBetween('date', [$request->start_date, $request->end_date])
+            ->with('collaborator', 'entryType', 'exitType', 'serviceType')
+            ->orderBy('date', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $commissions = Commission::forCompany()
+            ->whereBetween('date', [$request->start_date, $request->end_date])
+            ->with('collaborator')
+            ->orderBy('date', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $spreadsheet = new Spreadsheet();
+
+        $recordsSheet = $spreadsheet->getActiveSheet();
+        $recordsSheet->setTitle('Registros');
+        $recordsSheet->fromArray([
+            'Data',
+            'Tipo',
+            'Categoria',
+            'Colaborador',
+            'Servico',
+            'Valor unitario',
+            'Quantidade',
+            'Desconto',
+            'Valor final',
+            'Descricao',
+            'Registrado em',
+        ], null, 'A1');
+
+        $recordsRow = 2;
+        foreach ($records as $record) {
+            $recordsSheet->setCellValue("A{$recordsRow}", optional($record->date)->format('d/m/Y') ?? '');
+            $recordsSheet->setCellValue("B{$recordsRow}", $record->type === 'entry' ? 'Entrada' : 'Saida');
+            $recordsSheet->setCellValue("C{$recordsRow}", $record->entryType?->name ?? $record->exitType?->name ?? '');
+            $recordsSheet->setCellValue("D{$recordsRow}", $record->collaborator?->name ?? '');
+            $recordsSheet->setCellValue("E{$recordsRow}", $record->serviceType?->name ?? '');
+            $recordsSheet->setCellValue("F{$recordsRow}", (float) $record->amount);
+            $recordsSheet->setCellValue("G{$recordsRow}", (int) ($record->quantity ?? 1));
+            $recordsSheet->setCellValue("H{$recordsRow}", (float) ($record->discount ?? 0));
+            $recordsSheet->setCellValue("I{$recordsRow}", (float) $record->final_amount);
+            $recordsSheet->setCellValue("J{$recordsRow}", (string) ($record->description ?? ''));
+            $recordsSheet->setCellValue("K{$recordsRow}", optional($record->created_at)?->format('d/m/Y H:i') ?? '');
+            $recordsRow++;
+        }
+
+        $brlFormat = '[$R$-416] #,##0.00';
+
+        if ($recordsRow > 2) {
+            $recordsSheet->getStyle("F2:F" . ($recordsRow - 1))->getNumberFormat()->setFormatCode($brlFormat);
+            $recordsSheet->getStyle("H2:I" . ($recordsRow - 1))->getNumberFormat()->setFormatCode($brlFormat);
+        }
+
+        foreach (range('A', 'K') as $column) {
+            $recordsSheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $summarySheet = $spreadsheet->createSheet();
+        $summarySheet->setTitle('Resumo');
+
+        $entriesTotal = (float) $records->where('type', 'entry')->sum(function (FinancialRecord $record) {
+            return $record->final_amount;
+        });
+        $exitsTotal = (float) $records->where('type', 'exit')->sum(function (FinancialRecord $record) {
+            return $record->final_amount;
+        });
+        $commissionsTotal = (float) $commissions->sum('amount');
+        $finalTotal = $entriesTotal - $exitsTotal + $commissionsTotal;
+
+        $summarySheet->fromArray([
+            ['Filtro inicio', $request->start_date],
+            ['Filtro fim', $request->end_date],
+            ['Entradas', $entriesTotal],
+            ['Saidas', $exitsTotal],
+            ['Comissoes', $commissionsTotal],
+            ['Total final', $finalTotal],
+            ['Registros', $records->count()],
+            ['Comissoes registradas', $commissions->count()],
+        ], null, 'A1');
+
+        $summarySheet->getStyle('B3:B6')->getNumberFormat()->setFormatCode($brlFormat);
+        $summarySheet->getColumnDimension('A')->setAutoSize(true);
+        $summarySheet->getColumnDimension('B')->setAutoSize(true);
+
+        $commissionsSheet = $spreadsheet->createSheet();
+        $commissionsSheet->setTitle('Comissoes');
+        $commissionsSheet->fromArray([
+            'Data',
+            'Colaborador',
+            'Valor',
+            'Observacao',
+            'Pago em',
+            'Registrado em',
+        ], null, 'A1');
+
+        $commissionsRow = 2;
+        foreach ($commissions as $commission) {
+            $commissionsSheet->setCellValue("A{$commissionsRow}", optional($commission->date)->format('d/m/Y') ?? '');
+            $commissionsSheet->setCellValue("B{$commissionsRow}", $commission->collaborator?->name ?? '');
+            $commissionsSheet->setCellValue("C{$commissionsRow}", (float) $commission->amount);
+            $commissionsSheet->setCellValue("D{$commissionsRow}", (string) ($commission->notes ?? ''));
+            $commissionsSheet->setCellValue("E{$commissionsRow}", optional($commission->paid_at)->format('d/m/Y') ?? '');
+            $commissionsSheet->setCellValue("F{$commissionsRow}", optional($commission->created_at)?->format('d/m/Y H:i') ?? '');
+            $commissionsRow++;
+        }
+
+        if ($commissionsRow > 2) {
+            $commissionsSheet->getStyle("C2:C" . ($commissionsRow - 1))->getNumberFormat()->setFormatCode($brlFormat);
+        }
+
+        foreach (range('A', 'F') as $column) {
+            $commissionsSheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $period = (string) $request->query('period', 'periodo');
+        $safePeriod = preg_replace('/[^a-z0-9_-]/i', '-', strtolower($period));
+        $fileName = sprintf(
+            'registros-%s-%s-a-%s.xlsx',
+            $safePeriod ?: 'periodo',
+            str_replace('-', '', $request->start_date),
+            str_replace('-', '', $request->end_date)
+        );
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
 

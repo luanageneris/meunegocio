@@ -95,6 +95,8 @@ const showImportPanel = ref(false);
 const showImportHelpModal = ref(false);
 const showUnsavedCreateChangesModal = ref(false);
 const pendingCreateFormAction = ref<'entry' | 'exit' | null>(null);
+const isExportLoading = ref(false);
+const exportError = ref('');
 const importTemplateError = ref('');
 const selectedImportFile = ref<File | null>(null);
 const importError = ref('');
@@ -760,6 +762,12 @@ const chartRangeKey = computed<RangeKey>(() => {
     }
 
     return 'anual';
+});
+
+const canExportPeriodData = computed(() => {
+    return (activeTab.value === 'mensal' || activeTab.value === 'anual')
+        && !showRemoved.value
+        && !isChartsView.value;
 });
 
 const currentChartTotals = computed(() => rangeTotals.value[chartRangeKey.value]);
@@ -1526,6 +1534,68 @@ const downloadImportTemplate = async () => {
     }
 };
 
+const exportPeriodToExcel = async () => {
+    if (!canExportPeriodData.value || isExportLoading.value) {
+        return;
+    }
+
+    isExportLoading.value = true;
+    exportError.value = '';
+
+    try {
+        const { start, end } = makeRange(chartRangeKey.value);
+
+        const response = await axios.get('/api/registros/financial-records/export', {
+            params: {
+                start_date: start,
+                end_date: end,
+                period: activeTab.value,
+            },
+            responseType: 'blob',
+            withCredentials: true,
+            headers: {
+                Authorization: `Bearer ${auth.token.value}`,
+                Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'X-CSRF-TOKEN': getCsrfToken(),
+            },
+        });
+
+        const rawContentType = response.headers['content-type'];
+        const contentType = Array.isArray(rawContentType)
+            ? rawContentType.join(';')
+            : String(rawContentType ?? '');
+        if (contentType.includes('application/json')) {
+            const text = await new Response(response.data).text();
+            const json = JSON.parse(text);
+            throw new Error(json?.message || 'Erro ao exportar dados.');
+        }
+
+        const blob = new Blob([response.data], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+
+        const suggestedName =
+            response.headers['content-disposition']
+                ?.split('filename=')[1]
+                ?.replace(/"/g, '')
+            || `registros-${activeTab.value}.xlsx`;
+
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = suggestedName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+    } catch (error: any) {
+        console.error('Erro ao exportar dados:', error);
+        exportError.value = error?.message || 'Nao foi possivel exportar os dados. Tente novamente.';
+    } finally {
+        isExportLoading.value = false;
+    }
+};
+
 const onImportFileSelected = (event: Event) => {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0] ?? null;
@@ -2137,27 +2207,44 @@ onBeforeUnmount(() => {
 
                 <!-- Period Selectors -->
                 <div v-if="activeTab === 'mensal' || activeTab === 'anual'" class="mb-3 -mx-4 px-4 sm:-mx-0 sm:px-0 overflow-x-auto sm:overflow-visible scrollbar-hide">
-                    <div class="flex gap-1 pb-2 sm:pb-1 justify-center">
-                    <select
-                        v-if="activeTab === 'mensal'"
-                        v-model.number="selectedMonth"
-                        @change="(currentPage = 1, fetchRegistros(1))"
-                        class="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white text-sm"
-                    >
-                        <option v-for="m in monthOptions" :key="m.value" :value="m.value">
-                            {{ m.label }}
-                        </option>
-                    </select>
-                    <select
-                        v-model.number="selectedYear"
-                        @change="(currentPage = 1, fetchRegistros(1))"
-                        class="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white text-sm"
-                    >
-                        <option v-for="y in yearOptions" :key="y" :value="y">
-                            {{ y }}
-                        </option>
-                    </select>
+                    <div class="flex flex-wrap gap-2 pb-2 sm:pb-1 justify-center items-center">
+                        <select
+                            v-if="activeTab === 'mensal'"
+                            v-model.number="selectedMonth"
+                            @change="(currentPage = 1, fetchRegistros(1))"
+                            class="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white text-sm"
+                        >
+                            <option v-for="m in monthOptions" :key="m.value" :value="m.value">
+                                {{ m.label }}
+                            </option>
+                        </select>
+                        <select
+                            v-model.number="selectedYear"
+                            @change="(currentPage = 1, fetchRegistros(1))"
+                            class="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white text-sm"
+                        >
+                            <option v-for="y in yearOptions" :key="y" :value="y">
+                                {{ y }}
+                            </option>
+                        </select>
+                        <button
+                            v-if="canExportPeriodData"
+                            type="button"
+                            @click="exportPeriodToExcel"
+                            :disabled="isExportLoading"
+                            class="inline-flex items-center gap-2 px-3 py-2 border border-orange-300 rounded-lg bg-white text-orange-700 text-sm font-medium hover:bg-orange-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            <svg v-if="!isExportLoading" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16V4m0 12l-4-4m4 4l4-4M4 20h16" />
+                            </svg>
+                            <svg v-else class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                            <span>{{ isExportLoading ? 'Exportando...' : 'Exportar Excel' }}</span>
+                        </button>
                     </div>
+                    <p v-if="exportError" class="mt-1 text-center text-xs text-red-600">{{ exportError }}</p>
                 </div>
 
                 <!-- Content Card -->
