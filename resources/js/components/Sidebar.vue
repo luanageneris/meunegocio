@@ -39,13 +39,42 @@ onMounted(() => {
 
 const companyName = computed(() => auth.getCompanyName.value || 'Empresa');
 
-const menuItems = [
+type MenuItem = {
+    name: string;
+    icon: string;
+    route: string;
+    key: string;
+};
+
+const menuItems: MenuItem[] = [
     { name: 'Registros', icon: 'list', route: '/registros', key: 'registros' },
     { name: 'Personalizar', icon: 'settings', route: '/personalizar', key: 'personalizar' },
     { name: 'Colaboradores', icon: 'people', route: '/colaboradores', key: 'colaboradores' },
     { name: 'Histórico', icon: 'history', route: '/historico', key: 'historico' },
     { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },
 ];
+
+const isNavigating = ref(false);
+const navigatingTo = ref<string | null>(null);
+
+const isItemActive = (item: MenuItem): boolean => {
+    return props.activeRoute === item.key || navigatingTo.value === item.key;
+};
+
+const isItemDisabled = (item: MenuItem): boolean => {
+    return isNavigating.value || props.activeRoute === item.key || navigatingTo.value === item.key;
+};
+
+const handleMenuClick = (event: MouseEvent, item: MenuItem) => {
+    if (isItemDisabled(item)) {
+        event.preventDefault();
+        return;
+    }
+
+    // Evita múltiplos cliques/disparos enquanto a navegação está processando.
+    isNavigating.value = true;
+    navigatingTo.value = item.key;
+};
 
 const handleLogout = async () => {
     try {
@@ -85,8 +114,9 @@ const toggleMobileNav = () => {
     <div>
         <!-- Sidebar -->
         <aside
+            @copy.prevent
             :class="[
-                'hidden lg:block fixed top-0 left-0 h-screen bg-white shadow-2xl transition-transform duration-300 z-40',
+                'hidden lg:block fixed top-0 left-0 h-screen bg-white shadow-2xl transition-transform duration-300 z-40 select-none',
                 'w-64',
                 isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
             ]"
@@ -113,11 +143,14 @@ const toggleMobileNav = () => {
                         v-for="item in menuItems"
                         :key="item.key"
                         :href="item.route"
+                        @click="handleMenuClick($event, item)"
+                        :aria-disabled="isItemDisabled(item)"
                         :class="[
                             'flex items-center gap-3 px-6 py-3 transition-all duration-200',
-                            props.activeRoute === item.key
+                            isItemActive(item)
                                 ? 'bg-gradient-to-r from-orange-400 to-amber-500 text-white font-semibold shadow-md'
-                                : 'text-gray-700 hover:bg-orange-50'
+                                : 'text-gray-700 hover:bg-orange-50',
+                            isItemDisabled(item) ? 'cursor-not-allowed opacity-90 pointer-events-none' : ''
                         ]"
                     >
                         <!-- Icon -->
@@ -186,18 +219,22 @@ const toggleMobileNav = () => {
         <!-- Bottom mobile navigation (icons only) -->
         <nav
             v-if="showMobileNav"
-            class="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-orange-100 bg-white/95 backdrop-blur shadow-2xl"
+            @copy.prevent
+            class="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-orange-100 bg-white/95 backdrop-blur shadow-2xl select-none"
         >
             <div class="flex items-center w-full justify-start sm:justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 overflow-x-auto sm:overflow-visible scroll-smooth scrollbar-hide min-h-20">
                 <a
                     v-for="item in menuItems"
                     :key="item.key"
                     :href="item.route"
+                    @click="handleMenuClick($event, item)"
+                    :aria-disabled="isItemDisabled(item)"
                     :class="[
                         'flex flex-col items-center justify-center gap-0.5 rounded-xl px-2 sm:px-3 py-2 text-xs font-medium transition shrink-0 min-w-[60px] sm:min-w-[72px]',
-                        props.activeRoute === item.key
+                        isItemActive(item)
                             ? 'text-orange-600 bg-orange-50'
-                            : 'text-gray-700 hover:text-orange-600'
+                            : 'text-gray-700 hover:text-orange-600',
+                        isItemDisabled(item) ? 'cursor-not-allowed opacity-90 pointer-events-none' : ''
                     ]"
                 >
                     <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
