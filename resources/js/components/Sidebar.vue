@@ -47,6 +47,7 @@ type MenuItem = {
 };
 
 const menuItems: MenuItem[] = [
+    { name: 'Dashboard', icon: 'dashboard', route: '/dashboard', key: 'dashboard' },
     { name: 'Registros', icon: 'list', route: '/registros', key: 'registros' },
     { name: 'Personalizar', icon: 'settings', route: '/personalizar', key: 'personalizar' },
     { name: 'Colaboradores', icon: 'people', route: '/colaboradores', key: 'colaboradores' },

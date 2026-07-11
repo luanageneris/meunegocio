@@ -36,8 +36,8 @@ Route::get('/setup-empresa', function () {
     return Inertia::render('SetupCompany');
 })->middleware(['auth:sanctum', 'verified'])->name('setup.company');
 
-// Painel Principal (legado -> redireciona para Registros)
-Route::redirect('/painel', '/registros')->name('painel');
+// Painel Principal (legado -> redireciona para Dashboard)
+Route::redirect('/painel', '/dashboard')->name('painel');
 
 // Rotas privadas - require authentication
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {

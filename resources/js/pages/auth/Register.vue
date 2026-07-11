@@ -185,9 +185,9 @@ const fetchPendingRegistration = async () => {
 };
 
 const initializeRegistrationFlow = async () => {
-    // Se usuário já está autenticado, redirecionar para registros
+    // Se usuário já está autenticado, redirecionar para dashboard
     if (auth.isAuthenticated.value) {
-        window.location.href = '/registros';
+        window.location.href = '/dashboard';
         return;
     }
 
@@ -289,9 +289,9 @@ const handleSubmit = async () => {
         inlineSuccessMessage.value = successMessage;
         markRegistrationSuccessToast(successMessage);
 
-        // Redirecionar para registros
+        // Redirecionar para dashboard
         setTimeout(() => {
-            window.location.href = '/registros';
+            window.location.href = '/dashboard';
         }, 900);
     } catch (error: any) {
         inlineErrorMessage.value = 'Nao foi possivel concluir o cadastro agora. Tente novamente em instantes.';

@@ -39,12 +39,11 @@ onMounted(async () => {
             if (needsSetup) {
                 window.location.href = getApiUrl('/setup-empresa');
             } else {
-                window.location.href = getApiUrl('/registros');
+                window.location.href = getApiUrl('/dashboard');
             }
         }, 800);
     } catch (error: any) {
         console.error('Erro ao processar autenticação:', error);
-
         // Só redireciona para registro se houver pendência real.
         if (error.response?.status === 401) {
             const pending = await hasPendingRegistration();

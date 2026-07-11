@@ -36,14 +36,17 @@ const handleGoogleLogin = async () => {
 
 const closeCookieBanner = () => {
     showCookieBanner.value = false;
+        // Check if cookies were already accepted and if user is authenticated
+        onMounted(() => {
+            // Se o usuário já está autenticado, redirecionar para dashboard
     localStorage.setItem('cookiesAccepted', 'true');
 };
 
 // Check if cookies were already accepted and if user is authenticated
 onMounted(() => {
-    // Se o usuário já está autenticado, redirecionar para registros
+    // Se o usuário já está autenticado, redirecionar para dashboard
     if (auth.isAuthenticated.value) {
-        window.location.href = '/registros';
+        window.location.href = '/dashboard';
         return;
     }
 
