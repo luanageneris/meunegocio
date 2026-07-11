@@ -99,6 +99,8 @@ const importError = ref('');
 const importSuccess = ref('');
 const isImportLoading = ref(false);
 const importSummary = ref<any | null>(null);
+const showEntryCalculationTooltip = ref(false);
+const showExitCalculationTooltip = ref(false);
 const importDefaults = ref({
     default_entry_type_id: null as number | null,
     default_exit_type_id: null as number | null,
@@ -1597,6 +1599,8 @@ const closeAllForms = () => {
     showNewExitInline.value = false;
     editingRegistroId.value = null;
     editingRegistroType.value = null;
+    showEntryCalculationTooltip.value = false;
+    showExitCalculationTooltip.value = false;
     entryForm.value = createEmptyEntryForm();
     exitForm.value = createEmptyExitForm();
     entryFormErrors.value = {};
@@ -2582,10 +2586,29 @@ onBeforeUnmount(() => {
                                 <input type="text" v-model="entryForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="Opcional" />
                             </div>
                             <div class="sm:col-span-2">
-                                <div class="rounded-lg border border-yellow-200 bg-white px-4 py-3">
-                                    <p class="text-xs font-medium text-gray-500">Valor total</p>
-                                    <p class="mt-1 text-lg font-semibold text-yellow-700">{{ formatCurrency(entryCalculatedTotal) }}</p>
-                                    <p v-if="useServiceTypes" class="mt-1 text-xs text-gray-500">Cálculo: valor x quantidade - desconto</p>
+                                <div class="rounded-lg border border-orange-300 bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-center shadow-sm">
+                                    <p class="text-xs font-medium uppercase tracking-wide text-orange-100">Valor total</p>
+                                    <p class="mt-1 text-2xl font-bold text-white">{{ formatCurrency(entryCalculatedTotal) }}</p>
+                                    <div v-if="useServiceTypes" class="mt-1 flex items-center justify-center gap-2">
+                                        <span class="text-xs text-orange-50">Fórmula</span>
+                                        <div class="relative inline-flex">
+                                            <button
+                                                type="button"
+                                                @click="showEntryCalculationTooltip = !showEntryCalculationTooltip"
+                                                class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-orange-200/60 bg-white/20 text-orange-50 transition-colors hover:bg-white/30"
+                                                aria-label="Mostrar fórmula do cálculo"
+                                                title="Mostrar fórmula"
+                                            >
+                                                <Info class="h-3.5 w-3.5" />
+                                            </button>
+                                            <div
+                                                v-if="showEntryCalculationTooltip"
+                                                class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg"
+                                            >
+                                                Cálculo: valor x quantidade - desconto
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2639,10 +2662,29 @@ onBeforeUnmount(() => {
                                 <input type="text" v-model="exitForm.description" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" placeholder="Opcional" />
                             </div>
                             <div class="sm:col-span-2">
-                                <div class="rounded-lg border border-orange-200 bg-white px-4 py-3">
-                                    <p class="text-xs font-medium text-gray-500">Valor total</p>
-                                    <p class="mt-1 text-lg font-semibold text-orange-700">{{ formatCurrency(exitCalculatedTotal) }}</p>
-                                    <p class="mt-1 text-xs text-gray-500">Cálculo: valor x quantidade - desconto</p>
+                                <div class="rounded-lg border border-orange-300 bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-center shadow-sm">
+                                    <p class="text-xs font-medium uppercase tracking-wide text-orange-100">Valor total</p>
+                                    <p class="mt-1 text-2xl font-bold text-white">{{ formatCurrency(exitCalculatedTotal) }}</p>
+                                    <div class="mt-1 flex items-center justify-center gap-2">
+                                        <span class="text-xs text-orange-50">Fórmula</span>
+                                        <div class="relative inline-flex">
+                                            <button
+                                                type="button"
+                                                @click="showExitCalculationTooltip = !showExitCalculationTooltip"
+                                                class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-orange-200/60 bg-white/20 text-orange-50 transition-colors hover:bg-white/30"
+                                                aria-label="Mostrar fórmula do cálculo"
+                                                title="Mostrar fórmula"
+                                            >
+                                                <Info class="h-3.5 w-3.5" />
+                                            </button>
+                                            <div
+                                                v-if="showExitCalculationTooltip"
+                                                class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg"
+                                            >
+                                                Cálculo: valor x quantidade - desconto
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2767,10 +2809,29 @@ onBeforeUnmount(() => {
                                         <input type="text" v-model="entryForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="Opcional" />
                                     </div>
                                     <div class="sm:col-span-2">
-                                        <div class="rounded-lg border border-yellow-200 bg-white px-4 py-3">
-                                            <p class="text-xs font-medium text-gray-500">Valor total</p>
-                                            <p class="mt-1 text-lg font-semibold text-yellow-700">{{ formatCurrency(entryCalculatedTotal) }}</p>
-                                            <p v-if="useServiceTypes" class="mt-1 text-xs text-gray-500">Cálculo: valor x quantidade - desconto</p>
+                                        <div class="rounded-lg border border-orange-300 bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-center shadow-sm">
+                                            <p class="text-xs font-medium uppercase tracking-wide text-orange-100">Valor total</p>
+                                            <p class="mt-1 text-2xl font-bold text-white">{{ formatCurrency(entryCalculatedTotal) }}</p>
+                                            <div v-if="useServiceTypes" class="mt-1 flex items-center justify-center gap-2">
+                                                <span class="text-xs text-orange-50">Fórmula</span>
+                                                <div class="relative inline-flex">
+                                                    <button
+                                                        type="button"
+                                                        @click="showEntryCalculationTooltip = !showEntryCalculationTooltip"
+                                                        class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-orange-200/60 bg-white/20 text-orange-50 transition-colors hover:bg-white/30"
+                                                        aria-label="Mostrar fórmula do cálculo"
+                                                        title="Mostrar fórmula"
+                                                    >
+                                                        <Info class="h-3.5 w-3.5" />
+                                                    </button>
+                                                    <div
+                                                        v-if="showEntryCalculationTooltip"
+                                                        class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg"
+                                                    >
+                                                        Cálculo: valor x quantidade - desconto
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -2824,10 +2885,29 @@ onBeforeUnmount(() => {
                                         <input type="text" v-model="exitForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="Opcional" />
                                     </div>
                                     <div class="sm:col-span-2">
-                                        <div class="rounded-lg border border-orange-200 bg-white px-4 py-3">
-                                            <p class="text-xs font-medium text-gray-500">Valor total</p>
-                                            <p class="mt-1 text-lg font-semibold text-orange-700">{{ formatCurrency(exitCalculatedTotal) }}</p>
-                                            <p class="mt-1 text-xs text-gray-500">Cálculo: valor x quantidade - desconto</p>
+                                        <div class="rounded-lg border border-orange-300 bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-center shadow-sm">
+                                            <p class="text-xs font-medium uppercase tracking-wide text-orange-100">Valor total</p>
+                                            <p class="mt-1 text-2xl font-bold text-white">{{ formatCurrency(exitCalculatedTotal) }}</p>
+                                            <div class="mt-1 flex items-center justify-center gap-2">
+                                                <span class="text-xs text-orange-50">Fórmula</span>
+                                                <div class="relative inline-flex">
+                                                    <button
+                                                        type="button"
+                                                        @click="showExitCalculationTooltip = !showExitCalculationTooltip"
+                                                        class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-orange-200/60 bg-white/20 text-orange-50 transition-colors hover:bg-white/30"
+                                                        aria-label="Mostrar fórmula do cálculo"
+                                                        title="Mostrar fórmula"
+                                                    >
+                                                        <Info class="h-3.5 w-3.5" />
+                                                    </button>
+                                                    <div
+                                                        v-if="showExitCalculationTooltip"
+                                                        class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg"
+                                                    >
+                                                        Cálculo: valor x quantidade - desconto
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
