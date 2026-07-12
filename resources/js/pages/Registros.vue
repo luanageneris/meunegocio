@@ -281,6 +281,40 @@ const validSortKeys = ['valor', 'categoria', 'colaborador', 'descricao', 'dataOp
 const validFinancialFilters = ['entrada', 'saida', 'comissao'] as const;
 const yearOptions = computed(() => Array.from({ length: 5 }, (_, index) => selectedYear.value - 2 + index));
 
+const normalizeNullableString = (value: unknown): string => {
+    if (typeof value !== 'string') {
+        return '';
+    }
+
+    const trimmed = value.trim();
+    const lowered = trimmed.toLowerCase();
+
+    if (lowered === 'null' || lowered === 'undefined') {
+        return '';
+    }
+
+    return value;
+};
+
+const sanitizeFilterState = () => {
+    const safeSearch = normalizeNullableString(searchQuery.value);
+    if (searchQuery.value !== safeSearch) {
+        searchQuery.value = safeSearch;
+    }
+
+    if (!validSortKeys.includes(sortKey.value)) {
+        sortKey.value = 'registradoEm';
+    }
+
+    if (sortDir.value !== 'asc' && sortDir.value !== 'desc') {
+        sortDir.value = 'desc';
+    }
+
+    if (!financialTypeFilter.value || !validFinancialFilters.includes(financialTypeFilter.value as typeof validFinancialFilters[number])) {
+        financialTypeFilter.value = null;
+    }
+};
+
 const applyFiltersFromQueryString = () => {
     if (typeof window === 'undefined') return;
 
@@ -308,7 +342,7 @@ const applyFiltersFromQueryString = () => {
 
     const search = params.get('search');
     if (search !== null) {
-        searchQuery.value = search;
+        searchQuery.value = normalizeNullableString(search);
     }
 
     const sortKeyParam = params.get('sort_key');
@@ -321,7 +355,7 @@ const applyFiltersFromQueryString = () => {
         sortDir.value = sortDirParam;
     }
 
-    const financialTypeParam = params.get('financial_type');
+    const financialTypeParam = normalizeNullableString(params.get('financial_type'));
     if (financialTypeParam && validFinancialFilters.includes(financialTypeParam as typeof validFinancialFilters[number])) {
         financialTypeFilter.value = financialTypeParam as typeof financialTypeFilter.value;
     }
@@ -332,6 +366,8 @@ const applyFiltersFromQueryString = () => {
 
 const syncFiltersToQueryString = () => {
     if (typeof window === 'undefined') return;
+
+    sanitizeFilterState();
 
     const params = new URLSearchParams();
 
@@ -351,8 +387,9 @@ const syncFiltersToQueryString = () => {
         params.set('page', String(currentPage.value));
     }
 
-    if (searchQuery.value.trim()) {
-        params.set('search', searchQuery.value.trim());
+    const safeSearch = normalizeNullableString(searchQuery.value).trim();
+    if (safeSearch) {
+        params.set('search', safeSearch);
     }
 
     if (sortKey.value !== 'registradoEm') {
@@ -542,6 +579,15 @@ const getRecordDeleteLabel = (record: { categoria?: string; descricao?: string; 
 const privacyOptionLabel = computed(() => (isPrivacyMode.value ? 'Mostrar valores sensíveis' : 'Ocultar valores sensíveis'));
 const privacyStatusLabel = computed(() => (isPrivacyMode.value ? 'Ocultos' : 'Visíveis'));
 
+const normalizedSearchQuery = computed({
+    get: () => {
+        return normalizeNullableString(searchQuery.value);
+    },
+    set: (value: string) => {
+        searchQuery.value = normalizeNullableString(value);
+    },
+});
+
 const activeFinancialFilterLabel = computed(() => {
     if (financialTypeFilter.value === 'entrada') return 'Entradas';
     if (financialTypeFilter.value === 'saida') return 'Saidas';
@@ -715,11 +761,23 @@ const openCreateForm = async (type: 'entry' | 'exit') => {
 
 const confirmUnsavedCreateChanges = async () => {
     const action = pendingCreateFormAction.value;
+
+    const shouldClearEntryDraft = isCreateEntryFormDirty.value;
+    const shouldClearExitDraft = isCreateExitFormDirty.value;
+
     showUnsavedCreateChangesModal.value = false;
     pendingCreateFormAction.value = null;
 
     if (!action) {
         return;
+    }
+
+    if (shouldClearEntryDraft) {
+        clearEntryCreateDraft();
+    }
+
+    if (shouldClearExitDraft) {
+        clearExitCreateDraft();
     }
 
     closeAllForms();
@@ -1756,7 +1814,19 @@ const confirmImport = async () => {
     }
 };
 
-const closeAllForms = () => {
+const closeAllForms = (options?: { clearCreateDrafts?: boolean }) => {
+    const shouldClearCreateDrafts = options?.clearCreateDrafts === true;
+
+    if (shouldClearCreateDrafts) {
+        if (showNewEntryInline.value && editingRegistroId.value === null) {
+            clearEntryCreateDraft();
+        }
+
+        if (showNewExitInline.value && editingRegistroId.value === null) {
+            clearExitCreateDraft();
+        }
+    }
+
     showNewEntryInline.value = false;
     showNewExitInline.value = false;
     editingRegistroId.value = null;
@@ -1767,6 +1837,10 @@ const closeAllForms = () => {
     exitForm.value = createEmptyExitForm();
     entryFormErrors.value = {};
     exitFormErrors.value = {};
+};
+
+const cancelCreateForms = () => {
+    closeAllForms({ clearCreateDrafts: true });
 };
 
 const handleGlobalSaveShortcut = (event: KeyboardEvent) => {
@@ -1848,6 +1922,38 @@ const handleGlobalCreateShortcut = async (event: KeyboardEvent) => {
         event.preventDefault();
         await openCreateExit();
     }
+};
+
+const handleGlobalEscapeToCancel = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape') {
+        return;
+    }
+
+    sanitizeFilterState();
+
+    const target = event.target as HTMLElement | null;
+    const isSearchField = target === searchInputRef.value;
+
+    if (isSearchField && !hasOpenForm.value) {
+        searchQuery.value = normalizeNullableString(searchQuery.value);
+        return;
+    }
+
+    const isCreateFormActive = (showNewEntryInline.value || showNewExitInline.value) && editingRegistroId.value === null;
+    const isEditFormActive = editingRegistroId.value !== null;
+
+    if (!isCreateFormActive && !isEditFormActive) {
+        return;
+    }
+
+    event.preventDefault();
+
+    if (isCreateFormActive) {
+        cancelCreateForms();
+        return;
+    }
+
+    closeAllForms();
 };
 
 const openCreateEntry = async () => {
@@ -2056,6 +2162,7 @@ onMounted(async () => {
         window.addEventListener('keydown', handleGlobalSaveShortcut);
         window.addEventListener('keydown', handleGlobalEnterToSave);
         window.addEventListener('keydown', handleGlobalCreateShortcut);
+        window.addEventListener('keydown', handleGlobalEscapeToCancel);
         window.addEventListener('keydown', handleGlobalDeleteShortcut);
         window.addEventListener('keydown', handleGlobalConfirmDeleteShortcut);
         window.addEventListener('keydown', handleGlobalListNavigationShortcut);
@@ -2108,6 +2215,7 @@ onBeforeUnmount(() => {
         window.removeEventListener('keydown', handleGlobalSaveShortcut);
         window.removeEventListener('keydown', handleGlobalEnterToSave);
         window.removeEventListener('keydown', handleGlobalCreateShortcut);
+        window.removeEventListener('keydown', handleGlobalEscapeToCancel);
         window.removeEventListener('keydown', handleGlobalDeleteShortcut);
         window.removeEventListener('keydown', handleGlobalConfirmDeleteShortcut);
         window.removeEventListener('keydown', handleGlobalListNavigationShortcut);
@@ -2679,7 +2787,7 @@ onBeforeUnmount(() => {
                         <div class="relative">
                             <input
                                 ref="searchInputRef"
-                                v-model="searchQuery"
+                                v-model="normalizedSearchQuery"
                                 type="text"
                                 placeholder="Pesquisar"
                                 class="w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 text-sm border-2 border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
@@ -2822,7 +2930,7 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-4">
-                            <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button @click="cancelCreateForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
                             <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
                                 {{ isEntryLoading ? 'Salvando...' : 'Salvar' }}
                             </button>
@@ -2898,7 +3006,7 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-4">
-                            <button @click="closeAllForms" class="px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button @click="cancelCreateForms" class="px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
                             <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
                                 {{ isExitLoading ? 'Salvando...' : 'Salvar' }}
                             </button>
@@ -3367,7 +3475,7 @@ onBeforeUnmount(() => {
                             </div>
 
                             <div v-if="activeTab === 'ultimos7dias'" class="space-y-6">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="grid grid-cols-1 gap-6">
                                     <div class="bg-white rounded-lg p-4 sm:p-6 shadow-md border border-orange-100">
                                         <h3 class="text-lg font-bold text-gray-800 mb-4">Entradas vs Saídas</h3>
                                         <div class="flex justify-end gap-4 mb-4 text-sm">
@@ -3393,38 +3501,6 @@ onBeforeUnmount(() => {
                                                     <span class="w-16"></span>
                                                     <div class="flex-1 flex items-center gap-1">
                                                         <div class="h-6 bg-orange-500 rounded" :style="{ width: `${maxValueDaily > 0 ? (day.saidas / maxValueDaily) * 100 : 0}%` }" :title="chartMonthlyTitle(formatDayLabel(day.date), 'Saídas', day.saidas)"></div>
-                                                        <span class="text-xs text-gray-500 whitespace-nowrap">{{ formatCurrency(day.saidas) }}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="bg-white rounded-lg p-4 sm:p-6 shadow-md border border-orange-100">
-                                        <h3 class="text-lg font-bold text-gray-800 mb-4">Lucros vs Investimentos</h3>
-                                        <div class="flex justify-end gap-4 mb-4 text-sm">
-                                            <div class="flex items-center gap-2">
-                                                <div class="w-3 h-3 bg-green-500 rounded"></div>
-                                                <span class="text-gray-600">Lucros</span>
-                                            </div>
-                                            <div class="flex items-center gap-2">
-                                                <div class="w-3 h-3 bg-blue-500 rounded"></div>
-                                                <span class="text-gray-600">Investimentos</span>
-                                            </div>
-                                        </div>
-                                        <div class="space-y-3">
-                                            <div v-for="day in dailyBreakdown" :key="`lucro-${day.date}`" class="space-y-1">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-sm text-gray-600 w-16 text-right">{{ formatDayLabel(day.date) }}</span>
-                                                    <div class="flex-1 flex items-center gap-1">
-                                                        <div class="h-6 bg-green-500 rounded" :style="{ width: `${maxValueDaily > 0 ? (Math.max(day.lucro, 0) / maxValueDaily) * 100 : 0}%` }" :title="chartMonthlyTitle(formatDayLabel(day.date), 'Lucro', day.lucro)"></div>
-                                                        <span class="text-xs text-gray-500 whitespace-nowrap">{{ formatCurrency(day.lucro) }}</span>
-                                                    </div>
-                                                </div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="w-16"></span>
-                                                    <div class="flex-1 flex items-center gap-1">
-                                                        <div class="h-6 bg-blue-500 rounded" :style="{ width: `${maxValueDaily > 0 ? (day.saidas / maxValueDaily) * 100 : 0}%` }" :title="chartMonthlyTitle(formatDayLabel(day.date), 'Investimentos', day.saidas)"></div>
                                                         <span class="text-xs text-gray-500 whitespace-nowrap">{{ formatCurrency(day.saidas) }}</span>
                                                     </div>
                                                 </div>
