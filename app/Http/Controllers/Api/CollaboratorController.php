@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCollaboratorRequest;
 use App\Http\Requests\UpdateCollaboratorRequest;
 use App\Models\Collaborator;
+use App\Models\Commission;
+use App\Models\FinancialRecord;
 use App\Services\CompanyDefaultsService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class CollaboratorController extends Controller
@@ -95,6 +98,62 @@ class CollaboratorController extends Controller
         }
 
         return response()->json($collaborator);
+    }
+
+    /**
+     * Resumo de vendas e comissões por colaborador.
+     */
+    public function summary(Request $request, Collaborator $collaborator)
+    {
+        if ($collaborator->company_id !== $request->user()->company_id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $period = (string) $request->query('period', 'ultimos7dias');
+        $validPeriods = ['ultimos7dias', 'mensal', 'anual', 'todos'];
+        if (!in_array($period, $validPeriods, true)) {
+            $period = 'ultimos7dias';
+        }
+
+        $startDate = null;
+        $endDate = null;
+
+        if ($period === 'ultimos7dias') {
+            $startDate = Carbon::today()->subDays(6);
+            $endDate = Carbon::today();
+        } elseif ($period === 'mensal') {
+            $startDate = Carbon::today()->startOfMonth();
+            $endDate = Carbon::today()->endOfMonth();
+        } elseif ($period === 'anual') {
+            $startDate = Carbon::today()->startOfYear();
+            $endDate = Carbon::today()->endOfYear();
+        }
+
+        $salesQuery = FinancialRecord::query()
+            ->forCompany($request->user()->company_id)
+            ->where('collaborator_id', $collaborator->id)
+            ->where('type', 'entry');
+
+        $commissionsQuery = Commission::query()
+            ->forCompany($request->user()->company_id)
+            ->where('collaborator_id', $collaborator->id);
+
+        if ($startDate && $endDate) {
+            $salesQuery->whereBetween('date', [$startDate->toDateString(), $endDate->toDateString()]);
+            $commissionsQuery->whereBetween('date', [$startDate->toDateString(), $endDate->toDateString()]);
+        }
+
+        $salesTotal = FinancialRecord::sumFinalAmount($salesQuery);
+        $commissionTotal = (float) $commissionsQuery->sum('amount');
+
+        return response()->json([
+            'data' => [
+                'collaborator_id' => $collaborator->id,
+                'period' => $period,
+                'sales_total' => $salesTotal,
+                'commission_total' => $commissionTotal,
+            ],
+        ]);
     }
 
     /**

@@ -36,9 +36,6 @@ const handleGoogleLogin = async () => {
 
 const closeCookieBanner = () => {
     showCookieBanner.value = false;
-        // Check if cookies were already accepted and if user is authenticated
-        onMounted(() => {
-            // Se o usuário já está autenticado, redirecionar para dashboard
     localStorage.setItem('cookiesAccepted', 'true');
 };
 

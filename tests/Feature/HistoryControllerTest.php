@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\User;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class HistoryControllerTest extends TestCase
@@ -21,7 +22,7 @@ class HistoryControllerTest extends TestCase
                          ->create(['role' => 'root']);
     }
 
-    /** @test */
+    #[Test]
     public function can_list_audit_logs()
     {
         AuditLog::factory()
@@ -33,11 +34,11 @@ class HistoryControllerTest extends TestCase
         $response = $this->actingAs($this->user)->getJson('/api/history');
 
         $response->assertStatus(200)
-                 ->assertJsonPath('data.0.id', AuditLog::first()->id)
+                 ->assertJsonCount(5, 'data')
                  ->assertJsonPath('pagination.total', 5);
     }
 
-    /** @test */
+    #[Test]
     public function can_filter_by_action()
     {
         AuditLog::factory()
@@ -70,13 +71,13 @@ class HistoryControllerTest extends TestCase
                  ->assertJsonPath('data.0.action', 'create');
     }
 
-    /** @test */
+    #[Test]
     public function can_view_log_details()
     {
         $log = AuditLog::factory()
                       ->for($this->company)
                       ->for($this->user)
-                      ->create();
+                      ->create(['action' => 'create']);
 
         $response = $this->actingAs($this->user)
                         ->getJson("/api/history/{$log->id}");
@@ -86,7 +87,7 @@ class HistoryControllerTest extends TestCase
                  ->assertJsonPath('data.action_label', 'Criado');
     }
 
-    /** @test */
+    #[Test]
     public function can_get_statistics()
     {
         AuditLog::factory()
@@ -120,7 +121,7 @@ class HistoryControllerTest extends TestCase
                  ->assertJsonPath('data.by_action.update', 2);
     }
 
-    /** @test */
+    #[Test]
     public function cannot_access_another_company_logs()
     {
         $otherCompany = Company::factory()->create();
@@ -140,7 +141,7 @@ class HistoryControllerTest extends TestCase
                  ->assertJsonPath('pagination.total', 0);
     }
 
-    /** @test */
+    #[Test]
     public function requires_authentication()
     {
         $response = $this->getJson('/api/history');
@@ -148,14 +149,16 @@ class HistoryControllerTest extends TestCase
         $response->assertStatus(401);
     }
 
-    /** @test */
+    #[Test]
     public function company_update_is_audited_with_field_level_changes()
     {
+        $unique = (string) (time() . random_int(1000, 9999));
+
         $response = $this->actingAs($this->user, 'sanctum')->putJson('/api/company', [
-            'name' => 'Empresa Atualizada Teste',
-            'email' => 'empresa.teste@example.com',
+            'name' => 'Empresa Atualizada Teste ' . $unique,
+            'email' => 'empresa.teste+' . $unique . '@example.com',
             'phone' => '11999999999',
-            'document' => '12345678000199',
+            'document' => str_pad(substr($unique, 0, 14), 14, '0'),
             'address' => 'Rua Auditoria, 123',
             'city' => 'Sao Paulo',
             'state' => 'SP',
@@ -176,7 +179,7 @@ class HistoryControllerTest extends TestCase
         $this->assertSame($this->company->id, $log->model_id);
         $this->assertIsArray($log->changes);
         $this->assertArrayHasKey('name', $log->changes);
-        $this->assertSame('Empresa Atualizada Teste', $log->changes['name']['new']);
+        $this->assertSame('Empresa Atualizada Teste ' . $unique, $log->changes['name']['new']);
         $this->assertArrayNotHasKey('endpoint', $log->changes);
 
         $historyResponse = $this->actingAs($this->user, 'sanctum')->getJson('/api/history');

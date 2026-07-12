@@ -18,6 +18,13 @@ interface Collaborator {
     deleted_at?: string | null;
 }
 
+type CollaboratorSummaryPeriod = 'ultimos7dias' | 'mensal' | 'anual' | 'todos';
+
+type CollaboratorSummary = {
+    sales_total: number;
+    commission_total: number;
+};
+
 type CollaboratorFormData = Pick<Collaborator, 'name' | 'cpf' | 'active'>;
 
 const createEmptyCollaboratorForm = (): CollaboratorFormData => ({
@@ -52,6 +59,15 @@ const editCollaboratorError = ref('');
 const isFormLoading = ref(false);
 const isDeleteLoading = ref(false);
 const isRestoreLoading = ref(false);
+const showSummaryModal = ref(false);
+const summaryCollaborator = ref<Collaborator | null>(null);
+const summaryPeriod = ref<CollaboratorSummaryPeriod>('ultimos7dias');
+const isSummaryLoading = ref(false);
+const summaryError = ref('');
+const summary = ref<CollaboratorSummary>({
+    sales_total: 0,
+    commission_total: 0,
+});
 
 const newNameInputRef = ref<HTMLInputElement | null>(null);
 const editNameInputRef = ref<HTMLInputElement | null>(null);
@@ -339,6 +355,69 @@ const clearSearch = () => {
     currentPage.value = 1;
 };
 
+const periodLabel = computed(() => {
+    const labels: Record<CollaboratorSummaryPeriod, string> = {
+        ultimos7dias: 'Últimos 7 dias',
+        mensal: 'Mensal',
+        anual: 'Anual',
+        todos: 'Tudo',
+    };
+
+    return labels[summaryPeriod.value];
+});
+
+const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+    }).format(Number(value || 0));
+};
+
+const loadCollaboratorSummary = async () => {
+    if (!summaryCollaborator.value) return;
+
+    isSummaryLoading.value = true;
+    summaryError.value = '';
+
+    try {
+        const { data } = await axios.get(`/api/personalizar/collaborators/${summaryCollaborator.value.id}/summary`, {
+            params: { period: summaryPeriod.value },
+        });
+
+        summary.value = {
+            sales_total: Number(data?.data?.sales_total || 0),
+            commission_total: Number(data?.data?.commission_total || 0),
+        };
+    } catch (error: any) {
+        summaryError.value = error?.response?.data?.message || 'Erro ao carregar resumo do colaborador';
+    } finally {
+        isSummaryLoading.value = false;
+    }
+};
+
+const openSummaryModal = async (collab: Collaborator) => {
+    if (collab.deleted_at) return;
+
+    summaryCollaborator.value = collab;
+    summaryPeriod.value = 'ultimos7dias';
+    summary.value = { sales_total: 0, commission_total: 0 };
+    summaryError.value = '';
+    showSummaryModal.value = true;
+
+    await loadCollaboratorSummary();
+};
+
+const closeSummaryModal = () => {
+    showSummaryModal.value = false;
+    summaryCollaborator.value = null;
+    summaryError.value = '';
+};
+
+const changeSummaryPeriod = async (period: CollaboratorSummaryPeriod) => {
+    summaryPeriod.value = period;
+    await loadCollaboratorSummary();
+};
+
 onMounted(() => fetchCollaborators(true));
 </script>
 
@@ -545,6 +624,15 @@ onMounted(() => fetchCollaborators(true));
                                 </div>
                                 <div class="flex gap-2" v-if="!collab.deleted_at">
                                     <button
+                                        @click="openSummaryModal(collab)"
+                                        class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="Resumo"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20V10m5 10V4m5 16v-7" />
+                                        </svg>
+                                    </button>
+                                    <button
                                         @click="handleEdit(collab)"
                                         class="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
                                         title="Editar"
@@ -671,5 +759,93 @@ onMounted(() => fetchCollaborators(true));
             </main>
             <Footer />
         </div>
+
+        <Transition name="fade">
+            <div v-if="showSummaryModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/60" @click="closeSummaryModal"></div>
+                <div class="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-amber-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50">
+                        <p class="text-xs font-semibold text-amber-600 uppercase tracking-wide">Resumo do colaborador</p>
+                        <h3 class="text-xl font-bold text-gray-900 mt-1">{{ summaryCollaborator?.name }}</h3>
+                    </div>
+
+                    <div class="px-6 py-5 space-y-5">
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                @click="changeSummaryPeriod('ultimos7dias')"
+                                :class="[
+                                    'px-3 py-2 text-sm rounded-lg border transition',
+                                    summaryPeriod === 'ultimos7dias' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-700 border-amber-200 hover:bg-amber-50'
+                                ]"
+                            >
+                                Últimos 7 dias
+                            </button>
+                            <button
+                                type="button"
+                                @click="changeSummaryPeriod('mensal')"
+                                :class="[
+                                    'px-3 py-2 text-sm rounded-lg border transition',
+                                    summaryPeriod === 'mensal' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-700 border-amber-200 hover:bg-amber-50'
+                                ]"
+                            >
+                                Mensal
+                            </button>
+                            <button
+                                type="button"
+                                @click="changeSummaryPeriod('anual')"
+                                :class="[
+                                    'px-3 py-2 text-sm rounded-lg border transition',
+                                    summaryPeriod === 'anual' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-700 border-amber-200 hover:bg-amber-50'
+                                ]"
+                            >
+                                Anual
+                            </button>
+                            <button
+                                type="button"
+                                @click="changeSummaryPeriod('todos')"
+                                :class="[
+                                    'px-3 py-2 text-sm rounded-lg border transition',
+                                    summaryPeriod === 'todos' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-700 border-amber-200 hover:bg-amber-50'
+                                ]"
+                            >
+                                Tudo
+                            </button>
+                        </div>
+
+                        <div v-if="isSummaryLoading" class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                            Carregando totais...
+                        </div>
+
+                        <p v-if="summaryError" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                            {{ summaryError }}
+                        </p>
+
+                        <div v-if="!isSummaryLoading" class="grid gap-4 sm:grid-cols-2">
+                            <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+                                <p class="text-xs uppercase tracking-wide text-green-700 font-semibold">Total vendido</p>
+                                <p class="text-xl font-bold text-green-800 mt-1">{{ formatCurrency(summary.sales_total) }}</p>
+                                <p class="text-xs text-green-700 mt-1">Período: {{ periodLabel }}</p>
+                            </div>
+                            <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                                <p class="text-xs uppercase tracking-wide text-blue-700 font-semibold">Comissão recebida</p>
+                                <p class="text-xl font-bold text-blue-800 mt-1">{{ formatCurrency(summary.commission_total) }}</p>
+                                <p class="text-xs text-blue-700 mt-1">Período: {{ periodLabel }}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button
+                                type="button"
+                                class="px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition"
+                                @click="closeSummaryModal"
+                            >
+                                Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Transition>
     </div>
 </template>

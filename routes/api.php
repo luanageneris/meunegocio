@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\BalanceController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\ReminderSettingsController;
 use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\HistoryController;
 use App\Models\Collaborator;
@@ -68,12 +69,14 @@ Route::middleware(['auth:sanctum', 'company.isolation'])->group(function () {
     Route::prefix('company')->group(function () {
         Route::get('/', [CompanyController::class, 'show'])->name('company.show');
         Route::get('/needs-setup', [CompanyController::class, 'needsSetup'])->name('company.needs-setup');
+        Route::get('/reminder-settings', [ReminderSettingsController::class, 'show'])->name('company.reminder-settings.show');
     });
 
     // Personalizar - Leitura (GET apenas)
     Route::prefix('personalizar')->group(function () {
         Route::get('collaborators', [CollaboratorController::class, 'index']);
         Route::get('collaborators/with-trashed', [CollaboratorController::class, 'withTrashed']);
+        Route::get('collaborators/{collaborator}/summary', [CollaboratorController::class, 'summary']);
         Route::get('collaborators/{collaborator}', [CollaboratorController::class, 'show']);
 
         Route::get('entry-types', [EntryTypeController::class, 'index']);
@@ -127,6 +130,7 @@ Route::middleware(['auth:sanctum', 'company.isolation', 'track.changes'])->group
     // Empresa - Escrita
     Route::prefix('company')->group(function () {
         Route::put('/', [CompanyController::class, 'update'])->name('company.update');
+        Route::put('/reminder-settings', [ReminderSettingsController::class, 'update'])->name('company.reminder-settings.update');
         Route::delete('/', [CompanyController::class, 'destroy'])->name('company.destroy');
     });
     

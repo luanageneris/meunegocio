@@ -54,3 +54,10 @@ sail npm run build
 
 # Rodar em background (tmux/screen)
 # Vamos usar 2 terminais separados:
+
+
+
+# enviar notificação diaria 
+sail artisan notifications:send-reminders --channel=daily --force --ignore-history --user_email=luanacarvalhomesquita@gmail.com
+
+

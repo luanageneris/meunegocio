@@ -71,6 +71,11 @@ class User extends Authenticatable
         return $this->hasMany(ImportLog::class, 'imported_by');
     }
 
+    public function reminderSetting(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(UserReminderSetting::class);
+    }
+
     // Helpers
     public function isRoot(): bool
     {

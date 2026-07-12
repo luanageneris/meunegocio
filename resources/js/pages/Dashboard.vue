@@ -5,6 +5,7 @@ import { AlertTriangle, Building2, CalendarDays, ChevronLeft, ChevronRight, Refr
 import Sidebar from '@/components/Sidebar.vue';
 import Footer from '@/components/Footer.vue';
 import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
+import AppInlineNotice from '@/components/AppInlineNotice.vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 
@@ -46,6 +47,8 @@ type DashboardSummary = {
 
 const auth = useAuth();
 const { isPrivacyMode } = usePrivacy();
+const registrationSuccessToastKey = 'registration_success_toast';
+const registrationSuccessMessage = ref('');
 
 const monthOptions = [
     { value: 1, label: 'Janeiro' },
@@ -88,6 +91,25 @@ const monthTitle = computed(() => `${monthLabel.value} de ${selectedYear.value}`
 
 const getCsrfToken = (): string => {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+};
+
+const showRegistrationSuccessMessageIfNeeded = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const message = window.sessionStorage.getItem(registrationSuccessToastKey);
+
+    if (!message) {
+        return;
+    }
+
+    window.sessionStorage.removeItem(registrationSuccessToastKey);
+    registrationSuccessMessage.value = message;
+};
+
+const dismissRegistrationSuccessMessage = () => {
+    registrationSuccessMessage.value = '';
 };
 
 const formatCurrency = (value: number): string => {
@@ -343,6 +365,8 @@ watch([selectedMonth, selectedYear], async () => {
 });
 
 onMounted(async () => {
+    showRegistrationSuccessMessageIfNeeded();
+
     const params = new URLSearchParams(window.location.search);
     const queryMonth = Number(params.get('month'));
     const queryYear = Number(params.get('year'));
@@ -387,6 +411,14 @@ onMounted(async () => {
             />
 
             <main class="w-full min-w-0 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 flex flex-col gap-4 sm:gap-6 overflow-x-hidden">
+
+                <AppInlineNotice
+                    v-if="registrationSuccessMessage"
+                    variant="success"
+                    title="Conta criada"
+                    :message="registrationSuccessMessage"
+                    @dismiss="dismissRegistrationSuccessMessage"
+                />
 
                 <!-- Period filter -->
                 <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6">
@@ -465,7 +497,7 @@ onMounted(async () => {
                     v-if="dashboardData && !dashboardData.today.has_activity"
                     class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3"
                 >
-                    <AlertTriangle class="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" />
+                    <AlertTriangle class="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500 animate-pulse" />
                     <div>
                         <p class="text-sm font-semibold text-amber-900">Você ainda não registrou entrada ou saída hoje.</p>
                         <p class="mt-1 text-xs text-amber-700">Quando houver lançamentos, o dia atual ficará colorido no calendário abaixo.</p>

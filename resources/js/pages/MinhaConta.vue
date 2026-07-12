@@ -22,6 +22,18 @@ type CompanyForm = {
     postal_code: string;
 };
 
+type ReminderCondition = 'missing_entry' | 'missing_exit' | 'missing_entry_or_exit' | 'missing_both';
+
+type ReminderSettingsForm = {
+    daily_enabled: boolean;
+    daily_condition: ReminderCondition;
+    daily_days_of_week: number[];
+    send_time: string;
+    monthly_enabled: boolean;
+    yearly_enabled: boolean;
+    pdf_pin: string;
+};
+
 const page = usePage();
 const auth = useAuth();
 const toast = useToast();
@@ -54,6 +66,29 @@ const isClearingRecords = ref(false);
 const clearRecordsError = ref<string | null>(null);
 const clearRecordsSuccess = ref<string | null>(null);
 const saveSuccessMessage = ref('');
+const reminderSettings = ref<ReminderSettingsForm>({
+    daily_enabled: false,
+    daily_condition: 'missing_entry_or_exit',
+    daily_days_of_week: [1, 2, 3, 4, 5],
+    send_time: '18:00',
+    monthly_enabled: false,
+    yearly_enabled: false,
+    pdf_pin: '',
+});
+const initialReminderSettings = ref<Omit<ReminderSettingsForm, 'pdf_pin'> | null>(null);
+const reminderErrors = ref<Record<string, string[]>>({});
+const reminderSettingsLoading = ref(false);
+const reminderSettingsSaving = ref(false);
+
+const weekdays = [
+    { value: 0, label: 'Dom' },
+    { value: 1, label: 'Seg' },
+    { value: 2, label: 'Ter' },
+    { value: 3, label: 'Qua' },
+    { value: 4, label: 'Qui' },
+    { value: 5, label: 'Sex' },
+    { value: 6, label: 'Sáb' },
+];
 
 const getCsrfToken = (): string => {
     const csrfFromProps = (page.props as any).csrf_token;
@@ -86,6 +121,30 @@ const createdAtText = computed(() => {
     } catch (err) {
         return '-';
     }
+});
+
+const hasReminderChanges = computed(() => {
+    if (!initialReminderSettings.value) return false;
+
+    const normalizeDays = (days: number[]) => [...days].sort((a, b) => a - b);
+    const current = {
+        daily_enabled: reminderSettings.value.daily_enabled,
+        daily_condition: reminderSettings.value.daily_condition,
+        daily_days_of_week: normalizeDays(reminderSettings.value.daily_days_of_week),
+        send_time: reminderSettings.value.send_time,
+        monthly_enabled: reminderSettings.value.monthly_enabled,
+        yearly_enabled: reminderSettings.value.yearly_enabled,
+    };
+
+    const initial = {
+        ...initialReminderSettings.value,
+        daily_days_of_week: normalizeDays(initialReminderSettings.value.daily_days_of_week),
+    };
+
+    const baseChanged = JSON.stringify(current) !== JSON.stringify(initial);
+    const pinChanged = reminderSettings.value.pdf_pin.trim().length > 0;
+
+    return baseChanged || pinChanged;
 });
 
 const fillForm = (data: any) => {
@@ -136,6 +195,119 @@ const fetchCompany = async () => {
         toast.error('Erro ao carregar dados', { description: error?.message || 'Tente novamente em instantes.' });
     } finally {
         isLoading.value = false;
+    }
+};
+
+const fetchReminderSettings = async () => {
+    reminderSettingsLoading.value = true;
+    reminderErrors.value = {};
+
+    try {
+        const response = await fetch('/api/company/reminder-settings', {
+            headers: {
+                'Authorization': `Bearer ${auth.token.value}`,
+                'Accept': 'application/json',
+            },
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+            throw new Error(payload?.message || 'Não foi possível carregar as configurações de lembrete.');
+        }
+
+        reminderSettings.value = {
+            daily_enabled: Boolean(payload?.data?.daily_enabled),
+            daily_condition: payload?.data?.daily_condition || 'missing_entry_or_exit',
+            daily_days_of_week: Array.isArray(payload?.data?.daily_days_of_week) ? payload.data.daily_days_of_week : [1, 2, 3, 4, 5],
+            send_time: payload?.data?.send_time || '18:00',
+            monthly_enabled: Boolean(payload?.data?.monthly_enabled),
+            yearly_enabled: Boolean(payload?.data?.yearly_enabled),
+            pdf_pin: '',
+        };
+
+        initialReminderSettings.value = {
+            daily_enabled: reminderSettings.value.daily_enabled,
+            daily_condition: reminderSettings.value.daily_condition,
+            daily_days_of_week: [...reminderSettings.value.daily_days_of_week],
+            send_time: reminderSettings.value.send_time,
+            monthly_enabled: reminderSettings.value.monthly_enabled,
+            yearly_enabled: reminderSettings.value.yearly_enabled,
+        };
+    } catch (error: any) {
+        toast.error('Erro ao carregar lembretes', { description: error?.message || 'Tente novamente em instantes.' });
+    } finally {
+        reminderSettingsLoading.value = false;
+    }
+};
+
+const toggleWeekday = (day: number) => {
+    const current = reminderSettings.value.daily_days_of_week;
+    if (current.includes(day)) {
+        reminderSettings.value.daily_days_of_week = current.filter((item) => item !== day);
+        return;
+    }
+
+    reminderSettings.value.daily_days_of_week = [...current, day].sort((a, b) => a - b);
+};
+
+const saveReminderSettings = async () => {
+    if (!canEdit.value) {
+        toast.info('Acesso somente leitura', { description: 'Somente o usuário root pode editar os lembretes.' });
+        return;
+    }
+
+    reminderSettingsSaving.value = true;
+    reminderErrors.value = {};
+
+    if (!hasReminderChanges.value) {
+        reminderSettingsSaving.value = false;
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/company/reminder-settings', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${auth.token.value}`,
+                'X-CSRF-TOKEN': getCsrfToken(),
+            },
+            body: JSON.stringify(reminderSettings.value),
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+            reminderErrors.value = payload?.errors || {};
+            throw new Error(payload?.message || 'Erro ao salvar configurações de lembrete.');
+        }
+
+        reminderSettings.value = {
+            daily_enabled: Boolean(payload?.data?.daily_enabled),
+            daily_condition: payload?.data?.daily_condition || 'missing_entry_or_exit',
+            daily_days_of_week: Array.isArray(payload?.data?.daily_days_of_week) ? payload.data.daily_days_of_week : [],
+            send_time: payload?.data?.send_time || '18:00',
+            monthly_enabled: Boolean(payload?.data?.monthly_enabled),
+            yearly_enabled: Boolean(payload?.data?.yearly_enabled),
+            pdf_pin: '',
+        };
+
+        initialReminderSettings.value = {
+            daily_enabled: reminderSettings.value.daily_enabled,
+            daily_condition: reminderSettings.value.daily_condition,
+            daily_days_of_week: [...reminderSettings.value.daily_days_of_week],
+            send_time: reminderSettings.value.send_time,
+            monthly_enabled: reminderSettings.value.monthly_enabled,
+            yearly_enabled: reminderSettings.value.yearly_enabled,
+        };
+
+        toast.success('Lembretes atualizados', { description: 'Suas preferências de notificação foram salvas.' });
+    } catch (error: any) {
+        toast.error('Falha ao salvar lembretes', { description: error?.message || 'Tente novamente em instantes.' });
+    } finally {
+        reminderSettingsSaving.value = false;
     }
 };
 
@@ -326,6 +498,7 @@ onMounted(async () => {
     }
 
     await fetchCompany();
+    await fetchReminderSettings();
 });
 </script>
 
@@ -493,6 +666,119 @@ onMounted(async () => {
                                     {{ isSaving ? 'Salvando...' : 'Salvar alterações' }}
                                 </button>
                             </div>
+
+                            <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm overflow-hidden">
+                                <div class="flex items-center justify-between gap-4 mb-4">
+                                    <div>
+                                        <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Notificações por e-mail</p>
+                                        <h3 class="text-lg font-bold text-gray-800">Lembretes e relatórios automáticos</h3>
+                                    </div>
+                                </div>
+
+                                <LoadingSpinner v-if="reminderSettingsLoading" message="Carregando configurações de lembrete..." />
+
+                                <div v-else class="space-y-5">
+                                    <p class="text-sm text-gray-600">
+                                        Você pode cancelar a qualquer momento os envios automáticos nesta seção.
+                                        Os e-mails de relatório não exibem dados sensíveis no corpo da mensagem.
+                                    </p>
+
+                                    <div class="grid gap-4 lg:grid-cols-2">
+                                        <div class="space-y-3 border border-amber-100 rounded-lg p-4 bg-amber-50/40">
+                                            <label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-800">
+                                                <input v-model="reminderSettings.daily_enabled" type="checkbox" :disabled="!canEdit" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400" />
+                                                Ativar lembrete diário
+                                            </label>
+
+                                            <div class="space-y-2">
+                                                <label class="block text-sm font-medium text-gray-700">Condição para envio diário</label>
+                                                <select
+                                                    v-model="reminderSettings.daily_condition"
+                                                    :disabled="!canEdit || !reminderSettings.daily_enabled"
+                                                    class="w-full px-3 py-2.5 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100"
+                                                >
+                                                    <option value="missing_entry_or_exit">Quando faltar entrada ou saída</option>
+                                                    <option value="missing_both">Quando faltar entrada e saída</option>
+                                                    <option value="missing_entry">Quando faltar somente entrada</option>
+                                                    <option value="missing_exit">Quando faltar somente saída</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="space-y-2">
+                                                <label class="block text-sm font-medium text-gray-700">Dias da semana</label>
+                                                <div class="flex flex-wrap gap-2">
+                                                    <button
+                                                        v-for="weekday in weekdays"
+                                                        :key="weekday.value"
+                                                        type="button"
+                                                        :disabled="!canEdit || !reminderSettings.daily_enabled"
+                                                        @click="toggleWeekday(weekday.value)"
+                                                        :class="[
+                                                            'px-3 py-1.5 text-xs rounded-full border transition',
+                                                            reminderSettings.daily_days_of_week.includes(weekday.value)
+                                                                ? 'bg-amber-500 text-white border-amber-500'
+                                                                : 'bg-white text-gray-700 border-amber-200',
+                                                            (!canEdit || !reminderSettings.daily_enabled) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-amber-100'
+                                                        ]"
+                                                    >
+                                                        {{ weekday.label }}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="space-y-3 border border-amber-100 rounded-lg p-4 bg-white">
+                                            <div class="space-y-2">
+                                                <label class="block text-sm font-medium text-gray-700">Horário de envio</label>
+                                                <input
+                                                    v-model="reminderSettings.send_time"
+                                                    type="time"
+                                                    :disabled="!canEdit"
+                                                    class="w-full px-3 py-2.5 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100"
+                                                />
+                                            </div>
+
+                                            <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                                                <input v-model="reminderSettings.monthly_enabled" type="checkbox" :disabled="!canEdit" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400" />
+                                                Enviar relatório mensal (dia 1, mês anterior)
+                                            </label>
+
+                                            <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                                                <input v-model="reminderSettings.yearly_enabled" type="checkbox" :disabled="!canEdit" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400" />
+                                                Enviar relatório anual (01/01, ano anterior)
+                                            </label>
+
+                                            <div class="space-y-2">
+                                                <label class="block text-sm font-medium text-gray-700">PIN do PDF (4 caracteres alfanuméricos)</label>
+                                                <input
+                                                    v-model="reminderSettings.pdf_pin"
+                                                    type="text"
+                                                    maxlength="4"
+                                                    autocomplete="off"
+                                                    :disabled="!canEdit"
+                                                    placeholder="Ex: A1B2"
+                                                    class="w-full px-3 py-2.5 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100 uppercase"
+                                                />
+                                                <p class="text-xs text-gray-500">Deixe em branco para manter o PIN atual.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <p v-if="reminderErrors.pdf_pin" class="text-sm text-red-600">{{ reminderErrors.pdf_pin[0] }}</p>
+                                    <p v-if="reminderErrors.send_time" class="text-sm text-red-600">{{ reminderErrors.send_time[0] }}</p>
+
+                                    <div class="flex justify-end">
+                                        <button
+                                            type="button"
+                                            :disabled="reminderSettingsSaving || !canEdit || !hasReminderChanges"
+                                            @click="saveReminderSettings"
+                                            class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {{ reminderSettingsSaving ? 'Salvando lembretes...' : 'Salvar lembretes' }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </section>
 
                             <div class="grid gap-6 lg:grid-cols-2 overflow-hidden">
                                 <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm overflow-hidden">
