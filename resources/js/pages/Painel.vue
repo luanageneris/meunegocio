@@ -257,7 +257,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex overflow-x-hidden">
+    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 dark:bg-none dark:bg-background flex overflow-x-hidden">
 
         <Head title="Painel - MEU NEGÓCIO" />
 
@@ -279,7 +279,7 @@ onMounted(async () => {
                             'px-6 py-2 rounded-full font-medium transition-all',
                             activeTab === 'hoje'
                                 ? 'bg-orange-500 text-white shadow-lg'
-                                : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                                : 'bg-orange-100 dark:bg-accent text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-accent/80'
                         ]">
                             Hoje
                         </button>
@@ -287,7 +287,7 @@ onMounted(async () => {
                             'px-6 py-2 rounded-full font-medium transition-all',
                             activeTab === 'ultimos7dias'
                                 ? 'bg-orange-500 text-white shadow-lg'
-                                : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                                : 'bg-orange-100 dark:bg-accent text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-accent/80'
                         ]">
                             Últimos 7 dias
                         </button>
@@ -295,7 +295,7 @@ onMounted(async () => {
                             'px-6 py-2 rounded-full font-medium transition-all',
                             activeTab === 'mensal'
                                 ? 'bg-orange-500 text-white shadow-lg'
-                                : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                                : 'bg-orange-100 dark:bg-accent text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-accent/80'
                         ]">
                             Mensal
                         </button>

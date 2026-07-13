@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useAuth } from '@/composables/useAuth';
+import { useAppearance } from '@/composables/useAppearance';
+import { Moon, Sun } from 'lucide-vue-next';
 
 interface Props {
     title: string;
@@ -11,6 +13,11 @@ defineProps<Props>();
 
 const auth = useAuth();
 const showLogoutModal = ref(false);
+const { appearance, updateAppearance } = useAppearance();
+
+function toggleTheme() {
+    updateAppearance(appearance.value === 'dark' ? 'light' : 'dark');
+}
 
 const handleLogout = async () => {
     try {
@@ -81,19 +88,32 @@ onBeforeUnmount(() => {
                     <p v-if="subtitle" class="text-orange-100 text-xs sm:text-sm font-medium leading-snug">{{ subtitle }}</p>
                 </div>
 
-                <button
-                    type="button"
-                    class="inline-flex items-center gap-2 rounded-lg bg-white/20 px-3 py-2 text-xs sm:text-sm font-semibold text-white hover:bg-white/30 transition-colors cursor-pointer"
-                    title="Sair"
-                    aria-label="Sair"
-                    @click="openLogoutModal"
-                >
+                <div class="flex items-center gap-2">
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-white/20 text-white hover:bg-white/30 transition-colors cursor-pointer"
+                        :title="appearance === 'dark' ? 'Modo claro' : 'Modo escuro'"
+                        :aria-label="appearance === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'"
+                        @click="toggleTheme"
+                    >
+                        <Sun v-if="appearance === 'dark'" class="h-4 w-4" />
+                        <Moon v-else class="h-4 w-4" />
+                    </button>
+
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-lg bg-white/20 px-3 py-2 text-xs sm:text-sm font-semibold text-white hover:bg-white/30 transition-colors cursor-pointer"
+                        title="Sair"
+                        aria-label="Sair"
+                        @click="openLogoutModal"
+                    >
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
                     <span class="hidden sm:inline">Logout</span>
                     <span class="sm:hidden">Sair</span>
                 </button>
+                </div>
             </div>
         </div>
 

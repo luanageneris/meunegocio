@@ -214,7 +214,7 @@ const initializeRegistrationFlow = async () => {
     
     console.log('Has pending registration:', hasPendingRegistration, 'googleUser:', googleUser.value);
 
-    if (hasPendingRegistration && hasGoogleData.value && form.value.company_name.trim()) {
+    if (shouldAutoSubmit() && hasPendingRegistration && hasGoogleData.value && form.value.company_name.trim()) {
         clearAutoSubmit();
         await handleSubmit();
     }
@@ -302,7 +302,7 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-    <div class="min-h-screen flex flex-col relative">
+    <div class="min-h-screen flex flex-col relative bg-background">
         <Head title="Registre-se - MEU NEGÓCIO" />
 
         <!-- Main Content -->
@@ -326,7 +326,7 @@ const handleSubmit = async () => {
             </div>
 
             <!-- Right Side - Registration Form -->
-            <div class="w-full lg:w-1/2 flex items-center justify-center p-2 bg-gradient-to-br from-amber-50 to-orange-50">
+            <div class="w-full lg:w-1/2 flex items-center justify-center p-2 bg-gradient-to-br from-amber-50 to-orange-50 dark:bg-none dark:bg-background">
                 <div class="w-full max-w-md">
                     <!-- Logo for mobile -->
                     <div class="lg:hidden text-center mb-8">
@@ -335,10 +335,10 @@ const handleSubmit = async () => {
                     </div>
 
                     <!-- Registration Card -->
-                    <div class="bg-white rounded-2xl shadow-2xl p-4 md:p-12 border border-orange-100">
+                    <div class="bg-white dark:bg-card rounded-2xl shadow-2xl dark:shadow-none dark:border-2 p-4 md:p-12 border border-orange-100 dark:border-border">
                         <div class="text-center mb-8">
-                            <h3 class="text-2xl font-bold text-gray-800 mb-2">Criar conta</h3>
-                            <p class="text-gray-600 text-sm">Complete seus dados para começar</p>
+                            <h3 class="text-2xl font-bold text-gray-800 dark:text-foreground mb-2">Criar conta</h3>
+                            <p class="text-gray-600 dark:text-muted-foreground text-sm">Complete seus dados para começar</p>
                         </div>
 
                         <AppInlineNotice
@@ -376,9 +376,9 @@ const handleSubmit = async () => {
                                         </svg>
                                     </div>
                                     <div class="min-w-0 flex-1">
-                                        <p class="text-xs text-gray-500 uppercase tracking-wide">Email</p>
-                                        <p class="text-sm text-gray-800 font-medium break-all">{{ googleUser.email }}</p>
-                                        <p class="text-xs text-gray-600 mt-1">{{ googleUser.name }}</p>
+                                        <p class="text-xs text-gray-500 dark:text-muted-foreground uppercase tracking-wide">Email</p>
+                                        <p class="text-sm text-gray-800 dark:text-foreground font-medium break-all">{{ googleUser.email }}</p>
+                                        <p class="text-xs text-gray-600 dark:text-muted-foreground mt-1">{{ googleUser.name }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -400,7 +400,7 @@ const handleSubmit = async () => {
                         <!-- Company Name Input -->
                         <form @submit.prevent="handleSubmit" class="space-y-6">
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-foreground mb-2">
                                     Nome da sua empresa <span class="text-gray-400">(opcional)</span>
                                 </label>
                                 <input
@@ -409,29 +409,35 @@ const handleSubmit = async () => {
                                     type="text"
                                     placeholder="Ex: Xerografia & Cia"
                                     :disabled="isSubmitting"
-                                    class="w-full px-4 py-3 border-2 border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+                                    class="w-full px-4 py-3 border-2 border-orange-200 dark:border-border bg-white dark:bg-input text-gray-900 dark:text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-input disabled:cursor-not-allowed transition-all"
                                 />
                                 <p v-if="errors.company_name" class="text-sm text-red-600 mt-2">
                                     {{ errors.company_name[0] }}
                                 </p>
-                                <p class="text-xs text-gray-500 mt-1">
+                                <p class="text-xs text-gray-500 dark:text-muted-foreground mt-1">
                                     Você poderá editar mais informações após criar a conta.
                                 </p>
                             </div>
 
-                            <div v-if="!hasGoogleData" class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                                <p class="font-semibold mb-2">Próximo passo: Selecione sua conta Google</p>
-                                <p class="text-sm">Clique no botão abaixo para selecionar uma conta Google. Você poderá deixar o nome da empresa em branco e criaremos um nome padrão automaticamente.</p>
+                            <div v-if="!hasGoogleData" class="rounded-lg border border-amber-200 bg-amber-50 dark:bg-accent dark:border-border px-4 py-3 text-sm text-amber-800 dark:text-foreground">
+                                <p class="font-semibold mb-2">Próximo passo: selecione sua conta Google</p>
+                                <p class="text-sm dark:text-muted-foreground">Após informar o nome da empresa, clique em Continuar com Google para escolher a conta.</p>
                             </div>
 
                             <!-- Submit Button -->
                             <button
                                 type="submit"
-                                :disabled="isSubmitting || !hasGoogleData"
+                                :disabled="isSubmitting"
                                 class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg py-3 px-4 font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 disabled:hover:scale-100"
                             >
                                 <svg v-if="!isSubmitting && hasGoogleData" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <svg v-if="!isSubmitting && !hasGoogleData" class="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                                 </svg>
                                 <svg v-if="isSubmitting" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -441,14 +447,16 @@ const handleSubmit = async () => {
                                     {{
                                         isSubmitting
                                             ? 'Criando conta...'
-                                            : 'Criar minha conta'
+                                            : hasGoogleData
+                                                ? 'Criar minha conta'
+                                                : 'Continuar com Google'
                                     }}
                                 </span>
                             </button>
 
                             <!-- Back to Login Link -->
-                            <div class="text-center pt-4 border-t border-orange-100">
-                                <p class="text-sm text-gray-600">
+                            <div class="text-center pt-4 border-t border-orange-100 dark:border-border">
+                                <p class="text-sm text-gray-600 dark:text-muted-foreground">
                                     Já tem conta?
                                     <Link href="/login" class="text-orange-600 hover:text-orange-700 font-semibold underline">
                                         Faça login aqui

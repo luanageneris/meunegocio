@@ -644,7 +644,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex overflow-x-hidden">
+  <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex overflow-x-hidden">
     <Head title="Histórico - Meu Negócio" />
 
     <Sidebar active-route="historico" />

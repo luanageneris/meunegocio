@@ -342,18 +342,18 @@ const dayValueLabel = (day: DashboardDay) => {
 
 const cellStyle = (day: DashboardDay) => {
     if (day.status === 'empty') {
-        return 'border border-dashed border-slate-200 bg-white/70 text-slate-300';
+        return 'border border-dashed border-slate-200 bg-white/70 text-slate-300 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-500';
     }
 
     if (day.status === 'entry' || day.status === 'positive') {
-        return 'border border-emerald-200 bg-emerald-50 text-emerald-950 shadow-sm';
+        return 'border border-emerald-200 bg-emerald-50 text-emerald-950 shadow-sm dark:border-emerald-800/70 dark:bg-emerald-950/35 dark:text-emerald-200';
     }
 
     if (day.status === 'exit' || day.status === 'negative') {
-        return 'border border-rose-200 bg-rose-50 text-rose-950 shadow-sm';
+        return 'border border-rose-200 bg-rose-50 text-rose-950 shadow-sm dark:border-rose-800/70 dark:bg-rose-950/35 dark:text-rose-200';
     }
 
-    return 'border border-amber-200 bg-amber-50 text-amber-950 shadow-sm';
+    return 'border border-amber-200 bg-amber-50 text-amber-950 shadow-sm dark:border-amber-800/70 dark:bg-amber-950/35 dark:text-amber-100';
 };
 
 watch([selectedMonth, selectedYear], async () => {
@@ -399,7 +399,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex overflow-x-hidden">
+    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex overflow-x-hidden">
         <Head title="Dashboard - MEU NEGÓCIO" />
 
         <Sidebar activeRoute="dashboard" />
@@ -421,19 +421,19 @@ onMounted(async () => {
                 />
 
                 <!-- Period filter -->
-                <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                <div class="bg-white dark:bg-slate-900/90 border border-transparent dark:border-slate-800 rounded-xl shadow-lg dark:shadow-none p-4 sm:p-6">
                     <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div class="flex items-center gap-2 shrink-0">
                             <svg class="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <h2 class="text-xl font-bold text-gray-800">{{ monthTitle }}</h2>
+                            <h2 class="text-xl font-bold text-gray-800 dark:text-slate-100">{{ monthTitle }}</h2>
                         </div>
 
                         <div class="flex flex-wrap items-end gap-3">
                             <button
                                 type="button"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-amber-300 text-amber-700 rounded-lg font-medium text-sm hover:bg-amber-50 transition-all"
+                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-200 rounded-lg font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all"
                                 @click="previousMonth"
                             >
                                 <ChevronLeft class="h-4 w-4" />
@@ -442,7 +442,7 @@ onMounted(async () => {
 
                             <button
                                 type="button"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-amber-300 text-amber-700 rounded-lg font-medium text-sm hover:bg-amber-50 transition-all"
+                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-200 rounded-lg font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all"
                                 @click="nextMonth"
                             >
                                 Próximo mês
@@ -451,7 +451,7 @@ onMounted(async () => {
 
                             <button
                                 type="button"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-orange-300 text-orange-700 rounded-lg font-medium text-sm hover:bg-orange-50 transition-all"
+                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 rounded-lg font-medium text-sm hover:bg-orange-50 dark:hover:bg-orange-950/40 transition-all"
                                 @click="goToCurrentMonth"
                             >
                                 Mês atual
@@ -459,20 +459,20 @@ onMounted(async () => {
 
                             <div class="flex items-end gap-3">
                                 <div class="flex flex-col gap-1">
-                                    <span class="text-xs font-semibold text-gray-500">Mês</span>
+                                    <span class="text-xs font-semibold text-gray-500 dark:text-slate-400">Mês</span>
                                     <select
                                         v-model.number="selectedMonth"
-                                        class="h-10 px-3 border-2 border-amber-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                                        class="h-10 px-3 border-2 border-amber-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg text-sm text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
                                     >
                                         <option v-for="month in monthOptions" :key="month.value" :value="month.value">{{ month.label }}</option>
                                     </select>
                                 </div>
 
                                 <div class="flex flex-col gap-1">
-                                    <span class="text-xs font-semibold text-gray-500">Ano</span>
+                                    <span class="text-xs font-semibold text-gray-500 dark:text-slate-400">Ano</span>
                                     <select
                                         v-model.number="selectedYear"
-                                        class="h-10 px-3 border-2 border-amber-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                                        class="h-10 px-3 border-2 border-amber-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg text-sm text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
                                     >
                                         <option v-for="year in yearOptions" :key="year" :value="year">{{ year }}</option>
                                     </select>
@@ -495,30 +495,30 @@ onMounted(async () => {
                 <!-- Today alert -->
                 <div
                     v-if="dashboardData && !dashboardData.today.has_activity"
-                    class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3"
+                    class="bg-amber-50 dark:bg-amber-950/35 border border-amber-200 dark:border-amber-800/70 rounded-xl p-4 flex items-start gap-3"
                 >
                     <AlertTriangle class="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500 animate-pulse" />
                     <div>
-                        <p class="text-sm font-semibold text-amber-900">Você ainda não registrou entrada ou saída hoje.</p>
-                        <p class="mt-1 text-xs text-amber-700">Quando houver lançamentos, o dia atual ficará colorido no calendário abaixo.</p>
+                        <p class="text-sm font-semibold text-amber-900 dark:text-amber-200">Você ainda não registrou entrada ou saída hoje.</p>
+                        <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">Quando houver lançamentos, o dia atual ficará colorido no calendário abaixo.</p>
                     </div>
                 </div>
 
                 <!-- Error -->
-                <div v-if="loadError" class="bg-red-50 border border-red-200 rounded-xl p-4">
-                    <p class="text-sm font-semibold text-red-800">Não foi possível carregar o dashboard.</p>
-                    <p class="mt-1 text-xs text-red-700">{{ loadError }}</p>
+                <div v-if="loadError" class="bg-red-50 dark:bg-red-950/35 border border-red-200 dark:border-red-800/70 rounded-xl p-4">
+                    <p class="text-sm font-semibold text-red-800 dark:text-red-200">Não foi possível carregar o dashboard.</p>
+                    <p class="mt-1 text-xs text-red-700 dark:text-red-300">{{ loadError }}</p>
                 </div>
 
                 <!-- Calendar + Aside -->
                 <div class="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
 
                     <!-- Calendar -->
-                    <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                    <div class="bg-white dark:bg-slate-900/90 border border-transparent dark:border-slate-800 rounded-xl shadow-lg dark:shadow-none p-4 sm:p-6">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-5">
                             <div class="flex items-center gap-2">
                                 <CalendarDays class="w-6 h-6 text-amber-500" />
-                                <h2 class="text-xl font-bold text-gray-800">Movimentação diária</h2>
+                                <h2 class="text-xl font-bold text-gray-800 dark:text-slate-100">Movimentação diária</h2>
                             </div>
                         </div>
 
@@ -526,7 +526,7 @@ onMounted(async () => {
                             <div
                                 v-for="weekday in ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']"
                                 :key="weekday"
-                                class="rounded-lg bg-gray-100 px-1 py-1.5 text-center text-[8px] font-bold uppercase tracking-wide text-gray-500 sm:px-2 sm:py-2 sm:text-[10px]"
+                                class="rounded-lg bg-gray-100 dark:bg-slate-800 px-1 py-1.5 text-center text-[8px] font-bold uppercase tracking-wide text-gray-500 dark:text-slate-300 sm:px-2 sm:py-2 sm:text-[10px]"
                             >
                                 {{ weekday }}
                             </div>
@@ -535,7 +535,7 @@ onMounted(async () => {
                                 <div
                                     v-if="day"
                                     class="group relative min-h-[4rem] rounded-xl p-1 transition-shadow cursor-pointer sm:min-h-[4.5rem] sm:p-2 lg:min-h-[4.75rem] xl:min-h-[6rem]"
-                                    :class="[cellStyle(day), day.is_today ? 'ring-2 ring-orange-400 ring-offset-1' : '']"
+                                    :class="[cellStyle(day), day.is_today ? 'ring-2 ring-orange-400 ring-offset-1 dark:ring-offset-slate-900' : '']"
                                     role="button"
                                     tabindex="0"
                                     @click="toggleDayDetails(day)"
@@ -559,12 +559,12 @@ onMounted(async () => {
                                     >
                                         <div
                                             v-if="isSelectedDay(day)"
-                                            class="absolute inset-x-0.5 bottom-0.5 z-10 rounded-lg border border-gray-200 bg-white px-2 py-1.5 shadow-lg"
+                                            class="absolute inset-x-0.5 bottom-0.5 z-10 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 shadow-lg"
                                         >
-                                            <p class="text-[7px] font-bold uppercase tracking-wide text-gray-500 sm:text-[8px]">
+                                            <p class="text-[7px] font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400 sm:text-[8px]">
                                                 {{ statusLabel(day) }}
                                             </p>
-                                            <p v-if="day.status !== 'empty'" class="mt-0.5 text-[9px] font-semibold leading-tight text-gray-900 sm:text-[10px]">
+                                            <p v-if="day.status !== 'empty'" class="mt-0.5 text-[9px] font-semibold leading-tight text-gray-900 dark:text-slate-100 sm:text-[10px]">
                                                 {{ tooltipValueLabel(day) }}
                                             </p>
                                         </div>
@@ -573,7 +573,7 @@ onMounted(async () => {
 
                                 <div
                                     v-else
-                                    class="min-h-[4rem] rounded-xl border border-dashed border-gray-200 bg-transparent sm:min-h-[4.5rem] lg:min-h-[4.75rem] xl:min-h-[6rem]"
+                                    class="min-h-[4rem] rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-transparent sm:min-h-[4.5rem] lg:min-h-[4.75rem] xl:min-h-[6rem]"
                                 />
                             </template>
                         </div>
@@ -583,73 +583,73 @@ onMounted(async () => {
                     <aside class="space-y-4 sm:space-y-6">
 
                         <!-- Company stats -->
-                        <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                        <div class="bg-white dark:bg-slate-900/90 border border-transparent dark:border-slate-800 rounded-xl shadow-lg dark:shadow-none p-4 sm:p-6">
                             <div class="flex items-center gap-2 mb-4">
                                 <Building2 class="w-6 h-6 text-amber-500" />
-                                <h2 class="text-xl font-bold text-gray-800">{{ companyName }}</h2>
+                                <h2 class="text-xl font-bold text-gray-800 dark:text-slate-100">{{ companyName }}</h2>
                             </div>
                             <div class="space-y-3">
-                                <div class="rounded-lg bg-gray-50 px-4 py-3">
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Dias com movimento</p>
-                                    <p class="mt-1 text-xl font-bold text-gray-800">{{ dashboardData?.totals.days_with_activity || 0 }}</p>
+                                <div class="rounded-lg bg-gray-50 dark:bg-slate-800 px-4 py-3">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Dias com movimento</p>
+                                    <p class="mt-1 text-xl font-bold text-gray-800 dark:text-slate-100">{{ dashboardData?.totals.days_with_activity || 0 }}</p>
                                 </div>
-                                <div class="rounded-lg bg-gray-50 px-4 py-3">
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Comissões do mês</p>
-                                    <p class="mt-1 text-xl font-bold text-gray-800">{{ formatCurrency(dashboardData?.totals.commissions || 0) }}</p>
+                                <div class="rounded-lg bg-gray-50 dark:bg-slate-800 px-4 py-3">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Comissões do mês</p>
+                                    <p class="mt-1 text-xl font-bold text-gray-800 dark:text-slate-100">{{ formatCurrency(dashboardData?.totals.commissions || 0) }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Summary -->
+                        <div class="bg-white dark:bg-slate-900/90 border border-transparent dark:border-slate-800 rounded-xl shadow-lg dark:shadow-none p-4 sm:p-6">
+                            <h2 class="text-base font-bold text-gray-800 dark:text-slate-100 mb-4">Resumo</h2>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex items-center justify-between rounded-lg bg-emerald-50 dark:bg-emerald-950/35 border border-emerald-100 dark:border-emerald-800/70 px-4 py-3">
+                                    <span class="font-semibold text-emerald-900 dark:text-emerald-200">Lucro acumulado</span>
+                                    <span class="font-bold text-emerald-700 dark:text-emerald-300">{{ formatSignedCurrency(dashboardData?.totals.profit || 0) }}</span>
+                                </div>
+                                <div class="flex items-center justify-between rounded-lg bg-red-50 dark:bg-red-950/35 border border-red-100 dark:border-red-800/70 px-4 py-3">
+                                    <span class="font-semibold text-red-900 dark:text-red-200">Saídas acumuladas</span>
+                                    <span class="font-bold text-red-700 dark:text-red-300">{{ formatCurrency(dashboardData?.totals.exits || 0) }}</span>
+                                </div>
+                                <div class="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 px-4 py-3">
+                                    <span class="font-semibold text-gray-700 dark:text-slate-300">Entradas acumuladas</span>
+                                    <span class="font-bold text-gray-800 dark:text-slate-100">{{ formatCurrency(dashboardData?.totals.entries || 0) }}</span>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Legend -->
-                        <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-                            <h2 class="text-base font-bold text-gray-800 mb-4">Legenda</h2>
-                            <div class="space-y-3 text-sm text-gray-600">
+                        <div class="bg-white dark:bg-slate-900/90 border border-transparent dark:border-slate-800 rounded-xl shadow-lg dark:shadow-none p-4 sm:p-6">
+                            <h2 class="text-base font-bold text-gray-800 dark:text-slate-100 mb-4">Legenda</h2>
+                            <div class="space-y-3 text-sm text-gray-600 dark:text-slate-300">
                                 <div class="flex items-start gap-3">
                                     <span class="mt-1 h-3.5 w-3.5 flex-shrink-0 rounded-full bg-emerald-500"></span>
                                     <div>
-                                        <p class="font-semibold text-gray-800">Verde</p>
+                                        <p class="font-semibold text-gray-800 dark:text-slate-100">Verde</p>
                                         <p class="text-xs">Entrada apenas, ou saldo positivo.</p>
                                     </div>
                                 </div>
                                 <div class="flex items-start gap-3">
                                     <span class="mt-1 h-3.5 w-3.5 flex-shrink-0 rounded-full bg-red-500"></span>
                                     <div>
-                                        <p class="font-semibold text-gray-800">Vermelho</p>
+                                        <p class="font-semibold text-gray-800 dark:text-slate-100">Vermelho</p>
                                         <p class="text-xs">Saída apenas, ou saldo negativo.</p>
                                     </div>
                                 </div>
                                 <div class="flex items-start gap-3">
                                     <span class="mt-1 h-3.5 w-3.5 flex-shrink-0 rounded-full bg-amber-400"></span>
                                     <div>
-                                        <p class="font-semibold text-gray-800">Amarelo</p>
+                                        <p class="font-semibold text-gray-800 dark:text-slate-100">Amarelo</p>
                                         <p class="text-xs">Entrada e saída com resultado zerado.</p>
                                     </div>
                                 </div>
                                 <div class="flex items-start gap-3">
-                                    <span class="mt-1 h-3.5 w-3.5 flex-shrink-0 rounded-full border border-gray-300 bg-white"></span>
+                                    <span class="mt-1 h-3.5 w-3.5 flex-shrink-0 rounded-full border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900"></span>
                                     <div>
-                                        <p class="font-semibold text-gray-800">Em branco</p>
+                                        <p class="font-semibold text-gray-800 dark:text-slate-100">Em branco</p>
                                         <p class="text-xs">Dia sem qualquer lançamento.</p>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Summary -->
-                        <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-                            <h2 class="text-base font-bold text-gray-800 mb-4">Resumo</h2>
-                            <div class="space-y-3 text-sm">
-                                <div class="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-100 px-4 py-3">
-                                    <span class="font-semibold text-emerald-900">Lucro acumulado</span>
-                                    <span class="font-bold text-emerald-700">{{ formatSignedCurrency(dashboardData?.totals.profit || 0) }}</span>
-                                </div>
-                                <div class="flex items-center justify-between rounded-lg bg-red-50 border border-red-100 px-4 py-3">
-                                    <span class="font-semibold text-red-900">Saídas acumuladas</span>
-                                    <span class="font-bold text-red-700">{{ formatCurrency(dashboardData?.totals.exits || 0) }}</span>
-                                </div>
-                                <div class="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-100 px-4 py-3">
-                                    <span class="font-semibold text-gray-700">Entradas acumuladas</span>
-                                    <span class="font-bold text-gray-800">{{ formatCurrency(dashboardData?.totals.entries || 0) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -659,7 +659,7 @@ onMounted(async () => {
 
                 <!-- Loading toast -->
                 <div v-if="isLoading || isRefreshing" class="pointer-events-none fixed inset-x-0 bottom-6 z-30 flex justify-center px-4">
-                    <div class="pointer-events-auto inline-flex items-center gap-3 rounded-full border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-lg">
+                    <div class="pointer-events-auto inline-flex items-center gap-3 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-slate-200 shadow-lg">
                         <RefreshCw class="h-4 w-4 animate-spin text-amber-500" />
                         Processando dados do calendário...
                     </div>

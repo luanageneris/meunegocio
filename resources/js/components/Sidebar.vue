@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import logoUrl from '../../img/icon-logo.svg';
@@ -14,6 +14,42 @@ const { isPrivacyMode, togglePrivacy } = usePrivacy();
 const isOpen = ref(true);
 const showMobileNav = ref(true);
 const showLogoutModal = ref(false);
+
+const isShortcutRoute = computed(() => ['dashboard', 'registros'].includes(props.activeRoute ?? ''));
+
+const isTypingTarget = (target: EventTarget | null): boolean => {
+    if (!(target instanceof HTMLElement)) {
+        return false;
+    }
+
+    const tagName = target.tagName;
+    return target.isContentEditable || tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
+};
+
+const handleGlobalKeydown = (event: KeyboardEvent) => {
+    if (showLogoutModal.value) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            handleLogout();
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            showLogoutModal.value = false;
+            return;
+        }
+    }
+
+    if (!isShortcutRoute.value || isTypingTarget(event.target) || event.repeat) {
+        return;
+    }
+
+    if (event.shiftKey && event.key.toLowerCase() === 'o') {
+        event.preventDefault();
+        togglePrivacy();
+    }
+};
 
 onMounted(() => {
     // Restaurar estado do sidebar do localStorage
@@ -35,6 +71,12 @@ onMounted(() => {
             detail: { visible: showMobileNav.value },
         }),
     );
+
+    window.addEventListener('keydown', handleGlobalKeydown);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleGlobalKeydown);
 });
 
 const companyName = computed(() => auth.getCompanyName.value || 'Empresa');
@@ -207,7 +249,7 @@ const toggleMobileNav = () => {
                 <div class="p-4 border-t border-gray-200">
                     <button
                         @click="showLogoutModal = true"
-                        class="flex items-center gap-3 w-full px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all duration-200"
+                        class="flex items-center gap-3 w-full px-6 py-3 text-gray-700 hover:bg-orange-50 rounded-lg transition-all duration-200"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

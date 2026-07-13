@@ -34,8 +34,9 @@ import { toUrl, urlIsActive } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem, NavItem } from '@/types';
 import { InertiaLinkProps, Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-vue-next';
+import { BookOpen, Folder, LayoutGrid, Menu, Moon, Search, Sun } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import { useAppearance } from '@/composables/useAppearance';
 
 interface Props {
     breadcrumbs?: BreadcrumbItem[];
@@ -48,6 +49,11 @@ const props = withDefaults(defineProps<Props>(), {
 const page = usePage();
 const auth = computed(() => page.props.auth);
 const mobileMenuOpen = ref(false);
+const { appearance, updateAppearance } = useAppearance();
+
+function toggleTheme() {
+    updateAppearance(appearance.value === 'dark' ? 'light' : 'dark');
+}
 
 const isCurrentRoute = computed(
     () => (url: NonNullable<InertiaLinkProps['href']>) =>
@@ -191,6 +197,26 @@ const rightNavItems: NavItem[] = [
 
                 <div class="ml-auto flex items-center space-x-2">
                     <div class="relative flex items-center space-x-1">
+                        <TooltipProvider :delay-duration="0">
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="group h-9 w-9 cursor-pointer"
+                                        @click="toggleTheme"
+                                        :aria-label="appearance === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'"
+                                    >
+                                        <Sun v-if="appearance === 'dark'" class="size-5 opacity-80 group-hover:opacity-100" />
+                                        <Moon v-else class="size-5 opacity-80 group-hover:opacity-100" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{{ appearance === 'dark' ? 'Modo claro' : 'Modo escuro' }}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
                         <Button
                             variant="ghost"
                             size="icon"

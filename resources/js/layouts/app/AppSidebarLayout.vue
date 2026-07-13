@@ -25,7 +25,7 @@ const currentYear = new Date().getFullYear();
             <slot />
 
             <footer
-                class="mt-8 border-t border-gray-200 bg-white/80 backdrop-blur px-4 sm:px-6 lg:px-8 py-4 text-xs text-gray-600 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                class="mt-8 border-t border-gray-200 dark:border-border bg-white/80 dark:bg-card/80 backdrop-blur px-4 sm:px-6 lg:px-8 py-4 text-xs text-gray-600 dark:text-muted-foreground flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
             >
                 <div class="flex flex-wrap gap-3">
                     <Link
@@ -41,7 +41,7 @@ const currentYear = new Date().getFullYear();
                         Ajuda e Suporte
                     </Link>
                 </div>
-                <span class="text-gray-500">
+                <span class="text-gray-500 dark:text-muted-foreground">
                     © {{ currentYear }} Meu Negócio · Segurança multi-tenant
                 </span>
             </footer>

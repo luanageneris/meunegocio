@@ -5,10 +5,11 @@ import { useAuth } from '@/composables/useAuth';
 import { useApiUrl } from '@/composables/useApiUrl';
 import { usePrivacy } from '@/composables/usePrivacy';
 import { useToast } from '@/composables/useToast';
-import { Eye, EyeOff } from 'lucide-vue-next';
+import { Eye, EyeOff, Moon, Sun } from 'lucide-vue-next';
 import logoUrl from '../../../img/icon-logo.svg';
 import Footer from '@/components/Footer.vue';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
+import { useAppearance } from '@/composables/useAppearance';
 
 const auth = useAuth();
 const { getApiUrl } = useApiUrl();
@@ -17,6 +18,11 @@ const isLoading = ref(false);
 const showCookieBanner = ref(false);
 const inlineErrorMessage = ref('');
 const { isPrivacyMode, togglePrivacy } = usePrivacy();
+const { appearance, updateAppearance } = useAppearance();
+
+function toggleTheme() {
+    updateAppearance(appearance.value === 'dark' ? 'light' : 'dark');
+}
 
 const dismissInlineErrorMessage = () => {
     inlineErrorMessage.value = '';
@@ -62,8 +68,18 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="min-h-screen flex flex-col relative">
+    <div class="min-h-screen flex flex-col relative bg-background">
         <Head title="Login - MEU NEGÓCIO" />
+
+        <!-- Theme Toggle - fixed top right -->
+        <button
+            @click="toggleTheme"
+            :aria-label="appearance === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'"
+            class="fixed top-4 right-4 z-50 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/80 dark:bg-card/80 backdrop-blur border border-gray-200 dark:border-border text-gray-600 dark:text-muted-foreground hover:text-orange-500 dark:hover:text-orange-400 shadow-sm transition-colors"
+        >
+            <Sun v-if="appearance === 'dark'" class="h-4 w-4" />
+            <Moon v-else class="h-4 w-4" />
+        </button>
         
         <!-- Cookie Banner - Top -->
         <Transition
@@ -76,16 +92,16 @@ onMounted(() => {
         >
             <div 
                 v-if="showCookieBanner" 
-                class="fixed top-0 left-0 right-0 z-50 bg-amber-50 border-b-2 border-amber-200 px-4 py-3 md:py-2 shadow-md"
+                class="fixed top-0 left-0 right-0 z-50 bg-amber-50 dark:bg-card border-b-2 border-amber-200 dark:border-border px-4 py-3 md:py-2 shadow-md"
             >
                 <div class="container mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4 text-xs md:text-sm">
-                    <p class="text-gray-700 text-center md:text-left flex-1">
+                    <p class="text-gray-700 dark:text-foreground text-center md:text-left flex-1">
                         Para garantir a melhor experiência em nosso site, utilizamos cookies. Ao continuar navegando, você concorda com o uso de cookies. 
                         <Link href="/politica-de-privacidade" class="text-orange-600 hover:text-orange-700 font-semibold underline">Saiba mais em nossa Política de Privacidade</Link>
                     </p>
                     <button
                         @click="closeCookieBanner"
-                        class="text-gray-600 hover:text-gray-800 transition-colors p-1 md:ml-2 flex-shrink-0"
+                        class="text-gray-600 dark:text-muted-foreground hover:text-gray-800 dark:hover:text-foreground transition-colors p-1 md:ml-2 flex-shrink-0"
                         aria-label="Fechar banner de cookies"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,7 +133,7 @@ onMounted(() => {
         </div>
 
         <!-- Right Side - Login Form -->
-        <div class="w-full lg:w-1/2 flex items-center justify-center p-2 bg-gradient-to-br from-amber-50 to-orange-50">
+        <div class="w-full lg:w-1/2 flex items-center justify-center p-2 bg-gradient-to-br from-amber-50 to-orange-50 dark:bg-none dark:bg-background">
             <div class="w-full max-w-md">
                 <!-- Logo for mobile -->
                 <div class="lg:hidden text-center mb-8">
@@ -126,10 +142,10 @@ onMounted(() => {
                 </div>
 
                 <!-- Login Card -->
-                <div class="bg-white rounded-2xl shadow-2xl p-4 md:p-12 border border-orange-100">
+                <div class="bg-white dark:bg-card rounded-2xl shadow-2xl dark:shadow-none dark:border-2 p-4 md:p-12 border border-orange-100 dark:border-border">
                     <div class="text-center mb-8">
-                        <h3 class="text-2xl font-bold text-gray-800 mb-2">Bem-vindo!</h3>
-                        <p class="text-gray-600">Faça login para continuar</p>
+                        <h3 class="text-2xl font-bold text-gray-800 dark:text-foreground mb-2">Bem-vindo!</h3>
+                        <p class="text-gray-600 dark:text-muted-foreground">Faça login para continuar</p>
                     </div>
 
                     <AppInlineNotice
@@ -145,7 +161,7 @@ onMounted(() => {
                     <button
                         @click="handleGoogleLogin"
                         :disabled="isLoading"
-                        class="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-300 rounded-xl py-4 px-6 text-gray-700 font-semibold hover:bg-gray-50 hover:border-orange-400 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-xl"
+                        class="w-full flex items-center justify-center gap-3 bg-white dark:bg-input border-2 border-gray-300 dark:border-border rounded-xl py-4 px-6 text-gray-700 dark:text-foreground font-semibold hover:bg-gray-50 dark:hover:bg-accent hover:border-orange-400 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-xl"
                     >
                         <svg v-if="!isLoading" class="w-6 h-6" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -166,14 +182,14 @@ onMounted(() => {
                     <div class="mt-4 space-y-4">
                         <button
                             @click="togglePrivacy"
-                            class="w-full flex items-center justify-between gap-3 bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-gray-700 hover:bg-gray-100 hover:border-orange-300 transition-all duration-200"
+                            class="w-full flex items-center justify-between gap-3 bg-gray-50 dark:bg-input border border-gray-200 dark:border-border rounded-xl py-3 px-4 text-gray-700 dark:text-foreground hover:bg-gray-100 dark:hover:bg-accent hover:border-orange-300 transition-all duration-200"
                         >
                             <div class="flex items-center gap-3">
                                 <EyeOff v-if="isPrivacyMode" class="w-5 h-5 text-orange-500" />
                                 <Eye v-else class="w-5 h-5 text-gray-500" />
                                 <div class="text-left">
                                     <p class="text-sm font-medium">Modo Privacidade</p>
-                                    <p class="text-xs text-gray-500">
+                                    <p class="text-xs text-gray-500 dark:text-muted-foreground">
                                         {{ isPrivacyMode ? 'Valores ocultos' : 'Valores visíveis' }}
                                     </p>
                                 </div>
@@ -195,15 +211,15 @@ onMounted(() => {
                                 </span>
                             </div>
                         </button>
-                        <p class="text-xs text-gray-500 text-center">
+                        <p class="text-xs text-gray-500 dark:text-muted-foreground text-center">
                             Ative para ocultar valores financeiros totais após o login
                         </p>
 
                         <!-- Registration Link -->
-                        <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
-                            <p class="text-sm text-gray-700 mb-2">Primeira vez aqui?</p>
+                            <div class="bg-orange-50 dark:bg-accent border border-orange-200 dark:border-border rounded-xl p-4 text-center">
+                                <p class="text-sm text-gray-700 dark:text-foreground mb-2">Primeira vez aqui?</p>
                             <button 
-                                @click="handleGoogleLogin"
+                                @click="router.visit('/registre-se')"
                                 :disabled="isLoading"
                                 class="inline-block px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >

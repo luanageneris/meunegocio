@@ -982,7 +982,7 @@ onMounted(fetchData);
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex overflow-x-hidden">
+    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex overflow-x-hidden">
         <Head title="Personalizar - MEU NEGÓCIO" />
         
         <Sidebar active-route="personalizar" />
@@ -1041,7 +1041,7 @@ onMounted(fetchData);
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start min-w-0">
                                 <div
                                     v-if="showNewEntryTypeInline"
-                                    class="self-start border-2 border-green-300 rounded-lg p-4 shadow-sm bg-green-50/60"
+                                    class="self-start border-2 border-green-300 rounded-lg p-4 shadow-sm bg-green-50/60 dark:border-green-500/60 dark:bg-slate-900/80"
                                 >
                                     <div class="flex min-w-0 items-center gap-3">
                                         <input
@@ -1049,7 +1049,7 @@ onMounted(fetchData);
                                             v-model="newEntryTypeName"
                                             type="text"
                                             placeholder="Digite o nome do novo tipo de entrada"
-                                            class="w-0 min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none"
+                                            class="w-0 min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none dark:text-slate-100 dark:placeholder:text-slate-400"
                                             :disabled="isEntryTypeModalLoading"
                                             @keydown.enter.prevent="saveNewEntryType"
                                             @keydown.esc.prevent="cancelNewEntryType"
@@ -1059,7 +1059,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="saveNewEntryType"
                                                 :disabled="isEntryTypeModalLoading"
-                                                class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
+                                                class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50 dark:text-green-300 dark:hover:bg-slate-800"
                                                 title="Salvar"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1069,7 +1069,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="cancelNewEntryType"
                                                 :disabled="isEntryTypeModalLoading"
-                                                class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                                class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
                                                 title="Cancelar"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1088,10 +1088,10 @@ onMounted(fetchData);
                                     :class="[
                                         'self-start border rounded-lg p-4 shadow-sm transition-shadow',
                                         editingEntryType?.id === type.id
-                                            ? 'border-2 border-blue-300 bg-blue-50/60'
+                                            ? 'border-2 border-blue-300 bg-blue-50/60 dark:border-blue-500/60 dark:bg-slate-900/80'
                                             : [
-                                                'border-gray-200',
-                                                type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                                'border-gray-200 dark:border-slate-700',
+                                                type.deleted_at ? 'bg-gray-50 opacity-80 dark:bg-slate-900/60' : 'hover:shadow-md'
                                             ]
                                     ]"
                                 >
@@ -1102,7 +1102,7 @@ onMounted(fetchData);
                                                 ref="editingEntryTypeInputRef"
                                                 v-model="editingEntryTypeInlineName"
                                                 type="text"
-                                                class="w-0 min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                                class="w-0 min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-400"
                                                 :disabled="isEntryTypeModalLoading"
                                                 @keydown.enter.prevent="saveEditEntryType"
                                                 @keydown.esc.prevent="cancelEditEntryType"
@@ -1112,7 +1112,7 @@ onMounted(fetchData);
                                                 <button
                                                     @click="saveEditEntryType"
                                                     :disabled="isEntryTypeModalLoading"
-                                                    class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+                                                    class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 dark:text-blue-300 dark:hover:bg-slate-800"
                                                     title="Salvar"
                                                 >
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1122,7 +1122,7 @@ onMounted(fetchData);
                                                 <button
                                                     @click="cancelEditEntryType"
                                                     :disabled="isEntryTypeModalLoading"
-                                                    class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                                    class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
                                                     title="Cancelar"
                                                 >
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1144,7 +1144,7 @@ onMounted(fetchData);
                                         <div class="flex shrink-0 gap-2" v-if="!type.deleted_at">
                                             <button
                                                 @click="handleEditEntryType(type)"
-                                                class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                                                class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
                                                 title="Editar"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1153,7 +1153,7 @@ onMounted(fetchData);
                                             </button>
                                             <button
                                                 @click="handleDeleteEntryType(type)"
-                                                class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                class="p-2 text-red-500 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
                                                 title="Remover"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1166,7 +1166,7 @@ onMounted(fetchData);
                                                 @click="handleRestoreEntryType(type)"
                                                 :disabled="isEntryTypeRestoreLoading"
                                                 :class="[
-                                                    'p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                                                    'p-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
                                                     restoringEntryType?.id === type.id && isEntryTypeRestoreLoading
                                                         ? 'text-green-600 bg-green-50'
                                                         : 'text-green-500 hover:bg-green-50'
@@ -1188,16 +1188,16 @@ onMounted(fetchData);
                                     <!-- Confirmação de deleção inline -->
                                     <div
                                         v-if="deletingEntryType?.id === type.id && showDeleteConfirmEntryTypeInline"
-                                        class="border-l-4 border-green-500 bg-green-50/80 p-4 rounded mt-2 space-y-3"
+                                        class="border-l-4 border-green-500 bg-green-50/80 p-4 rounded mt-2 space-y-3 dark:border-green-500/60 dark:bg-green-950/30"
                                     >
-                                        <p class="text-sm font-semibold text-gray-800 break-words">
+                                        <p class="text-sm font-semibold text-gray-800 break-words dark:text-slate-100">
                                             Tem certeza que deseja remover "<span class="text-green-600 break-all">{{ type.name }}</span>"?
                                         </p>
                                         <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                                             <button
                                                 @click="cancelDeleteEntryType"
                                                 :disabled="isEntryTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800"
                                             >
                                                 Cancelar
                                             </button>
@@ -1284,7 +1284,7 @@ onMounted(fetchData);
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start min-w-0">
                                 <div
                                     v-if="showNewExitTypeInline"
-                                    class="self-start border-2 border-red-300 rounded-lg p-4 shadow-sm bg-red-50/60"
+                                    class="self-start border-2 border-red-300 rounded-lg p-4 shadow-sm bg-red-50/60 dark:border-red-500/60 dark:bg-slate-900/80"
                                 >
                                     <div class="flex min-w-0 items-center gap-3">
                                         <input
@@ -1292,7 +1292,7 @@ onMounted(fetchData);
                                             v-model="newExitTypeName"
                                             type="text"
                                             placeholder="Digite o nome do novo tipo de saída"
-                                            class="w-0 min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none"
+                                            class="w-0 min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none dark:text-slate-100 dark:placeholder:text-slate-400"
                                             :disabled="isExitTypeModalLoading"
                                             @keydown.enter.prevent="saveNewExitType"
                                             @keydown.esc.prevent="cancelNewExitType"
@@ -1302,7 +1302,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="saveNewExitType"
                                                 :disabled="isExitTypeModalLoading"
-                                                class="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                                                class="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 dark:text-red-300 dark:hover:bg-slate-800"
                                                 title="Salvar"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1312,7 +1312,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="cancelNewExitType"
                                                 :disabled="isExitTypeModalLoading"
-                                                class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                                class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
                                                 title="Cancelar"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1330,10 +1330,10 @@ onMounted(fetchData);
                                     :class="[
                                         'self-start border rounded-lg p-4 shadow-sm transition-shadow',
                                         editingExitType?.id === type.id
-                                            ? 'border-2 border-blue-300 bg-blue-50/60'
+                                            ? 'border-2 border-blue-300 bg-blue-50/60 dark:border-blue-500/60 dark:bg-slate-900/80'
                                             : [
-                                                'border-gray-200',
-                                                type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                                'border-gray-200 dark:border-slate-700',
+                                                type.deleted_at ? 'bg-gray-50 opacity-80 dark:bg-slate-900/60' : 'hover:shadow-md'
                                             ]
                                     ]"
                                 >
@@ -1344,7 +1344,7 @@ onMounted(fetchData);
                                                 ref="editingExitTypeInputRef"
                                                 v-model="editingExitTypeInlineName"
                                                 type="text"
-                                                class="w-0 min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                                class="w-0 min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-400"
                                                 :disabled="isExitTypeModalLoading"
                                                 @keydown.enter.prevent="saveEditExitType"
                                                 @keydown.esc.prevent="cancelEditExitType"
@@ -1354,7 +1354,7 @@ onMounted(fetchData);
                                                 <button
                                                     @click="saveEditExitType"
                                                     :disabled="isExitTypeModalLoading"
-                                                    class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+                                                    class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 dark:text-blue-300 dark:hover:bg-slate-800"
                                                     title="Salvar"
                                                 >
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1364,7 +1364,7 @@ onMounted(fetchData);
                                                 <button
                                                     @click="cancelEditExitType"
                                                     :disabled="isExitTypeModalLoading"
-                                                    class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                                    class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
                                                     title="Cancelar"
                                                 >
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1386,7 +1386,7 @@ onMounted(fetchData);
                                         <div class="flex shrink-0 gap-2" v-if="!type.deleted_at">
                                             <button
                                                 @click="handleEditExitType(type)"
-                                                class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                                                class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
                                                 title="Editar"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1395,7 +1395,7 @@ onMounted(fetchData);
                                             </button>
                                             <button
                                                 @click="handleDeleteExitType(type)"
-                                                class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                class="p-2 text-red-500 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
                                                 title="Remover"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1408,7 +1408,7 @@ onMounted(fetchData);
                                                 @click="handleRestoreExitType(type)"
                                                 :disabled="isExitTypeRestoreLoading"
                                                 :class="[
-                                                    'p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                                                    'p-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
                                                     restoringExitType?.id === type.id && isExitTypeRestoreLoading
                                                         ? 'text-green-600 bg-green-50'
                                                         : 'text-green-500 hover:bg-green-50'
@@ -1430,16 +1430,16 @@ onMounted(fetchData);
                                     <!-- Confirmação de deleção inline -->
                                     <div
                                         v-if="deletingExitType?.id === type.id && showDeleteConfirmExitTypeInline"
-                                        class="border-l-4 border-red-500 bg-red-50/80 p-4 rounded mt-2 space-y-3"
+                                        class="border-l-4 border-red-500 bg-red-50/80 p-4 rounded mt-2 space-y-3 dark:border-red-500/60 dark:bg-red-950/30"
                                     >
-                                        <p class="text-sm font-semibold text-gray-800 break-words">
+                                        <p class="text-sm font-semibold text-gray-800 break-words dark:text-slate-100">
                                             Tem certeza que deseja remover "<span class="text-red-600 break-all">{{ type.name }}</span>"?
                                         </p>
                                         <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                                             <button
                                                 @click="cancelDeleteExitType"
                                                 :disabled="isExitTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800"
                                             >
                                                 Cancelar
                                             </button>
@@ -1594,53 +1594,53 @@ onMounted(fetchData);
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start min-w-0">
                                 <div
                                     v-if="showNewServiceTypeInline"
-                                    class="col-span-full self-start border-2 border-blue-300 rounded-lg p-4 shadow-sm bg-blue-50/60"
+                                    class="col-span-full self-start border-2 border-blue-300 rounded-lg p-4 shadow-sm bg-blue-50/60 dark:border-blue-500/60 dark:bg-slate-900/80"
                                 >
                                     <div class="space-y-4" @keydown.esc.prevent="cancelNewServiceType">
                                         <div>
-                                            <label class="block text-xs font-medium text-gray-500 mb-1">Nome do serviço</label>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Nome do serviço</label>
                                             <input
                                                 ref="newServiceTypeInputRef"
                                                 v-model="newServiceTypeForm.name"
                                                 type="text"
                                                 placeholder="Nome do tipo de serviço"
-                                                class="w-full bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                                class="w-full bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-400"
                                                 :disabled="isServiceTypeModalLoading"
                                             />
                                         </div>
 
                                         <div>
-                                            <label class="block text-xs font-medium text-gray-500 mb-1">Unidade</label>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Unidade</label>
                                             <input
                                                 v-model="newServiceTypeForm.unit"
                                                 type="text"
                                                 placeholder="Ex: Folha, Hora, Serviço"
-                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
                                                 :disabled="isServiceTypeModalLoading"
                                             />
                                         </div>
 
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor do serviço (R$)</label>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Valor do serviço (R$)</label>
                                                 <input
                                                     v-model="newServiceTypeForm.service_value"
                                                     type="text"
                                                     inputmode="decimal"
                                                     placeholder="0,00"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
                                                     :disabled="isServiceTypeModalLoading"
                                                     @input="(event) => { handleServiceTypeCurrencyInput(newServiceTypeForm, 'service_value', event); syncCommissionValueFromServiceValue(newServiceTypeForm); }"
                                                 />
                                             </div>
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor do recurso (R$)</label>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Valor do recurso (R$)</label>
                                                 <input
                                                     v-model="newServiceTypeForm.resource_value"
                                                     type="text"
                                                     inputmode="decimal"
                                                     placeholder="0,00"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
                                                     :disabled="isServiceTypeModalLoading"
                                                     @input="(event) => handleServiceTypeCurrencyInput(newServiceTypeForm, 'resource_value', event)"
                                                 />
@@ -1649,7 +1649,7 @@ onMounted(fetchData);
 
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-500 mb-1">Comissão (%)</label>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Comissão (%)</label>
                                                 <input
                                                     v-model="newServiceTypeForm.commission_percentage"
                                                     type="number"
@@ -1657,26 +1657,26 @@ onMounted(fetchData);
                                                     min="0"
                                                     max="100"
                                                     placeholder="0"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
                                                     :disabled="isServiceTypeModalLoading"
                                                     @input="syncCommissionValueFromPercentage(newServiceTypeForm)"
                                                 />
                                             </div>
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-500 mb-1">Comissão (R$)</label>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Comissão (R$)</label>
                                                 <input
                                                     v-model="newServiceTypeForm.commission_value"
                                                     type="text"
                                                     inputmode="decimal"
                                                     placeholder="0,00"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
                                                     :disabled="isServiceTypeModalLoading"
                                                     @input="(event) => { handleServiceTypeCurrencyInput(newServiceTypeForm, 'commission_value', event); syncCommissionPercentageFromValue(newServiceTypeForm); }"
                                                 />
                                             </div>
                                         </div>
 
-                                        <div v-if="Object.keys(newServiceTypeErrors).length > 0" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+                                        <div v-if="Object.keys(newServiceTypeErrors).length > 0" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
                                             <div v-for="(messages, field) in newServiceTypeErrors" :key="field">
                                                 <div v-for="msg in messages" :key="msg">{{ msg }}</div>
                                             </div>
@@ -1686,7 +1686,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="cancelNewServiceType"
                                                 :disabled="isServiceTypeModalLoading"
-                                                class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                                class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
                                             >Cancelar</button>
                                             <button
                                                 @click="saveNewServiceType"
@@ -1701,56 +1701,56 @@ onMounted(fetchData);
                                     v-for="type in filteredServiceTypes"
                                     :key="type.id"
                                     :class="[
-                                        'self-start border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow',
+                                        'self-start border border-gray-200 rounded-lg p-4 shadow-sm transition-shadow dark:border-slate-700',
                                         editingServiceType?.id === type.id && showEditServiceTypeInline
-                                            ? 'col-span-full border-2 border-blue-300 bg-blue-50/60'
-                                            : (type.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md')
+                                            ? 'col-span-full border-2 border-blue-300 bg-blue-50/60 dark:border-blue-500/60 dark:bg-slate-900/80'
+                                            : (type.deleted_at ? 'bg-gray-50 opacity-80 dark:bg-slate-900/60' : 'hover:shadow-md')
                                     ]"
                                 >
                                     <div v-if="editingServiceType?.id === type.id && showEditServiceTypeInline" class="space-y-4" @keydown.esc.prevent="cancelEditServiceType">
                                         <div>
-                                            <label class="block text-xs font-medium text-gray-500 mb-1">Nome do serviço</label>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Nome do serviço</label>
                                             <input
                                                 ref="editingServiceTypeInputRef"
                                                 v-model="editingServiceTypeInlineForm.name"
                                                 type="text"
-                                                class="w-full bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                                class="w-full bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-400"
                                                 :disabled="isServiceTypeModalLoading"
                                             />
                                         </div>
 
                                         <div>
-                                            <label class="block text-xs font-medium text-gray-500 mb-1">Unidade</label>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Unidade</label>
                                             <input
                                                 v-model="editingServiceTypeInlineForm.unit"
                                                 type="text"
                                                 placeholder="Ex: Folha, Hora, Serviço"
-                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
                                                 :disabled="isServiceTypeModalLoading"
                                             />
                                         </div>
 
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor do serviço (R$)</label>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Valor do serviço (R$)</label>
                                                 <input
                                                     v-model="editingServiceTypeInlineForm.service_value"
                                                     type="text"
                                                     inputmode="decimal"
                                                     placeholder="0,00"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
                                                     :disabled="isServiceTypeModalLoading"
                                                     @input="(event) => { handleServiceTypeCurrencyInput(editingServiceTypeInlineForm, 'service_value', event); syncCommissionValueFromServiceValue(editingServiceTypeInlineForm); }"
                                                 />
                                             </div>
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor do recurso (R$)</label>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Valor do recurso (R$)</label>
                                                 <input
                                                     v-model="editingServiceTypeInlineForm.resource_value"
                                                     type="text"
                                                     inputmode="decimal"
                                                     placeholder="0,00"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
                                                     :disabled="isServiceTypeModalLoading"
                                                     @input="(event) => handleServiceTypeCurrencyInput(editingServiceTypeInlineForm, 'resource_value', event)"
                                                 />
@@ -1759,7 +1759,7 @@ onMounted(fetchData);
 
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-500 mb-1">Comissão (%)</label>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Comissão (%)</label>
                                                 <input
                                                     v-model="editingServiceTypeInlineForm.commission_percentage"
                                                     type="number"
@@ -1767,26 +1767,26 @@ onMounted(fetchData);
                                                     min="0"
                                                     max="100"
                                                     placeholder="0"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
                                                     :disabled="isServiceTypeModalLoading"
                                                     @input="syncCommissionValueFromPercentage(editingServiceTypeInlineForm)"
                                                 />
                                             </div>
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-500 mb-1">Comissão (R$)</label>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Comissão (R$)</label>
                                                 <input
                                                     v-model="editingServiceTypeInlineForm.commission_value"
                                                     type="text"
                                                     inputmode="decimal"
                                                     placeholder="0,00"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
                                                     :disabled="isServiceTypeModalLoading"
                                                     @input="(event) => { handleServiceTypeCurrencyInput(editingServiceTypeInlineForm, 'commission_value', event); syncCommissionPercentageFromValue(editingServiceTypeInlineForm); }"
                                                 />
                                             </div>
                                         </div>
 
-                                        <div v-if="Object.keys(editingServiceTypeInlineErrors).length > 0" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+                                        <div v-if="Object.keys(editingServiceTypeInlineErrors).length > 0" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
                                             <div v-for="(messages, field) in editingServiceTypeInlineErrors" :key="field">
                                                 <div v-for="msg in messages" :key="msg">{{ msg }}</div>
                                             </div>
@@ -1796,7 +1796,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="cancelEditServiceType"
                                                 :disabled="isServiceTypeModalLoading"
-                                                class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                                class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
                                             >Cancelar</button>
                                             <button
                                                 @click="saveEditServiceType"
@@ -1825,7 +1825,7 @@ onMounted(fetchData);
                                                 @click="handleEditServiceType(type)"
                                                 :disabled="!serviceModeOn"
                                                 :class="[
-                                                    'p-2 rounded-lg transition-colors',
+                                                    'p-2 rounded-lg transition-colors cursor-pointer',
                                                     serviceModeOn ? 'text-orange-500 hover:bg-orange-50' : 'text-gray-400 cursor-not-allowed'
                                                 ]"
                                                 title="Editar"
@@ -1838,8 +1838,8 @@ onMounted(fetchData);
                                                 @click="handleDeleteServiceType(type)"
                                                 :disabled="!serviceModeOn"
                                                 :class="[
-                                                    'p-2 rounded-lg transition-colors',
-                                                    serviceModeOn ? 'text-red-500 hover:bg-red-50' : 'text-gray-400 cursor-not-allowed'
+                                                    'p-2 rounded-lg transition-colors cursor-pointer',
+                                                    serviceModeOn ? 'text-red-500 hover:bg-orange-50' : 'text-gray-400 cursor-not-allowed'
                                                 ]"
                                                 title="Remover"
                                             >
@@ -1853,7 +1853,7 @@ onMounted(fetchData);
                                                 @click="handleRestoreServiceType(type)"
                                                 :disabled="isServiceTypeRestoreLoading"
                                                 :class="[
-                                                    'p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                                                    'p-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
                                                     restoringServiceType?.id === type.id && isServiceTypeRestoreLoading
                                                         ? 'text-green-600 bg-green-50'
                                                         : 'text-green-500 hover:bg-green-50'
@@ -1874,16 +1874,16 @@ onMounted(fetchData);
 
                                     <div
                                         v-if="deletingServiceType?.id === type.id && showDeleteConfirmServiceTypeInline"
-                                        class="border-l-4 border-blue-500 bg-blue-50/80 p-4 rounded mt-2 space-y-3"
+                                        class="border-l-4 border-blue-500 bg-blue-50/80 p-4 rounded mt-2 space-y-3 dark:border-blue-500/60 dark:bg-blue-950/30"
                                     >
-                                        <p class="text-sm font-semibold text-gray-800 break-words">
+                                        <p class="text-sm font-semibold text-gray-800 break-words dark:text-slate-100">
                                             Tem certeza que deseja remover "<span class="text-blue-600 break-all">{{ type.name }}</span>"?
                                         </p>
                                         <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                                             <button
                                                 @click="cancelDeleteServiceType"
                                                 :disabled="isServiceTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800"
                                             >
                                                 Cancelar
                                             </button>

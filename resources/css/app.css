@@ -90,6 +90,7 @@
 }
 
 :root {
+    color-scheme: light;
     --background: hsl(0 0% 100%);
     --foreground: hsl(0 0% 3.9%);
     --card: hsl(0 0% 100%);
@@ -127,6 +128,7 @@
 }
 
 .dark {
+    color-scheme: dark;
     --background: hsl(0 0% 3.9%);
     --foreground: hsl(0 0% 98%);
     --card: hsl(0 0% 3.9%);
@@ -169,6 +171,119 @@
     body {
         @apply bg-background text-foreground;
     }
+}
+
+/*
+ * Dark mode global overrides.
+ * Declared outside @layer so they have higher cascade priority
+ * than Tailwind utility classes (which live inside @layer utilities).
+ * No !important needed — unlayered CSS wins over layered CSS per spec.
+ */
+.dark .bg-white {
+    background-color: var(--card);
+    color: var(--card-foreground);
+}
+.dark .bg-gray-50 {
+    background-color: var(--muted);
+}
+.dark .bg-gray-100 {
+    background-color: var(--accent);
+}
+.dark .border-gray-200,
+.dark .border-gray-300 {
+    border-color: var(--border);
+}
+.dark .text-gray-800,
+.dark .text-gray-700 {
+    color: var(--foreground);
+}
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-gray-400 {
+    color: var(--muted-foreground);
+}
+.dark .bg-orange-100 {
+    background-color: var(--accent);
+}
+.dark .hover\:bg-orange-200:hover {
+    background-color: var(--accent);
+}
+.dark .hover\:bg-orange-50:hover,
+.dark .hover\:bg-gray-50:hover {
+    background-color: var(--accent);
+}
+.dark .hover\:bg-gray-100:hover {
+    background-color: var(--accent);
+}
+.dark .shadow-2xl,
+.dark .shadow-lg,
+.dark .shadow-md,
+.dark .shadow-sm {
+    box-shadow: 0 0 0 1px var(--border);
+}
+
+/* Opacity-variant bg-white overrides (bg-white/80, bg-white/95 etc.) */
+.dark .bg-white\/80 {
+    background-color: color-mix(in srgb, var(--card) 80%, transparent);
+}
+.dark .bg-white\/95 {
+    background-color: color-mix(in srgb, var(--card) 95%, transparent);
+}
+.dark .bg-white\/90 {
+    background-color: color-mix(in srgb, var(--card) 90%, transparent);
+}
+.dark .bg-white\/20 {
+    background-color: color-mix(in srgb, var(--card) 20%, transparent);
+}
+.dark .bg-white\/30 {
+    background-color: color-mix(in srgb, var(--card) 30%, transparent);
+}
+
+/* Slate color tokens (used heavily in Registros, Painel, etc.) */
+.dark .text-slate-800,
+.dark .text-slate-700 {
+    color: var(--foreground);
+}
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-slate-400 {
+    color: var(--muted-foreground);
+}
+.dark .border-slate-200,
+.dark .border-slate-100 {
+    border-color: var(--border);
+}
+.dark .bg-slate-50 {
+    background-color: var(--muted);
+}
+.dark .bg-slate-50\/70 {
+    background-color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+.dark .divide-slate-100 > * + * {
+    border-color: var(--border);
+}
+
+/* Pastel colored cards → dimmed in dark mode */
+.dark .bg-yellow-50\/70,
+.dark .bg-amber-50\/70 {
+    background-color: hsl(43 74% 25% / 0.25);
+}
+.dark .bg-orange-50\/70,
+.dark .bg-orange-50\/60 {
+    background-color: hsl(24 95% 25% / 0.25);
+}
+.dark .bg-blue-50\/70 {
+    background-color: hsl(217 91% 30% / 0.25);
+}
+.dark .bg-emerald-50\/70,
+.dark .bg-emerald-50\/60 {
+    background-color: hsl(142 71% 25% / 0.25);
+}
+.dark .bg-red-50 {
+    background-color: hsl(0 84% 30% / 0.2);
+}
+.dark .bg-orange-50 {
+    background-color: var(--accent);
 }
 
 /* Sonner Toast Styles */

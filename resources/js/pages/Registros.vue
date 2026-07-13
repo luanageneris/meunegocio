@@ -2227,7 +2227,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex overflow-x-hidden">
+    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex overflow-x-hidden">
         <Head title="Registros - MEU NEGÓCIO" />
 
         <!-- Sidebar -->
@@ -2320,7 +2320,7 @@ onBeforeUnmount(() => {
                             v-if="activeTab === 'mensal'"
                             v-model.number="selectedMonth"
                             @change="(currentPage = 1, fetchRegistros(1))"
-                            class="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white text-sm"
+                            class="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white dark:bg-input dark:text-foreground text-sm"
                         >
                             <option v-for="m in monthOptions" :key="m.value" :value="m.value">
                                 {{ m.label }}
@@ -2329,7 +2329,7 @@ onBeforeUnmount(() => {
                         <select
                             v-model.number="selectedYear"
                             @change="(currentPage = 1, fetchRegistros(1))"
-                            class="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white text-sm"
+                            class="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white dark:bg-input dark:text-foreground text-sm"
                         >
                             <option v-for="y in yearOptions" :key="y" :value="y">
                                 {{ y }}
@@ -2356,7 +2356,7 @@ onBeforeUnmount(() => {
                 </div>
 
                 <!-- Content Card -->
-                <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6 w-full max-w-full overflow-hidden">
+                <div class="bg-white dark:bg-card rounded-lg shadow-lg dark:shadow-none dark:border dark:border-border p-4 sm:p-6 w-full max-w-full overflow-hidden">
                     <!-- Removed Items Mode Banner -->
                     <div v-if="showRemoved" class="mb-6 p-3 sm:p-4 border-l-4 border-red-500 bg-red-50 rounded-lg">
                         <div class="flex items-start gap-3">
@@ -2469,18 +2469,18 @@ onBeforeUnmount(() => {
                     </div>
 
                     <!-- Import Panel (hidden when viewing removed items) -->
-                    <div v-if="showImportPanel && !showRemoved" class="mb-4 border-2 border-orange-200 rounded-lg p-3 sm:p-4 bg-orange-50/60">
+                    <div v-if="showImportPanel && !showRemoved" class="mb-4 border-2 border-orange-200 dark:border-border rounded-lg p-3 sm:p-4 bg-orange-50/60 dark:bg-accent/30">
                         <div class="flex items-center justify-between gap-3 mb-3 sm:mb-4">
                             <div class="flex items-center gap-2 min-w-0">
                                 <svg class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
-                                <h3 class="text-xs sm:text-sm font-semibold text-orange-700">Importar Entradas e Saídas</h3>
+                                <h3 class="text-xs sm:text-sm font-semibold text-orange-700 dark:text-orange-300">Importar Entradas e Saídas</h3>
                             </div>
                             <button
                                 type="button"
                                 @click="openImportHelpModal"
-                                class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-orange-300 bg-white text-orange-700 transition-colors hover:bg-orange-100"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-orange-300 bg-white text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-500/50 dark:bg-slate-950/80 dark:text-orange-300 dark:hover:bg-slate-800"
                                 aria-label="Abrir instruções de importação"
                                 title="Ver instruções"
                             >
@@ -2488,14 +2488,14 @@ onBeforeUnmount(() => {
                             </button>
                         </div>
 
-                        <div v-if="selectedImportFile" class="mb-3 p-2 sm:p-3 bg-white border border-orange-200 rounded-lg flex items-center justify-between gap-2">
+                        <div v-if="selectedImportFile" class="mb-3 p-2 sm:p-3 bg-white dark:bg-card border border-orange-200 dark:border-border rounded-lg flex items-center justify-between gap-2">
                             <div class="flex items-center gap-2 min-w-0">
                                 <svg class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                                 <div class="min-w-0">
-                                    <p class="text-xs sm:text-sm font-medium text-gray-700 truncate">{{ selectedImportFile.name }}</p>
-                                    <p class="text-xs text-gray-500">{{ formatFileSize(selectedImportFile.size) }}</p>
+                                    <p class="text-xs sm:text-sm font-medium text-gray-700 truncate dark:text-slate-200">{{ selectedImportFile.name }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatFileSize(selectedImportFile.size) }}</p>
                                 </div>
                             </div>
                             <button @click="clearImportFile" class="px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">
@@ -2505,31 +2505,31 @@ onBeforeUnmount(() => {
                             </button>
                         </div>
 
-                        <div v-else class="mb-3 p-3 sm:p-4 bg-white border-2 border-dashed border-orange-300 rounded-lg text-center">
-                            <p class="text-xs sm:text-sm text-gray-600">Nenhum arquivo selecionado</p>
-                            <button @click="openImportPicker" class="mt-1 text-xs text-orange-600 hover:text-orange-700 font-medium underline">
+                        <div v-else class="mb-3 p-3 sm:p-4 bg-white dark:bg-card border-2 border-dashed border-orange-300 dark:border-border rounded-lg text-center">
+                            <p class="text-xs sm:text-sm text-gray-600 dark:text-slate-300">Nenhum arquivo selecionado</p>
+                            <button @click="openImportPicker" class="mt-1 text-xs text-orange-600 hover:text-orange-700 font-medium underline dark:text-orange-300 dark:hover:text-orange-200">
                                 Escolher Excel
                             </button>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Entrada</label>
-                                <select v-model="importDefaults.default_entry_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-xs sm:text-sm">
+                                <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Tipo de Entrada</label>
+                                <select v-model="importDefaults.default_entry_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Saída</label>
-                                <select v-model="importDefaults.default_exit_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-xs sm:text-sm">
+                                <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Tipo de Saída</label>
+                                <select v-model="importDefaults.default_exit_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Colaborador</label>
-                                <select v-model="importDefaults.default_collaborator_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-xs sm:text-sm">
+                                <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Colaborador</label>
+                                <select v-model="importDefaults.default_collaborator_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
@@ -2537,15 +2537,15 @@ onBeforeUnmount(() => {
                         </div>
 
                         <!-- Loading State -->
-                        <div v-if="isImportLoading" class="mt-3 p-3 sm:p-4 bg-white border border-blue-200 rounded-lg text-center">
+                        <div v-if="isImportLoading" class="mt-3 p-3 sm:p-4 bg-white dark:bg-card border border-blue-200 dark:border-border rounded-lg text-center">
                             <div class="inline-block mb-2">
                                 <svg class="animate-spin h-6 sm:h-8 w-6 sm:w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
                             </div>
-                            <p class="text-xs sm:text-sm font-medium text-gray-700">Processando arquivo...</p>
-                            <p class="text-xs text-gray-500 mt-1">Pode levar alguns segundos</p>
+                            <p class="text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-200">Processando arquivo...</p>
+                            <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Pode levar alguns segundos</p>
                         </div>
 
                         <!-- Error State -->
@@ -2571,30 +2571,30 @@ onBeforeUnmount(() => {
 
                         <!-- Summary Cards -->
                         <div v-if="importSummary && !isImportLoading" class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-                            <div class="bg-white border border-orange-200 rounded-lg p-2 text-center">
+                            <div class="bg-white dark:bg-card border border-orange-200 dark:border-border rounded-lg p-2 text-center">
                                 <p class="text-lg sm:text-xl font-bold text-orange-600">{{ importSummary.sheets_processed }}</p>
-                                <p class="text-xs text-gray-600 mt-0.5">Abas</p>
+                                <p class="text-xs text-gray-600 dark:text-slate-300 mt-0.5">Abas</p>
                             </div>
-                            <div class="bg-white border border-blue-200 rounded-lg p-2 text-center">
+                            <div class="bg-white dark:bg-card border border-blue-200 dark:border-border rounded-lg p-2 text-center">
                                 <p class="text-lg sm:text-xl font-bold text-blue-600">{{ importSummary.rows_processed }}</p>
-                                <p class="text-xs text-gray-600 mt-0.5">Linhas</p>
+                                <p class="text-xs text-gray-600 dark:text-slate-300 mt-0.5">Linhas</p>
                             </div>
-                            <div class="bg-white border border-yellow-200 rounded-lg p-2 text-center">
+                            <div class="bg-white dark:bg-card border border-yellow-200 dark:border-border rounded-lg p-2 text-center">
                                 <p class="text-lg sm:text-xl font-bold text-yellow-600">{{ importSummary.entries_created }}</p>
-                                <p class="text-xs text-gray-600 mt-0.5">Entradas</p>
+                                <p class="text-xs text-gray-600 dark:text-slate-300 mt-0.5">Entradas</p>
                             </div>
-                            <div class="bg-white border border-orange-300 rounded-lg p-2 text-center">
+                            <div class="bg-white dark:bg-card border border-orange-300 dark:border-border rounded-lg p-2 text-center">
                                 <p class="text-lg sm:text-xl font-bold text-orange-700">{{ importSummary.exits_created }}</p>
-                                <p class="text-xs text-gray-600 mt-0.5">Saídas</p>
+                                <p class="text-xs text-gray-600 dark:text-slate-300 mt-0.5">Saídas</p>
                             </div>
-                            <div class="bg-white border border-purple-200 rounded-lg p-2 text-center">
+                            <div class="bg-white dark:bg-card border border-purple-200 dark:border-border rounded-lg p-2 text-center">
                                 <p class="text-lg sm:text-xl font-bold text-purple-600">{{ importSummary.commissions_created }}</p>
-                                <p class="text-xs text-gray-600 mt-0.5">Comissões</p>
+                                <p class="text-xs text-gray-600 dark:text-slate-300 mt-0.5">Comissões</p>
                             </div>
                         </div>
 
                         <div v-if="!importSuccess || importError" class="flex flex-col sm:flex-row justify-end gap-2 mt-3 sm:mt-4">
-                            <button @click="cancelImport" :disabled="isImportLoading" class="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50">
+                            <button @click="cancelImport" :disabled="isImportLoading" class="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-800">
                                 Cancelar
                             </button>
                             <button @click="confirmImport" :disabled="isImportLoading || !selectedImportFile" class="px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
@@ -2629,11 +2629,11 @@ onBeforeUnmount(() => {
                                     </DialogDescription>
                                 </DialogHeader>
 
-                                <div class="space-y-3 text-sm text-gray-700">
+                                <div class="space-y-3 text-sm text-gray-700 dark:text-slate-200">
                                     <button
                                         type="button"
                                         @click="downloadImportTemplate"
-                                        class="inline-flex items-center gap-2 rounded-lg border border-orange-300 bg-white px-3 py-2 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-50"
+                                        class="inline-flex items-center gap-2 rounded-lg border border-orange-300 bg-white px-3 py-2 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-50 dark:border-orange-500/50 dark:bg-slate-950/80 dark:text-orange-300 dark:hover:bg-slate-800"
                                     >
                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4m-7 8h6" />
@@ -2657,7 +2657,7 @@ onBeforeUnmount(() => {
                                         <li>O arquivo pode conter várias abas e todas serão processadas.</li>
                                     </ul>
 
-                                    <div class="rounded-lg border border-orange-200 bg-orange-50 p-3 text-orange-900">
+                                    <div class="rounded-lg border border-orange-200 bg-orange-50 p-3 text-orange-900 dark:border-orange-500/40 dark:bg-orange-950/30 dark:text-orange-100">
                                         <p class="font-medium">Dica prática</p>
                                         <p class="mt-1">Antes de importar, confirme se os itens "Não definido" estão selecionados para entrada, saída e colaborador, caso a planilha não informe esses dados.</p>
                                     </div>
@@ -2680,7 +2680,7 @@ onBeforeUnmount(() => {
                                 <button
                                     type="button"
                                     @click="cancelUnsavedCreateChanges"
-                                    class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                                    class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800"
                                 >
                                     Cancelar
                                 </button>
@@ -2699,9 +2699,9 @@ onBeforeUnmount(() => {
                     <!-- Summary (hidden when viewing removed items) -->
                     <div v-if="!showRemoved" class="mb-4 space-y-3">
                         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                            <div class="rounded-lg border border-slate-200 bg-white p-3 text-center">
-                                <p class="text-xs font-medium text-slate-500">Total</p>
-                                <p class="mt-1 text-lg font-bold text-slate-800">{{ totalRegistros }}</p>
+                            <div class="rounded-lg border border-slate-200 dark:border-border bg-white dark:bg-card p-3 text-center">
+                                <p class="text-xs font-medium text-slate-500 dark:text-muted-foreground">Total</p>
+                                <p class="mt-1 text-lg font-bold text-slate-800 dark:text-foreground">{{ totalRegistros }}</p>
                             </div>
                             <div class="rounded-lg border border-yellow-200 bg-yellow-50/70 p-3 text-center">
                                 <p class="text-xs font-medium text-yellow-700">Entradas</p>
@@ -2725,13 +2725,13 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
 
-                        <div class="rounded-lg border border-slate-200 bg-white overflow-hidden hidden sm:block">
-                            <div class="px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-100 bg-slate-50/70">
-                                <p class="text-xs sm:text-sm font-semibold text-slate-700">Conferência financeira</p>
+                        <div class="rounded-lg border border-slate-200 dark:border-border bg-white dark:bg-card overflow-hidden hidden sm:block">
+                            <div class="px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-100 dark:border-border bg-slate-50/70 dark:bg-muted/50">
+                                <p class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-foreground">Conferência financeira</p>
                             </div>
                             <div class="overflow-x-auto">
                                 <table class="w-full text-xs sm:text-sm">
-                                    <thead class="bg-slate-50 text-slate-600">
+                                    <thead class="bg-slate-50 dark:bg-muted text-slate-600 dark:text-muted-foreground">
                                         <tr>
                                             <th class="text-left px-3 sm:px-4 py-2 font-semibold">Métrica</th>
                                             <th class="text-right px-3 sm:px-4 py-2 font-semibold">Valor bruto</th>
@@ -2739,14 +2739,14 @@ onBeforeUnmount(() => {
                                             <th class="text-right px-3 sm:px-4 py-2 font-semibold">Valor líquido</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-slate-100">
+                                    <tbody class="divide-y divide-slate-100 dark:divide-border">
                                         <tr
                                             @click="applyFinancialTypeFilter('entrada')"
                                             class="cursor-pointer transition-colors"
                                             :class="financialTypeFilter === 'entrada' ? 'bg-yellow-50/70' : 'hover:bg-yellow-50/40'"
                                         >
-                                            <td class="px-3 sm:px-4 py-2 text-slate-700">Entradas</td>
-                                            <td class="px-3 sm:px-4 py-2 text-right font-semibold text-slate-700">{{ formatCurrency(totalEntradasBrutas) }}</td>
+                                            <td class="px-3 sm:px-4 py-2 text-slate-700 dark:text-foreground">Entradas</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right font-semibold text-slate-700 dark:text-foreground">{{ formatCurrency(totalEntradasBrutas) }}</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-semibold text-amber-700">{{ formatCurrency(totalDescontosEntradas) }}</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-semibold text-yellow-700">{{ formatCurrency(totalEntradas) }}</td>
                                         </tr>
@@ -2755,9 +2755,9 @@ onBeforeUnmount(() => {
                                             class="cursor-pointer transition-colors"
                                             :class="financialTypeFilter === 'saida' ? 'bg-orange-50/70' : 'hover:bg-orange-50/40'"
                                         >
-                                            <td class="px-3 sm:px-4 py-2 text-slate-700">Saídas</td>
+                                            <td class="px-3 sm:px-4 py-2 text-slate-700 dark:text-foreground">Saídas</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-semibold text-orange-700">{{ formatCurrency(totalSaidas) }}</td>
-                                            <td class="px-3 sm:px-4 py-2 text-right text-slate-400">-</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right text-slate-400 dark:text-muted-foreground">-</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-semibold text-orange-700">{{ formatCurrency(totalSaidas) }}</td>
                                         </tr>
                                         <tr
@@ -2765,15 +2765,15 @@ onBeforeUnmount(() => {
                                             class="cursor-pointer transition-colors"
                                             :class="financialTypeFilter === 'comissao' ? 'bg-blue-50/70' : 'hover:bg-blue-50/40'"
                                         >
-                                            <td class="px-3 sm:px-4 py-2 text-slate-700">Comissões</td>
+                                            <td class="px-3 sm:px-4 py-2 text-slate-700 dark:text-foreground">Comissões</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-semibold text-blue-700">{{ formatCurrency(totalComissoes) }}</td>
-                                            <td class="px-3 sm:px-4 py-2 text-right text-slate-400">-</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right text-slate-400 dark:text-muted-foreground">-</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-semibold text-blue-700">{{ formatCurrency(totalComissoes) }}</td>
                                         </tr>
-                                        <tr class="bg-emerald-50/60">
-                                            <td class="px-3 sm:px-4 py-2 font-semibold text-emerald-800">Total final</td>
-                                            <td class="px-3 sm:px-4 py-2 text-right text-slate-400">-</td>
-                                            <td class="px-3 sm:px-4 py-2 text-right text-slate-400">-</td>
+                                        <tr class="bg-emerald-50/60 dark:bg-emerald-950/30">
+                                            <td class="px-3 sm:px-4 py-2 font-semibold text-emerald-800 dark:text-emerald-400">Total final</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right text-slate-400 dark:text-muted-foreground">-</td>
+                                            <td class="px-3 sm:px-4 py-2 text-right text-slate-400 dark:text-muted-foreground">-</td>
                                             <td class="px-3 sm:px-4 py-2 text-right font-bold text-emerald-700">{{ formatCurrency(totalFinal) }}</td>
                                         </tr>
                                     </tbody>
@@ -2831,7 +2831,7 @@ onBeforeUnmount(() => {
                                 <label class="text-xs text-gray-600 whitespace-nowrap">Ordenar</label>
                                 <select
                                     v-model="sortKey"
-                                    class="px-2 py-1 border border-orange-300 rounded-lg bg-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                                    class="px-2 py-1 border border-orange-300 rounded-lg bg-white dark:bg-input dark:text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                                 >
                                     <option value="registradoEm">Registrado</option>
                                     <option value="dataOperacao">Data</option>
@@ -2844,7 +2844,7 @@ onBeforeUnmount(() => {
                             </div>
                             <select
                                 v-model="sortDir"
-                                class="px-2 py-1 border border-orange-300 rounded-lg bg-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                                class="px-2 py-1 border border-orange-300 rounded-lg bg-white dark:bg-input dark:text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                             >
                                 <option value="asc">A-Z</option>
                                 <option value="desc">Z-A</option>
@@ -2855,52 +2855,52 @@ onBeforeUnmount(() => {
                     </div>
 
                     <!-- Inline Create Entry Form (hidden when viewing removed items) -->
-                    <div v-if="showNewEntryInline && !showRemoved" class="mb-4 border-2 border-yellow-300 rounded-lg p-3 sm:p-4 bg-yellow-50/50">
-                        <h3 class="text-xs sm:text-sm font-semibold text-yellow-700 mb-3 sm:mb-4">Nova Entrada</h3>
-                        <div v-if="Object.keys(entryFormErrors).length" class="mb-3 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div v-if="showNewEntryInline && !showRemoved" class="mb-4 rounded-lg border-2 border-yellow-300 bg-yellow-50/50 p-3 sm:p-4 dark:border-amber-600/60 dark:bg-slate-900/80">
+                        <h3 class="mb-3 text-xs font-semibold text-yellow-700 sm:mb-4 sm:text-sm dark:text-amber-300">Nova Entrada</h3>
+                        <div v-if="Object.keys(entryFormErrors).length" class="mb-3 rounded-lg border border-red-200 bg-red-50 p-2 sm:p-3 dark:border-red-800 dark:bg-red-950/40">
                             <p v-for="(errs, field) in entryFormErrors" :key="field" class="text-xs sm:text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo</label>
-                                <select v-model="entryForm.entry_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-xs sm:text-sm">
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo</label>
+                                <select v-model="entryForm.entry_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div v-if="useServiceTypes">
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Serviço</label>
-                                <select v-model="entryForm.service_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-xs sm:text-sm">
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Serviço</label>
+                                <select v-model="entryForm.service_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="s in tiposServico" :key="s.id" :value="s.id">{{ s.name }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
-                                <select v-model="entryForm.collaborator_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-xs sm:text-sm">
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Responsável</label>
+                                <select v-model="entryForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
-                                <input type="date" v-model="entryForm.date" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg font-normal leading-normal [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-yellow-400 text-xs sm:text-sm" />
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Data</label>
+                                <input type="date" v-model="entryForm.date" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 font-normal leading-normal [color-scheme:light] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:[color-scheme:dark] sm:px-3 sm:py-2 sm:text-sm" />
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
-                                <input ref="entryAmountInput" type="text" inputmode="numeric" v-model="entryForm.amount" @input="handleEntryAmountInput" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-xs sm:text-sm" placeholder="0,00" />
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Valor (R$)</label>
+                                <input ref="entryAmountInput" type="text" inputmode="numeric" v-model="entryForm.amount" @input="handleEntryAmountInput" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500 sm:px-3 sm:py-2 sm:text-sm" placeholder="0,00" />
                             </div>
                             <div v-if="useServiceTypes">
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Qtd</label>
-                                <input type="number" min="1" v-model="entryForm.quantity" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-xs sm:text-sm" />
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Qtd</label>
+                                <input type="number" min="1" v-model="entryForm.quantity" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm" />
                             </div>
                             <div v-if="useServiceTypes">
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
-                                <input type="text" inputmode="numeric" v-model="entryForm.discount" @input="handleEntryDiscountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Desconto (R$)</label>
+                                <input type="text" inputmode="numeric" v-model="entryForm.discount" @input="handleEntryDiscountInput" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="0,00" />
                             </div>
                             <div class="sm:col-span-2">
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
-                                <input type="text" v-model="entryForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="Opcional" />
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Descrição</label>
+                                <input type="text" v-model="entryForm.description" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="Opcional" />
                             </div>
                             <div class="sm:col-span-2">
                                 <div class="rounded-lg border border-orange-300 bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-center shadow-sm">
@@ -2920,7 +2920,7 @@ onBeforeUnmount(() => {
                                             </button>
                                             <div
                                                 v-if="showEntryCalculationTooltip"
-                                                class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg"
+                                                class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg dark:border-orange-500/40 dark:bg-slate-900 dark:text-orange-100"
                                             >
                                                 Cálculo: valor x quantidade - desconto
                                             </div>
@@ -2930,7 +2930,7 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-4">
-                            <button @click="cancelCreateForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button @click="cancelCreateForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800">Cancelar</button>
                             <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
                                 {{ isEntryLoading ? 'Salvando...' : 'Salvar' }}
                             </button>
@@ -2938,45 +2938,45 @@ onBeforeUnmount(() => {
                     </div>
 
                     <!-- Inline Create Exit Form (hidden when viewing removed items) -->
-                    <div v-if="showNewExitInline && !showRemoved" class="mb-4 border-2 border-orange-300 rounded-lg p-3 sm:p-4 bg-orange-50/50">
-                        <h3 class="text-xs sm:text-sm font-semibold text-orange-700 mb-3 sm:mb-4">Nova Saída</h3>
-                        <div v-if="Object.keys(exitFormErrors).length" class="mb-3 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div v-if="showNewExitInline && !showRemoved" class="mb-4 rounded-lg border-2 border-orange-300 bg-orange-50/50 p-3 sm:p-4 dark:border-orange-500/60 dark:bg-slate-900/80">
+                        <h3 class="mb-3 text-xs font-semibold text-orange-700 sm:mb-4 sm:text-sm dark:text-orange-300">Nova Saída</h3>
+                        <div v-if="Object.keys(exitFormErrors).length" class="mb-3 rounded-lg border border-red-200 bg-red-50 p-2 sm:p-3 dark:border-red-800 dark:bg-red-950/40">
                             <p v-for="(errs, field) in exitFormErrors" :key="field" class="text-xs sm:text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Saída</label>
-                                <select v-model="exitForm.exit_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-xs sm:text-sm">
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo de Saída</label>
+                                <select v-model="exitForm.exit_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
-                                <select v-model="exitForm.collaborator_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-xs sm:text-sm">
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Responsável</label>
+                                <select v-model="exitForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm">
                                     <option :value="null">Selecione</option>
                                     <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
-                                <input type="date" v-model="exitForm.date" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg font-normal leading-normal [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" />
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Data</label>
+                                <input type="date" v-model="exitForm.date" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 font-normal leading-normal [color-scheme:light] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:[color-scheme:dark] sm:px-3 sm:py-2 sm:text-sm" />
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
-                                <input ref="exitAmountInput" type="text" inputmode="numeric" v-model="exitForm.amount" @input="handleExitAmountInput" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" placeholder="0,00" />
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Valor (R$)</label>
+                                <input ref="exitAmountInput" type="text" inputmode="numeric" v-model="exitForm.amount" @input="handleExitAmountInput" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500 sm:px-3 sm:py-2 sm:text-sm" placeholder="0,00" />
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
-                                <input type="number" min="1" v-model="exitForm.quantity" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" />
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Quantidade</label>
+                                <input type="number" min="1" v-model="exitForm.quantity" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm" />
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
-                                <input type="text" inputmode="numeric" v-model="exitForm.discount" @input="handleExitDiscountInput" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" placeholder="0,00" />
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Desconto (R$)</label>
+                                <input type="text" inputmode="numeric" v-model="exitForm.discount" @input="handleExitDiscountInput" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500 sm:px-3 sm:py-2 sm:text-sm" placeholder="0,00" />
                             </div>
                             <div class="sm:col-span-2">
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
-                                <input type="text" v-model="exitForm.description" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs sm:text-sm" placeholder="Opcional" />
+                                <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Descrição</label>
+                                <input type="text" v-model="exitForm.description" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500 sm:px-3 sm:py-2 sm:text-sm" placeholder="Opcional" />
                             </div>
                             <div class="sm:col-span-2">
                                 <div class="rounded-lg border border-orange-300 bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-center shadow-sm">
@@ -2996,7 +2996,7 @@ onBeforeUnmount(() => {
                                             </button>
                                             <div
                                                 v-if="showExitCalculationTooltip"
-                                                class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg"
+                                                class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg dark:border-orange-500/40 dark:bg-slate-900 dark:text-orange-100"
                                             >
                                                 Cálculo: valor x quantidade - desconto
                                             </div>
@@ -3006,7 +3006,7 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-4">
-                            <button @click="cancelCreateForms" class="px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button @click="cancelCreateForms" class="px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800">Cancelar</button>
                             <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
                                 {{ isExitLoading ? 'Salvando...' : 'Salvar' }}
                             </button>
@@ -3078,52 +3078,52 @@ onBeforeUnmount(() => {
                             ]"
                         >
                             <!-- Inline edit form for Entry -->
-                            <div v-if="editingRegistroId === registro.id && editingRegistroType === 'entrada'" class="p-4">
-                                <h3 class="text-sm font-semibold text-yellow-700 mb-4">Editar Entrada</h3>
-                                <div v-if="Object.keys(entryFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <div v-if="editingRegistroId === registro.id && editingRegistroType === 'entrada'" class="rounded-lg border border-yellow-300/70 bg-yellow-50/50 p-4 dark:border-amber-600/50 dark:bg-slate-900/80">
+                                <h3 class="mb-4 text-sm font-semibold text-yellow-700 dark:text-amber-300">Editar Entrada</h3>
+                                <div v-if="Object.keys(entryFormErrors).length" class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/40">
                                     <p v-for="(errs, field) in entryFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Entrada</label>
-                                        <select v-model="entryForm.entry_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo de Entrada</label>
+                                        <select v-model="entryForm.entry_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100">
                                             <option :value="null">Selecione</option>
                                             <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
                                         </select>
                                     </div>
                                     <div v-if="useServiceTypes">
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Serviço</label>
-                                        <select v-model="entryForm.service_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo de Serviço</label>
+                                        <select v-model="entryForm.service_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100">
                                             <option :value="null">Selecione</option>
                                             <option v-for="s in tiposServico" :key="s.id" :value="s.id">{{ s.name }}</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
-                                        <select v-model="entryForm.collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white text-sm">
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Responsável</label>
+                                        <select v-model="entryForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100">
                                             <option :value="null">Selecione</option>
                                             <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
-                                        <input type="date" v-model="entryForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-normal leading-normal [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Data</label>
+                                        <input type="date" v-model="entryForm.date" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 font-normal leading-normal [color-scheme:light] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:[color-scheme:dark]" />
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
-                                        <input type="text" inputmode="numeric" v-model="entryForm.amount" @input="handleEntryAmountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Valor (R$)</label>
+                                        <input type="text" inputmode="numeric" v-model="entryForm.amount" @input="handleEntryAmountInput" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="0,00" />
                                     </div>
                                     <div v-if="useServiceTypes">
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
-                                        <input type="number" min="1" v-model="entryForm.quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" />
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Quantidade</label>
+                                        <input type="number" min="1" v-model="entryForm.quantity" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100" />
                                     </div>
                                     <div v-if="useServiceTypes">
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
-                                        <input type="text" inputmode="numeric" v-model="entryForm.discount" @input="handleEntryDiscountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="0,00" />
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Desconto (R$)</label>
+                                        <input type="text" inputmode="numeric" v-model="entryForm.discount" @input="handleEntryDiscountInput" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="0,00" />
                                     </div>
                                     <div class="sm:col-span-2">
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
-                                        <input type="text" v-model="entryForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm" placeholder="Opcional" />
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Descrição</label>
+                                        <input type="text" v-model="entryForm.description" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="Opcional" />
                                     </div>
                                     <div class="sm:col-span-2">
                                         <div class="rounded-lg border border-orange-300 bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-center shadow-sm">
@@ -3143,7 +3143,7 @@ onBeforeUnmount(() => {
                                                     </button>
                                                     <div
                                                         v-if="showEntryCalculationTooltip"
-                                                        class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg"
+                                                        class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg dark:border-orange-500/40 dark:bg-slate-900 dark:text-orange-100"
                                                     >
                                                         Cálculo: valor x quantidade - desconto
                                                     </div>
@@ -3153,7 +3153,7 @@ onBeforeUnmount(() => {
                                     </div>
                                 </div>
                                 <div class="flex justify-end gap-2 mt-4">
-                                    <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                                    <button @click="() => closeAllForms()" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800">Cancelar</button>
                                     <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
                                         {{ isEntryLoading ? 'Salvando...' : 'Salvar' }}
                                     </button>
@@ -3161,45 +3161,45 @@ onBeforeUnmount(() => {
                             </div>
 
                             <!-- Inline edit form for Exit -->
-                            <div v-else-if="editingRegistroId === registro.id && editingRegistroType === 'saida'" class="p-4">
-                                <h3 class="text-sm font-semibold text-orange-700 mb-4">Editar Saída</h3>
-                                <div v-if="Object.keys(exitFormErrors).length" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <div v-else-if="editingRegistroId === registro.id && editingRegistroType === 'saida'" class="rounded-lg border border-orange-300/70 bg-orange-50/50 p-4 dark:border-orange-500/50 dark:bg-slate-900/80">
+                                <h3 class="mb-4 text-sm font-semibold text-orange-700 dark:text-orange-300">Editar Saída</h3>
+                                <div v-if="Object.keys(exitFormErrors).length" class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/40">
                                     <p v-for="(errs, field) in exitFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Saída</label>
-                                        <select v-model="exitForm.exit_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo de Saída</label>
+                                        <select v-model="exitForm.exit_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100">
                                             <option :value="null">Selecione</option>
                                             <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Responsável</label>
-                                        <select v-model="exitForm.collaborator_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-sm">
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Responsável</label>
+                                        <select v-model="exitForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100">
                                             <option :value="null">Selecione</option>
                                             <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
-                                        <input type="date" v-model="exitForm.date" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-normal leading-normal [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Data</label>
+                                        <input type="date" v-model="exitForm.date" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 font-normal leading-normal [color-scheme:light] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:[color-scheme:dark]" />
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Valor (R$)</label>
-                                        <input type="text" inputmode="numeric" v-model="exitForm.amount" @input="handleExitAmountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Valor (R$)</label>
+                                        <input type="text" inputmode="numeric" v-model="exitForm.amount" @input="handleExitAmountInput" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="0,00" />
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Quantidade</label>
-                                        <input type="number" min="1" v-model="exitForm.quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" />
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Quantidade</label>
+                                        <input type="number" min="1" v-model="exitForm.quantity" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100" />
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Desconto (R$)</label>
-                                        <input type="text" inputmode="numeric" v-model="exitForm.discount" @input="handleExitDiscountInput" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="0,00" />
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Desconto (R$)</label>
+                                        <input type="text" inputmode="numeric" v-model="exitForm.discount" @input="handleExitDiscountInput" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="0,00" />
                                     </div>
                                     <div class="sm:col-span-2">
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Descrição</label>
-                                        <input type="text" v-model="exitForm.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm" placeholder="Opcional" />
+                                        <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Descrição</label>
+                                        <input type="text" v-model="exitForm.description" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="Opcional" />
                                     </div>
                                     <div class="sm:col-span-2">
                                         <div class="rounded-lg border border-orange-300 bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-center shadow-sm">
@@ -3219,7 +3219,7 @@ onBeforeUnmount(() => {
                                                     </button>
                                                     <div
                                                         v-if="showExitCalculationTooltip"
-                                                        class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg"
+                                                        class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg dark:border-orange-500/40 dark:bg-slate-900 dark:text-orange-100"
                                                     >
                                                         Cálculo: valor x quantidade - desconto
                                                     </div>
@@ -3229,7 +3229,7 @@ onBeforeUnmount(() => {
                                     </div>
                                 </div>
                                 <div class="flex justify-end gap-2 mt-4">
-                                    <button @click="closeAllForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                                    <button @click="() => closeAllForms()" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800">Cancelar</button>
                                     <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
                                         {{ isExitLoading ? 'Salvando...' : 'Salvar' }}
                                     </button>

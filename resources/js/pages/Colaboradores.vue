@@ -422,7 +422,7 @@ onMounted(() => fetchCollaborators(true));
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex overflow-x-hidden">
+    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex overflow-x-hidden">
         <Head title="Colaboradores - MEU NEGÓCIO" />
 
         <Sidebar active-route="colaboradores" />
@@ -434,7 +434,7 @@ onMounted(() => fetchCollaborators(true));
             />
 
             <main class="w-full min-w-0 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 flex flex-col overflow-x-hidden">
-                <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="bg-white rounded-xl shadow-lg p-6 dark:bg-card dark:border dark:border-border dark:shadow-none">
                     <div class="flex flex-wrap items-center gap-3 mb-4">
                         <button
                             @click="handleNew"
@@ -445,16 +445,16 @@ onMounted(() => fetchCollaborators(true));
                         <button
                             @click="toggleRemoved"
                             :class="[
-                                'px-5 py-2 border-2 rounded-lg font-medium transition-all',
+                                'px-5 py-2 border-2 rounded-lg font-medium transition-all cursor-pointer',
                                 showRemoved
-                                    ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100'
-                                    : 'border-amber-300 text-amber-500 hover:bg-amber-50'
+                                    ? 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100 dark:border-red-500/60 dark:text-red-300 dark:bg-red-950/30 dark:hover:bg-red-900/40'
+                                    : 'border-amber-300 text-amber-500 hover:bg-amber-50 dark:border-amber-500/60 dark:text-amber-300 dark:hover:bg-amber-950/30'
                             ]"
                         >
                             {{ showRemoved ? 'Ocultar removidos' : 'Ver removidos' }}
                         </button>
-                        <span class="text-sm text-gray-500">Ativos: {{ totalAtivos }}</span>
-                        <span v-if="!showRemoved" class="text-sm text-gray-500">Inativos: {{ totalInativos }}</span>
+                        <span class="text-sm text-gray-500 dark:text-muted-foreground">Ativos: {{ totalAtivos }}</span>
+                        <span v-if="!showRemoved" class="text-sm text-gray-500 dark:text-muted-foreground">Inativos: {{ totalInativos }}</span>
                         <span v-if="showRemoved" class="text-sm text-red-500">Removidos: {{ totalRemovidos }}</span>
                     </div>
 
@@ -464,13 +464,13 @@ onMounted(() => fetchCollaborators(true));
                                 v-model="search"
                                 type="text"
                                 placeholder="Pesquise por nome ou CPF"
-                                class="w-full px-4 py-3 pr-12 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                                class="w-full px-4 py-3 pr-12 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500"
                             />
                             <button
                                 v-if="search.trim()"
                                 @click="clearSearch"
                                 type="button"
-                                class="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800"
                                 title="Limpar filtro"
                                 aria-label="Limpar filtro"
                             >
@@ -481,19 +481,19 @@ onMounted(() => fetchCollaborators(true));
                         </div>
                     </div>
 
-                    <div v-if="errorMessage" class="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">
+                    <div v-if="errorMessage" class="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
                         {{ errorMessage }}
                     </div>
 
                     <LoadingSpinner v-if="isLoading" message="Carregando colaboradores..." />
 
                     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-                        <div v-if="isListLoading" class="md:col-span-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        <div v-if="isListLoading" class="md:col-span-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 dark:border-amber-600/50 dark:bg-amber-950/30 dark:text-amber-300">
                             Atualizando itens...
                         </div>
                         <div
                             v-if="showNewInline"
-                            class="self-start border-2 border-amber-300 rounded-lg p-4 shadow-sm bg-amber-50/60"
+                            class="self-start border-2 border-amber-300 rounded-lg p-4 shadow-sm bg-amber-50/60 dark:border-amber-500/60 dark:bg-slate-900/80"
                         >
                             <div class="space-y-2" @keydown.esc.prevent="cancelNew">
                                 <div class="flex items-center gap-2">
@@ -502,7 +502,7 @@ onMounted(() => fetchCollaborators(true));
                                         v-model="newCollaboratorForm.name"
                                         type="text"
                                         placeholder="Nome do colaborador"
-                                        class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                        class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-400"
                                         :disabled="isFormLoading"
                                         @keydown.enter.prevent="saveNew"
                                     />
@@ -520,7 +520,7 @@ onMounted(() => fetchCollaborators(true));
                                         <button
                                             @click="cancelNew"
                                             :disabled="isFormLoading"
-                                            class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                            class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
                                             title="Cancelar"
                                         >
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -535,11 +535,11 @@ onMounted(() => fetchCollaborators(true));
                                         @input="handleNewCpfInput"
                                         type="text"
                                         placeholder="CPF"
-                                        class="flex-1 bg-transparent text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                        class="flex-1 bg-transparent text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none border-b border-gray-300 dark:border-slate-600 dark:text-slate-200 dark:placeholder:text-slate-500"
                                         :disabled="isFormLoading"
                                         @keydown.enter.prevent="saveNew"
                                     />
-                                    <label class="inline-flex items-center gap-1 text-xs text-gray-700 shrink-0">
+                                    <label class="inline-flex items-center gap-1 text-xs text-gray-700 shrink-0 dark:text-slate-300">
                                         <input v-model="newCollaboratorForm.active" type="checkbox" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400" :disabled="isFormLoading" />
                                         Ativo
                                     </label>
@@ -554,10 +554,10 @@ onMounted(() => fetchCollaborators(true));
                             :class="[
                                 'self-start border rounded-lg p-4 shadow-sm transition-shadow',
                                 editingCollaborator?.id === collab.id && showEditInline
-                                    ? 'border-2 border-amber-300 bg-amber-50/60'
+                                    ? 'border-2 border-amber-300 bg-amber-50/60 dark:border-amber-500/60 dark:bg-slate-900/80'
                                     : [
-                                        'border-gray-200',
-                                        collab.deleted_at ? 'bg-gray-50 opacity-80' : 'hover:shadow-md'
+                                        'border-gray-200 dark:border-slate-700',
+                                        collab.deleted_at ? 'bg-gray-50 opacity-80 dark:bg-slate-900/60' : 'hover:shadow-md'
                                     ]
                             ]"
                         >
@@ -567,7 +567,7 @@ onMounted(() => fetchCollaborators(true));
                                         ref="editNameInputRef"
                                         v-model="editCollaboratorForm.name"
                                         type="text"
-                                        class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                        class="flex-1 bg-transparent text-base font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none border-b border-gray-300 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-400"
                                         :disabled="isFormLoading"
                                         @keydown.enter.prevent="saveEdit"
                                     />
@@ -585,7 +585,7 @@ onMounted(() => fetchCollaborators(true));
                                         <button
                                             @click="cancelEdit"
                                             :disabled="isFormLoading"
-                                            class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                                            class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
                                             title="Cancelar"
                                         >
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -599,11 +599,11 @@ onMounted(() => fetchCollaborators(true));
                                         v-model="editCollaboratorForm.cpf"
                                         @input="handleEditCpfInput"
                                         type="text"
-                                        class="flex-1 bg-transparent text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none border-b border-gray-300"
+                                        class="flex-1 bg-transparent text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none border-b border-gray-300 dark:border-slate-600 dark:text-slate-200 dark:placeholder:text-slate-500"
                                         :disabled="isFormLoading"
                                         @keydown.enter.prevent="saveEdit"
                                     />
-                                    <label class="inline-flex items-center gap-1 text-xs text-gray-700 shrink-0">
+                                    <label class="inline-flex items-center gap-1 text-xs text-gray-700 shrink-0 dark:text-slate-300">
                                         <input v-model="editCollaboratorForm.active" type="checkbox" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400" :disabled="isFormLoading" />
                                         Ativo
                                     </label>
@@ -643,7 +643,7 @@ onMounted(() => fetchCollaborators(true));
                                     </button>
                                     <button
                                         @click="handleDelete(collab)"
-                                        class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                        class="p-2 text-red-500 hover:bg-amber-50 rounded-lg transition-colors"
                                         title="Remover"
                                     >
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -672,16 +672,16 @@ onMounted(() => fetchCollaborators(true));
 
                             <div
                                 v-if="deletingCollaborator?.id === collab.id && showDeleteConfirmInline"
-                                class="border-l-4 border-red-500 bg-red-50/80 p-4 rounded mt-2 space-y-3"
+                                class="border-l-4 border-red-500 bg-red-50/80 p-4 rounded mt-2 space-y-3 dark:border-red-500/60 dark:bg-red-950/30"
                             >
-                                <p class="text-sm font-semibold text-gray-800">
+                                <p class="text-sm font-semibold text-gray-800 dark:text-slate-100">
                                     Tem certeza que deseja remover "<span class="text-red-600">{{ collab.name }}</span>"?
                                 </p>
                                 <div class="flex gap-2 justify-end">
                                     <button
                                         @click="cancelDelete"
                                         :disabled="isDeleteLoading"
-                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800"
                                     >
                                         Cancelar
                                     </button>
@@ -720,7 +720,7 @@ onMounted(() => fetchCollaborators(true));
                         </div>
                     </div>
 
-                    <div v-if="!isLoading && !isListLoading && filtered.length === 0 && !canSuggestCreateFromSearch" class="text-center text-gray-500 py-8">
+                    <div v-if="!isLoading && !isListLoading && filtered.length === 0 && !canSuggestCreateFromSearch" class="text-center text-gray-500 dark:text-muted-foreground py-8">
                         Nenhum colaborador encontrado.
                     </div>
 
