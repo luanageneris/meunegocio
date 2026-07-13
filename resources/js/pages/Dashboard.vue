@@ -665,8 +665,8 @@ onMounted(async () => {
                     </div>
                 </div>
 
-                <Footer />
             </main>
+            <Footer />
         </div>
     </div>
 </template>

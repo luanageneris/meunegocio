@@ -11,6 +11,7 @@ use App\Services\CompanyDefaultsService;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -330,6 +331,11 @@ class AuthController extends Controller
         } else {
             $user->tokens()->delete();
         }
+
+        // Também encerra a sessão web para bloquear acesso às rotas Inertia protegidas.
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return response()->json([
             'message' => 'Desconectado com sucesso',

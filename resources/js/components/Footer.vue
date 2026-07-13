@@ -15,6 +15,7 @@ const currentYear = new Date().getFullYear();
                 
                 <div class="text-sm text-gray-600 text-center">
                     <p>© {{ currentYear }} MEU NEGÓCIO. Todos os direitos reservados.</p>
+                    <p class="mt-1">Desenvolvido por Luana Mesquita.</p>
                 </div>
                 
                 <div class="flex items-center gap-4 text-sm text-gray-500">

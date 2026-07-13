@@ -81,7 +81,9 @@ const handleLogout = async () => {
     try {
         await fetch('/api/auth/logout', {
             method: 'POST',
+            credentials: 'include',
             headers: {
+                'Accept': 'application/json',
                 'Authorization': `Bearer ${auth.token.value}`,
             },
         });
