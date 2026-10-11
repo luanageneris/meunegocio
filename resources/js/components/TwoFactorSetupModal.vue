@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/input-otp';
 import { Spinner } from '@/components/ui/spinner';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
-import { confirm } from '@/routes/two-factor';
 import { Form } from '@inertiajs/vue3';
 import { useClipboard } from '@vueuse/core';
 import { Check, Copy, ScanLine } from 'lucide-vue-next';
@@ -29,6 +28,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const isOpen = defineModel<boolean>('isOpen');
+const confirmTwoFactorUrl = '/user/confirmed-two-factor-authentication';
 
 const { copy, copied } = useClipboard();
 const { qrCodeSvg, manualSetupKey, clearSetupData, fetchSetupData, errors } =
@@ -231,7 +231,8 @@ watch(
 
                 <template v-else>
                     <Form
-                        v-bind="confirm.form()"
+                        :action="confirmTwoFactorUrl"
+                        method="post"
                         reset-on-error
                         @finish="code = ''"
                         @success="isOpen = false"
