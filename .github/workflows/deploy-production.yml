@@ -77,7 +77,12 @@ jobs:
           port: ${{ secrets.PROD_PORT }}
           script_stop: true
           script: |
-            bash "${{ secrets.PROD_APP_DIR }}/deploy-production.sh"
+            set -eu
+            APP_DIR="${{ secrets.PROD_APP_DIR }}"
+            echo "[deploy] APP_DIR=$APP_DIR"
+            test -d "$APP_DIR"
+            test -f "$APP_DIR/deploy-production.sh"
+            bash "$APP_DIR/deploy-production.sh"
 
       - name: Restore fallback build if deploy cleaned assets
         if: ${{ always() }}
@@ -146,9 +151,21 @@ jobs:
           port: ${{ secrets.PROD_PORT }}
           script_stop: true
           script: |
+            set -eu
             APP_DIR="${{ secrets.PROD_APP_DIR }}"
-            test -f "$APP_DIR/public/build/manifest.json"
-            ls -la "$APP_DIR/public/build" | head -20
+            echo "[verify] APP_DIR=$APP_DIR"
+            test -d "$APP_DIR"
+            ls -la "$APP_DIR/public" | head -30
+            if [ -d "$APP_DIR/public/build" ]; then
+              ls -la "$APP_DIR/public/build" | head -30
+            else
+              echo "[verify] public/build directory not found"
+            fi
+            if [ ! -f "$APP_DIR/public/build/manifest.json" ]; then
+              echo "[verify] manifest.json not found at $APP_DIR/public/build/manifest.json"
+              exit 1
+            fi
+            echo "[verify] manifest.json found"
 
       - name: Report deployed revision
         if: ${{ always() }}
@@ -160,10 +177,16 @@ jobs:
           port: ${{ secrets.PROD_PORT }}
           script_stop: true
           script: |
-            cd "${{ secrets.PROD_APP_DIR }}"
+            set -eu
+            APP_DIR="${{ secrets.PROD_APP_DIR }}"
+            cd "$APP_DIR"
             echo "EXPECTED_SHA=${GITHUB_SHA}"
-            echo "DEPLOYED_SHA=$(git rev-parse HEAD)"
-            echo "DEPLOYED_SHORT_SHA=$(git rev-parse --short HEAD)"
+            if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+              echo "DEPLOYED_SHA=$(git rev-parse HEAD)"
+              echo "DEPLOYED_SHORT_SHA=$(git rev-parse --short HEAD)"
+            else
+              echo "[report] APP_DIR is not a git repository: $APP_DIR"
+            fi
 
       - name: Health check production
         if: ${{ steps.deploy_script.outcome == 'success' }}
