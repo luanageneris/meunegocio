@@ -77,7 +77,40 @@ jobs:
           port: ${{ secrets.PROD_PORT }}
           script_stop: true
           script: |
-            bash "${{ secrets.PROD_APP_DIR }}/deploy-production.sh"
+            APP_DIR="${{ secrets.PROD_APP_DIR }}"
+            BRANCH="production"
+            cd "$APP_DIR"
+
+            exec 9>"$APP_DIR/.deploy.lock"
+            flock -n 9 || { echo "Deploy ja em execucao"; exit 1; }
+
+            echo "[1/6] Atualizando codigo..."
+            git fetch origin --prune
+            git checkout -B production "origin/$BRANCH"
+            git reset --hard "origin/$BRANCH"
+            git clean -fd -e .env
+
+            if [ ! -f .env ]; then
+              echo "ERRO: .env nao encontrado em $APP_DIR"
+              exit 1
+            fi
+
+            echo "[2/6] Composer install..."
+            composer install --no-dev --optimize-autoloader --no-interaction
+
+            echo "[3/6] Migracoes..."
+            php artisan migrate --force
+
+            echo "[4/6] Limpeza e link..."
+            php artisan storage:link || true
+            php artisan optimize:clear
+
+            echo "[5/6] Caches..."
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            echo "[6/6] Deploy concluido com sucesso"
 
       - name: Restore fallback build if deploy cleaned assets
         if: ${{ always() }}
@@ -161,7 +194,7 @@ jobs:
           script_stop: true
           script: |
             cd "${{ secrets.PROD_APP_DIR }}"
-            echo "EXPECTED_SHA=${GITHUB_SHA}"
+            echo "EXPECTED_SHA=${{ github.sha }}"
             echo "DEPLOYED_SHA=$(git rev-parse HEAD)"
             echo "DEPLOYED_SHORT_SHA=$(git rev-parse --short HEAD)"
 
