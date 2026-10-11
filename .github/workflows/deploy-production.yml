@@ -67,6 +67,8 @@ jobs:
             fi
 
       - name: Run production deploy script
+        id: deploy_script
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -78,6 +80,7 @@ jobs:
             bash "${{ secrets.PROD_APP_DIR }}/deploy-production.sh"
 
       - name: Restore fallback build if deploy cleaned assets
+        if: ${{ always() }}
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -93,6 +96,7 @@ jobs:
             fi
 
       - name: Prepare temporary build directory on server
+        if: ${{ steps.deploy_script.outcome == 'success' }}
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -105,6 +109,7 @@ jobs:
             rm -rf "${{ secrets.PROD_APP_DIR }}/public/build_tmp"/*
 
       - name: Upload built assets to temporary directory
+        if: ${{ steps.deploy_script.outcome == 'success' }}
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -116,6 +121,7 @@ jobs:
           strip_components: 1
 
       - name: Promote temporary build atomically
+        if: ${{ steps.deploy_script.outcome == 'success' }}
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -131,6 +137,7 @@ jobs:
             mv "$APP_DIR/public/build_tmp" "$APP_DIR/public/build"
 
       - name: Verify manifest exists on server
+        if: ${{ always() }}
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -144,6 +151,7 @@ jobs:
             ls -la "$APP_DIR/public/build" | head -20
 
       - name: Report deployed revision
+        if: ${{ always() }}
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -158,6 +166,13 @@ jobs:
             echo "DEPLOYED_SHORT_SHA=$(git rev-parse --short HEAD)"
 
       - name: Health check production
+        if: ${{ steps.deploy_script.outcome == 'success' }}
         run: |
           curl --fail --silent --show-error --location --max-time 30 "${{ secrets.PROD_HEALTHCHECK_URL }}"
+
+      - name: Fail workflow if deploy script failed
+        if: ${{ steps.deploy_script.outcome != 'success' }}
+        run: |
+          echo "Deploy script failed on server. Fallback build restore was executed to keep app online."
+          exit 1
 
