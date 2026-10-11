@@ -13,6 +13,10 @@ class EnsureMasterAdminAccess
         $user = $request->user();
 
         if (!$user || !$user->isMasterAdmin()) {
+            if (!$request->expectsJson() && !$request->is('api/*')) {
+                return redirect('/dashboard');
+            }
+
             return response()->json([
                 'message' => 'Acesso restrito ao administrador master.',
             ], 403);

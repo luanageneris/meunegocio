@@ -5,8 +5,10 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\EnsureUserIsRoot;
 use App\Http\Middleware\EnsureCompanyIsolation;
 use App\Http\Middleware\EnsureMasterAdminAccess;
+use App\Http\Middleware\PreventAuthenticatedPageCache;
 use App\Http\Middleware\TrackChanges;
 use App\Http\Middleware\SetSecurityHeaders;
+use App\Http\Middleware\TranslateApiErrorMessages;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -33,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->api(append: [
+            TranslateApiErrorMessages::class,
             SetSecurityHeaders::class,
         ]);
 
@@ -41,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'master.admin' => EnsureMasterAdminAccess::class,
             'company.isolation' => EnsureCompanyIsolation::class,
             'track.changes' => TrackChanges::class,
+            'prevent.auth.cache' => PreventAuthenticatedPageCache::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

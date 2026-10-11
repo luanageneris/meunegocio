@@ -14,25 +14,25 @@ Route::get('/', function () {
 
 Route::get('/login', function () {
     return Inertia::render('auth/Login');
-})->name('login');
+})->middleware('guest')->name('login');
 
 Route::redirect('/register', '/login');
 Route::redirect('/registre-se', '/login');
 
 Route::get('/admin/usuarios', function () {
     return Inertia::render('AdminUsers');
-})->middleware(['auth:sanctum', 'verified', 'master.admin'])->name('admin.users');
+})->middleware(['auth:sanctum', 'verified', 'master.admin', 'prevent.auth.cache'])->name('admin.users');
 
 // Setup de Empresa
 Route::get('/setup-empresa', function () {
     return Inertia::render('SetupCompany');
-})->middleware(['auth:sanctum', 'verified'])->name('setup.company');
+})->middleware(['auth:sanctum', 'verified', 'prevent.auth.cache'])->name('setup.company');
 
 // Painel Principal (legado -> redireciona para Dashboard)
 Route::redirect('/painel', '/dashboard')->name('painel');
 
 // Rotas privadas - require authentication
-Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+Route::middleware(['auth:sanctum', 'verified', 'prevent.auth.cache'])->group(function () {
     // Registros
     Route::get('/registros', function () {
         return Inertia::render('Registros');
@@ -57,11 +57,6 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/historico', function () {
         return Inertia::render('Historico');
     })->name('historico');
-
-    // Ajuda e Suporte
-    Route::get('/suporte', function () {
-        return Inertia::render('Suporte');
-    })->name('suporte');
 });
 
 // Política de Privacidade (LGPD Brasil e Portugal)
@@ -71,6 +66,6 @@ Route::get('/politica-de-privacidade', function () {
 
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
-})->middleware(['auth:sanctum', 'verified'])->name('dashboard');
+})->middleware(['auth:sanctum', 'verified', 'prevent.auth.cache'])->name('dashboard');
 
 require __DIR__.'/settings.php';

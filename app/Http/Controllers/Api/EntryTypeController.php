@@ -16,7 +16,7 @@ class EntryTypeController extends Controller
         $query = EntryType::forCompany();
 
         if (!$request->boolean('include_defaults')) {
-            $query->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido']);
+            $query->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'não definido']);
         }
 
         $types = $query->orderBy('name')->get();
@@ -83,7 +83,7 @@ class EntryTypeController extends Controller
     {
         $types = EntryType::where('company_id', $request->user()->company_id)
             ->withTrashed()
-            ->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido'])
+            ->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'não definido'])
             ->orderBy('name')
             ->get();
 
@@ -119,6 +119,6 @@ class EntryTypeController extends Controller
         $normalized = mb_strtolower(trim($name));
         $defaultName = mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL);
 
-        return $normalized === $defaultName || $normalized === 'nao definido';
+        return $normalized === $defaultName || $normalized === 'não definido';
     }
 }

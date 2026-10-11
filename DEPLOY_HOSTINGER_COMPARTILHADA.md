@@ -47,7 +47,7 @@ Opcao recomendada:
 
 - Configure o dominio para apontar para: ~/apps/my_business/public
 
-Se o painel nao permitir apontar direto para public, use um subdominio que aceite custom document root.
+Se o painel não permitir apontar direto para public, use um subdominio que aceite custom document root.
 
 ## 4) Configurar .env no servidor
 
@@ -110,6 +110,6 @@ php artisan view:cache
 
 ## Observacoes importantes
 
-- Em producao, nao envie node_modules.
-- Em producao sem Docker, nao envie vendor; instale no servidor.
+- Em producao, não envie node_modules.
+- Em producao sem Docker, não envie vendor; instale no servidor.
 - O build do frontend usa @laravel/vite-plugin-wayfinder, entao o servidor precisa ter vendor instalado antes de npm run build.

@@ -66,6 +66,14 @@ const isClearingRecords = ref(false);
 const clearRecordsError = ref<string | null>(null);
 const clearRecordsSuccess = ref<string | null>(null);
 const saveSuccessMessage = ref('');
+const passwordForm = ref({
+    current_password: '',
+    password: '',
+    password_confirmation: '',
+});
+const passwordFormErrors = ref<Record<string, string[]>>({});
+const passwordFormSuccess = ref('');
+const passwordFormSaving = ref(false);
 const reminderSettings = ref<ReminderSettingsForm>({
     daily_enabled: false,
     daily_condition: 'missing_entry_or_exit',
@@ -355,6 +363,70 @@ const save = async () => {
         toast.error('Não foi possível salvar', { description: error?.message || 'Revise os campos e tente novamente.' });
     } finally {
         isSaving.value = false;
+    }
+};
+
+const submitPasswordChange = async () => {
+    passwordFormErrors.value = {};
+    passwordFormSuccess.value = '';
+
+    if (!passwordForm.value.current_password) {
+        passwordFormErrors.value = {
+            current_password: ['Informe sua senha atual.'],
+        };
+        return;
+    }
+
+    if (!passwordForm.value.password || !passwordForm.value.password_confirmation) {
+        passwordFormErrors.value = {
+            password: ['Informe a nova senha e a confirmação.'],
+        };
+        return;
+    }
+
+    if (passwordForm.value.password !== passwordForm.value.password_confirmation) {
+        passwordFormErrors.value = {
+            password_confirmation: ['A confirmação da nova senha não corresponde.'],
+        };
+        return;
+    }
+
+    passwordFormSaving.value = true;
+
+    try {
+        const response = await fetch('/settings/password', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${auth.token.value}`,
+                'X-CSRF-TOKEN': getCsrfToken(),
+            },
+            body: JSON.stringify({
+                current_password: passwordForm.value.current_password || '',
+                password: passwordForm.value.password,
+                password_confirmation: passwordForm.value.password_confirmation,
+            }),
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+            passwordFormErrors.value = payload?.errors || {};
+            throw new Error(payload?.message || 'Não foi possível atualizar a senha.');
+        }
+
+        passwordForm.value = {
+            current_password: '',
+            password: '',
+            password_confirmation: '',
+        };
+        passwordFormSuccess.value = 'Senha atualizada com sucesso.';
+        toast.success('Senha atualizada', { description: 'Sua senha foi alterada com sucesso.' });
+    } catch (error: any) {
+        toast.error('Erro ao atualizar senha', { description: error?.message || 'Verifique os dados e tente novamente.' });
+    } finally {
+        passwordFormSaving.value = false;
     }
 };
 
@@ -783,23 +855,55 @@ onMounted(async () => {
                             <div class="grid gap-6 lg:grid-cols-2 overflow-hidden">
                                 <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm overflow-hidden">
                                     <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Acesso</p>
-                                    <h3 class="text-lg font-bold text-gray-800 mb-2">Login via Google</h3>
-                                    <p class="text-gray-600 mb-4">
-                                        Você está conectado com sua conta Google. Alterações de senha são feitas diretamente no Google. Para trocar o e-mail de acesso, conecte com outra conta Google.
-                                    </p>
-                                    <div class="flex items-center gap-3 bg-orange-50 border border-orange-100 rounded-lg px-4 py-3">
-                                        <div class="w-10 h-10 rounded-full bg-white shadow flex items-center justify-center">
-                                            <svg class="w-5 h-5 text-orange-500" viewBox="0 0 533.5 544.3" xmlns="http://www.w3.org/2000/svg">
-                                                <path fill="#4285f4" d="M533.5 278.4c0-17.4-1.5-34.1-4.3-50.3H272v95.2h146.9c-6.3 33.9-25 62.6-53.2 81.8v68.1h85.9c50.2-46.3 81.9-114.6 81.9-194.8z"/>
-                                                <path fill="#34a853" d="M272 544.3c72.6 0 133.5-24 178-65.3l-85.9-68.1c-23.8 16-54.3 25.5-92.1 25.5-70.8 0-130.8-47.7-152.3-111.7H30.7v70.2c44.4 88 134.5 149.4 241.3 149.4z"/>
-                                                <path fill="#fbbc04" d="M119.7 324.7c-10.4-31-10.4-64.4 0-95.4V159h-89c-38.7 77.3-38.7 168.1 0 245.4l89-69.7z"/>
-                                                <path fill="#ea4335" d="M272 107.7c39.5-.6 77.4 14.5 106.4 42.3l79.7-79.7C431.3 24.2 373.9 0 272 0 165.2 0 75.1 61.4 30.7 149.4l89 70.2C141.2 155.4 201.2 107.7 272 107.7z"/>
-                                            </svg>
+                                    <h3 class="text-lg font-bold text-gray-800 mb-4">Alterar senha</h3>
+
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Senha atual *</label>
+                                            <input
+                                                v-model="passwordForm.current_password"
+                                                type="password"
+                                                autocomplete="current-password"
+                                                placeholder="Digite sua senha atual"
+                                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                                            />
+                                            <p v-if="passwordFormErrors.current_password" class="text-sm text-red-600 mt-1">{{ passwordFormErrors.current_password[0] }}</p>
                                         </div>
-                                        <div class="min-w-0 flex-1">
-                                            <p class="text-sm text-gray-500">Conta conectada</p>
-                                            <p class="text-base font-semibold text-gray-800 break-all">{{ auth.user.value?.email || '---' }}</p>
+
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Nova senha *</label>
+                                            <input
+                                                v-model="passwordForm.password"
+                                                type="password"
+                                                autocomplete="new-password"
+                                                placeholder="Digite a nova senha"
+                                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                                            />
+                                            <p v-if="passwordFormErrors.password" class="text-sm text-red-600 mt-1">{{ passwordFormErrors.password[0] }}</p>
                                         </div>
+
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Confirmar nova senha *</label>
+                                            <input
+                                                v-model="passwordForm.password_confirmation"
+                                                type="password"
+                                                autocomplete="new-password"
+                                                placeholder="Confirme a nova senha"
+                                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                                            />
+                                            <p v-if="passwordFormErrors.password_confirmation" class="text-sm text-red-600 mt-1">{{ passwordFormErrors.password_confirmation[0] }}</p>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            :disabled="passwordFormSaving"
+                                            @click="submitPasswordChange"
+                                            class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {{ passwordFormSaving ? 'Atualizando...' : 'Atualizar senha' }}
+                                        </button>
+
+                                        <p v-if="passwordFormSuccess" class="text-sm font-medium text-emerald-700">{{ passwordFormSuccess }}</p>
                                     </div>
                                 </section>
 

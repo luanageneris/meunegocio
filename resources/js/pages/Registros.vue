@@ -558,7 +558,7 @@ const findDefaultOptionId = (items: any[]) => {
     const normalized = (v: string) => (v || '').trim().toLowerCase();
     const found = items.find((item: any) => {
         const name = normalized(item?.name || '');
-        return name === 'não definido' || name === 'nao definido';
+        return name === 'não definido' || name === 'não definido';
     });
 
     return found?.id ?? null;

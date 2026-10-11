@@ -16,7 +16,7 @@ class ExitTypeController extends Controller
         $query = ExitType::forCompany();
 
         if (!$request->boolean('include_defaults')) {
-            $query->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido']);
+            $query->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'não definido']);
         }
 
         $types = $query->orderBy('name')->get();
@@ -83,7 +83,7 @@ class ExitTypeController extends Controller
     {
         $types = ExitType::where('company_id', $request->user()->company_id)
             ->withTrashed()
-            ->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido'])
+            ->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'não definido'])
             ->orderBy('name')
             ->get();
 
@@ -122,7 +122,7 @@ class ExitTypeController extends Controller
 
         return in_array($normalized, [
             $defaultName,
-            'nao definido',
+            'não definido',
             $commissionDefaultName,
             'comissao',
         ], true);

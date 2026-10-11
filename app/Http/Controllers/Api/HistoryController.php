@@ -214,6 +214,8 @@ class HistoryController extends Controller
             'update' => $this->buildUpdateSummary($modelLabel, $entityId, $changeFields),
             'delete' => "Removeu {$modelLabel} {$entityId}",
             'restore' => "Restaurou {$modelLabel} {$entityId}",
+            'login' => "Login realizado por {$modelLabel} {$entityId}",
+            'login_failed' => "Tentativa de login sem sucesso em {$modelLabel} {$entityId}",
             default => "Executou ação em {$modelLabel} {$entityId}",
         };
     }

@@ -13,9 +13,9 @@ class EnsureCompanyIsolation
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user() && !$request->user()->company_id) {
+        if ($request->user() && !$request->user()->company_id && !$this->isAllowedWithoutCompany($request)) {
             return response()->json([
-                'message' => 'User must be associated with a company.',
+                'message' => 'Usuário deve estar associado a uma empresa.',
             ], 403);
         }
 
@@ -25,5 +25,18 @@ class EnsureCompanyIsolation
         }
 
         return $next($request);
+    }
+
+    private function isAllowedWithoutCompany(Request $request): bool
+    {
+        if ($request->is('api/company') && in_array($request->method(), ['GET', 'PUT'], true)) {
+            return true;
+        }
+
+        if ($request->is('api/company/needs-setup') && $request->isMethod('GET')) {
+            return true;
+        }
+
+        return false;
     }
 }

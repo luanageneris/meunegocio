@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginGoogleRequest;
 use App\Http\Requests\RegisterGoogleRequest;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\Company;
 use App\Services\CompanyDefaultsService;
+use App\Services\LoginThrottleService;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
@@ -20,7 +22,10 @@ use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
-    public function __construct(private CompanyDefaultsService $companyDefaultsService)
+    public function __construct(
+        private CompanyDefaultsService $companyDefaultsService,
+        private LoginThrottleService $loginThrottleService,
+    )
     {
     }
 
@@ -339,6 +344,60 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Desconectado com sucesso',
+        ]);
+    }
+
+    /**
+     * Limpar bloqueio de tentativas de login para um e-mail.
+     */
+    public function unlockLoginAttempts(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'ip_address' => ['nullable', 'ip'],
+        ]);
+
+        $normalizedEmail = strtolower(trim((string) $validated['email']));
+        $actor = $request->user();
+        $targetUser = User::query()->whereRaw('LOWER(email) = ?', [$normalizedEmail])->first();
+
+        if (!$actor->isMasterAdmin()) {
+            if (!$targetUser || $targetUser->company_id !== $actor->company_id) {
+                return response()->json([
+                    'message' => 'Voce não tem permissao para desbloquear este usuario.',
+                ], 403);
+            }
+        }
+
+        $knownIps = [];
+
+        if (!empty($validated['ip_address'])) {
+            $knownIps[] = $validated['ip_address'];
+        }
+
+        if ($targetUser) {
+            $knownIps = array_merge(
+                $knownIps,
+                AuditLog::query()
+                    ->where('user_id', $targetUser->id)
+                    ->whereIn('action', ['login', 'login_failed'])
+                    ->whereNotNull('ip_address')
+                    ->distinct()
+                    ->pluck('ip_address')
+                    ->all()
+            );
+        }
+
+        $knownIps = array_values(array_unique(array_filter($knownIps)));
+        $clearedKeys = $this->loginThrottleService->clearAttempts($normalizedEmail, $knownIps);
+
+        return response()->json([
+            'data' => [
+                'message' => 'Bloqueio de tentativas removido com sucesso.',
+                'email' => $normalizedEmail,
+                'ip_addresses' => $knownIps,
+                'keys_cleared' => $clearedKeys,
+            ],
         ]);
     }
 

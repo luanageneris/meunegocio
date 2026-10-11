@@ -81,6 +81,11 @@ onUnmounted(() => {
 
 const companyName = computed(() => auth.getCompanyName.value || 'Empresa');
 
+const userRole = computed(() => String(auth.user.value?.role || '').toLowerCase());
+const userEmail = computed(() => String(auth.user.value?.email || '').trim().toLowerCase());
+const isRootUser = computed(() => userRole.value === 'root');
+const isMasterRootUser = computed(() => isRootUser.value && userEmail.value === 'admin@meunegocio.cloud');
+
 type MenuItem = {
     name: string;
     icon: string;
@@ -88,14 +93,30 @@ type MenuItem = {
     key: string;
 };
 
-const menuItems: MenuItem[] = [
-    { name: 'Dashboard', icon: 'dashboard', route: '/dashboard', key: 'dashboard' },
-    { name: 'Registros', icon: 'list', route: '/registros', key: 'registros' },
-    { name: 'Personalizar', icon: 'settings', route: '/personalizar', key: 'personalizar' },
-    { name: 'Colaboradores', icon: 'people', route: '/colaboradores', key: 'colaboradores' },
-    { name: 'Histórico', icon: 'history', route: '/historico', key: 'historico' },
-    { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },
-];
+const menuItems = computed<MenuItem[]>(() => {
+    if (isMasterRootUser.value) {
+        return [
+            { name: 'Acesso', icon: 'shield', route: '/admin/usuarios', key: 'admin-usuarios' },
+            { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },
+        ];
+    }
+
+    if (isRootUser.value) {
+        return [
+            { name: 'Acesso', icon: 'shield', route: '/admin/usuarios', key: 'admin-usuarios' },
+            { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },
+        ];
+    }
+
+    return [
+        { name: 'Dashboard', icon: 'dashboard', route: '/dashboard', key: 'dashboard' },
+        { name: 'Registros', icon: 'list', route: '/registros', key: 'registros' },
+        { name: 'Personalizar', icon: 'settings', route: '/personalizar', key: 'personalizar' },
+        { name: 'Colaboradores', icon: 'people', route: '/colaboradores', key: 'colaboradores' },
+        { name: 'Histórico', icon: 'history', route: '/historico', key: 'historico' },
+        { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },
+    ];
+});
 
 const isNavigating = ref(false);
 const navigatingTo = ref<string | null>(null);
@@ -120,15 +141,31 @@ const handleMenuClick = (event: MouseEvent, item: MenuItem) => {
 };
 
 const handleLogout = async () => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
     try {
+        // Prioritize Fortify web logout to fully terminate session/cookies.
+        await fetch('/logout', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+        });
+
+        // Best-effort API token cleanup for Sanctum tokens.
         await fetch('/api/auth/logout', {
             method: 'POST',
             credentials: 'include',
             headers: {
                 'Accept': 'application/json',
                 'Authorization': `Bearer ${auth.token.value}`,
+                'X-CSRF-TOKEN': csrfToken,
             },
-        });
+        }).catch(() => null);
+
         auth.logout();
         window.location.href = '/login';
     } catch (error) {
@@ -326,7 +363,7 @@ const toggleMobileNav = () => {
     <Teleport to="body">
         <div v-if="showLogoutModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
-                <h2 class="text-lg font-semibold text-gray-800 mb-2">Sair da conta</h2>
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-2">Sair da conta</h2>
                 <p class="text-gray-600 text-sm mb-6">Tem certeza que deseja sair?</p>
                 <div class="flex gap-3 justify-end">
                     <button

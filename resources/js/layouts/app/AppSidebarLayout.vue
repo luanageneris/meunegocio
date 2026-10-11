@@ -34,12 +34,6 @@ const currentYear = new Date().getFullYear();
                     >
                         Política de Privacidade
                     </Link>
-                    <Link
-                        href="/suporte"
-                        class="font-semibold text-orange-700 hover:text-orange-800 transition"
-                    >
-                        Ajuda e Suporte
-                    </Link>
                 </div>
                 <span class="text-gray-500 dark:text-muted-foreground">
                     © {{ currentYear }} Meu Negócio · Segurança multi-tenant

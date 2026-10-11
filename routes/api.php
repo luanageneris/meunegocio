@@ -39,11 +39,13 @@ Route::prefix('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
     Route::get('/user', [AuthController::class, 'user'])->middleware('auth:sanctum');
     Route::post('/impersonate/{user}', [AuthController::class, 'impersonate'])->middleware(['auth:sanctum', 'root']);
+    Route::post('/login-attempts/unlock', [AuthController::class, 'unlockLoginAttempts'])->middleware(['auth:sanctum', 'root']);
 });
 
 Route::middleware(['auth:sanctum', 'master.admin'])->group(function () {
     Route::get('/admin/users', [\App\Http\Controllers\Api\AdminUserController::class, 'index']);
     Route::post('/admin/users', [\App\Http\Controllers\Api\AdminUserController::class, 'store']);
+    Route::post('/admin/users/{user}/reset-password', [\App\Http\Controllers\Api\AdminUserController::class, 'resetPassword']);
 });
 
 // ========================================================================

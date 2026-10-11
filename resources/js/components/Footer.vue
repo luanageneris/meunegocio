@@ -21,8 +21,6 @@ const currentYear = new Date().getFullYear();
                 <div class="flex items-center gap-4 text-xs text-gray-500 dark:text-slate-400">
                     <a href="/termos" class="hover:text-orange-600 dark:hover:text-orange-400 transition">Termos</a>
                     <span class="text-gray-300 dark:text-slate-600">•</span>
-                    <a href="/suporte" class="hover:text-orange-600 dark:hover:text-orange-400 transition">Ajuda e Suporte</a>
-                    <span class="text-gray-300 dark:text-slate-600">•</span>
                     <a href="/politica-de-privacidade" class="hover:text-orange-600 dark:hover:text-orange-400 transition">Política de Privacidade</a>
                 </div>
             </div>

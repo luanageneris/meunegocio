@@ -108,14 +108,16 @@ class FinancialRecordsExcelImportService
                         $summary['rows_processed']++;
                         Log::info("Linha $row: Data válida ({$date->format('d/m/Y')})");
 
-                        $entryCell = $sheet->getCell('B' . $row);
-                        $commissionCell = $sheet->getCell('C' . $row);
-                        $exitCell = $sheet->getCell('D' . $row);
-                        $columnB = $entryCell->getFormattedValue();
-                        $columnC = $commissionCell->getFormattedValue();
-                        $columnD = $exitCell->getFormattedValue();
-                        $columnF = $sheet->getCell('F' . $row)->getFormattedValue();
-                        
+                        $entryCell = $sheet->cellExists('B' . $row) ? $sheet->getCell('B' . $row) : null;
+                        $commissionCell = $sheet->cellExists('C' . $row) ? $sheet->getCell('C' . $row) : null;
+                        $exitCell = $sheet->cellExists('D' . $row) ? $sheet->getCell('D' . $row) : null;
+                        $reasonCell = $sheet->cellExists('F' . $row) ? $sheet->getCell('F' . $row) : null;
+
+                        $columnB = $entryCell?->getFormattedValue() ?? '';
+                        $columnC = $commissionCell?->getFormattedValue() ?? '';
+                        $columnD = $exitCell?->getFormattedValue() ?? '';
+                        $columnF = $reasonCell?->getFormattedValue() ?? '';
+
                         Log::debug("Valores brutos", [
                             'B' => $columnB,
                             'C' => $columnC,
@@ -124,7 +126,7 @@ class FinancialRecordsExcelImportService
                         ]);
 
                         // ENTRADA
-                        $entryAmount = $this->parseCurrencyCell($entryCell);
+                        $entryAmount = $entryCell ? $this->parseCurrencyCell($entryCell) : 0;
                         if ($entryAmount > 0) {
                             Log::info("Criando ENTRADA", [
                                 'data' => $date->toDateString(),
@@ -149,7 +151,7 @@ class FinancialRecordsExcelImportService
                         }
 
                         // COMISSÃO
-                        $commissionAmount = $this->parseCurrencyCell($commissionCell);
+                        $commissionAmount = $commissionCell ? $this->parseCurrencyCell($commissionCell) : 0;
                         if ($commissionAmount > 0) {
                             Log::info("Criando COMISSÃO", [
                                 'data' => $date->toDateString(),
@@ -173,7 +175,7 @@ class FinancialRecordsExcelImportService
                         }
 
                         // SAÍDA
-                        $exitAmount = $this->parseCurrencyCell($exitCell);
+                        $exitAmount = $exitCell ? $this->parseCurrencyCell($exitCell) : 0;
                         if ($exitAmount > 0) {
                             $reason = trim((string) $columnF);
                             Log::info("Criando SAÍDA", [

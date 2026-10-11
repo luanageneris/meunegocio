@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PasswordController from '@/actions/App/Http/Controllers/Settings/PasswordController';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
@@ -120,6 +121,94 @@ const user = page.props.auth.user;
                         </Transition>
                     </div>
                 </Form>
+
+                <div class="rounded-xl border bg-muted/30 p-6">
+                    <HeadingSmall
+                        title="Update access password"
+                        description="Change the password used to sign in to the application"
+                    />
+
+                    <Form
+                        v-bind="PasswordController.update.form()"
+                        :options="{
+                            preserveScroll: true,
+                        }"
+                        reset-on-success
+                        :reset-on-error="[
+                            'password',
+                            'password_confirmation',
+                            'current_password',
+                        ]"
+                        class="mt-6 space-y-6"
+                        v-slot="{ errors, processing, recentlySuccessful }"
+                    >
+                        <div class="grid gap-2">
+                            <Label for="profile-current-password"
+                                >Current password</Label
+                            >
+                            <Input
+                                id="profile-current-password"
+                                name="current_password"
+                                type="password"
+                                class="mt-1 block w-full"
+                                autocomplete="current-password"
+                                placeholder="Current password"
+                            />
+                            <InputError :message="errors.current_password" />
+                        </div>
+
+                        <div class="grid gap-2">
+                            <Label for="profile-password">New password</Label>
+                            <Input
+                                id="profile-password"
+                                name="password"
+                                type="password"
+                                class="mt-1 block w-full"
+                                autocomplete="new-password"
+                                placeholder="New password"
+                            />
+                            <InputError :message="errors.password" />
+                        </div>
+
+                        <div class="grid gap-2">
+                            <Label for="profile-password-confirmation"
+                                >Confirm password</Label
+                            >
+                            <Input
+                                id="profile-password-confirmation"
+                                name="password_confirmation"
+                                type="password"
+                                class="mt-1 block w-full"
+                                autocomplete="new-password"
+                                placeholder="Confirm password"
+                            />
+                            <InputError :message="errors.password_confirmation" />
+                        </div>
+
+                        <div class="flex items-center gap-4">
+                            <Button
+                                :disabled="processing"
+                                data-test="update-user-password-button"
+                            >
+                                Save password
+                            </Button>
+
+                            <Transition
+                                enter-active-class="transition ease-in-out"
+                                enter-from-class="opacity-0"
+                                leave-active-class="transition ease-in-out"
+                                leave-to-class="opacity-0"
+                            >
+                                <p
+                                    v-show="recentlySuccessful"
+                                    class="text-sm text-neutral-600"
+                                >
+                                    Saved.
+                                </p>
+                            </Transition>
+                        </div>
+                    </Form>
+                </div>
             </div>
 
             <DeleteUser />

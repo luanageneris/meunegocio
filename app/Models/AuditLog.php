@@ -72,6 +72,8 @@ class AuditLog extends Model
             'update' => 'Atualizado',
             'delete' => 'Deletado',
             'restore' => 'Restaurado',
+            'login' => 'Login realizado',
+            'login_failed' => 'Falha no login',
             default => ucfirst($this->action),
         };
     }
@@ -90,6 +92,7 @@ class AuditLog extends Model
             'App\Models\DailyClosure' => 'Fechamento Diário',
             'App\Models\Balance' => 'Saldo',
             'App\Models\ImportLog' => 'Importação',
+            'App\Models\User' => 'Usuário',
             default => class_basename($this->model),
         };
     }

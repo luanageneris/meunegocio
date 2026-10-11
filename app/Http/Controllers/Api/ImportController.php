@@ -51,7 +51,9 @@ class ImportController extends Controller
             (int) $request->integer('default_collaborator_id')
         );
 
-        return response()->json($result['payload'], $result['status']);
+        return response()->json([
+            'data' => $result['payload'],
+        ], $result['status']);
     }
 
     public function logs(Request $request)

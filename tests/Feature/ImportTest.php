@@ -92,11 +92,11 @@ class ImportTest extends TestCase
         ]);
 
         $response->assertStatus(201);
-        $response->assertJsonPath('message', 'Importação concluída com sucesso');
-        $response->assertJsonPath('summary.entries_created', 2);
-        $response->assertJsonPath('summary.exits_created', 2);
-        $response->assertJsonPath('summary.commissions_created', 2);
-        $response->assertJsonPath('summary.sheets_processed', 1);
+        $response->assertJsonPath('data.message', 'Importação concluída com sucesso');
+        $response->assertJsonPath('data.summary.entries_created', 2);
+        $response->assertJsonPath('data.summary.exits_created', 2);
+        $response->assertJsonPath('data.summary.commissions_created', 2);
+        $response->assertJsonPath('data.summary.sheets_processed', 1);
     }
 
     public function test_import_accepts_month_first_string_dates()
@@ -116,10 +116,10 @@ class ImportTest extends TestCase
         ]);
 
         $response->assertStatus(201);
-        $response->assertJsonPath('summary.rows_processed', 2);
-        $response->assertJsonPath('summary.entries_created', 2);
-        $response->assertJsonPath('summary.exits_created', 2);
-        $response->assertJsonPath('summary.commissions_created', 2);
+        $response->assertJsonPath('data.summary.rows_processed', 2);
+        $response->assertJsonPath('data.summary.entries_created', 2);
+        $response->assertJsonPath('data.summary.exits_created', 2);
+        $response->assertJsonPath('data.summary.commissions_created', 2);
     }
 
     public function test_import_accepts_excel_serial_dates()
@@ -159,10 +159,10 @@ class ImportTest extends TestCase
         ]);
 
         $response->assertStatus(201);
-        $response->assertJsonPath('summary.rows_processed', 1);
-        $response->assertJsonPath('summary.entries_created', 1);
-        $response->assertJsonPath('summary.exits_created', 1);
-        $response->assertJsonPath('summary.commissions_created', 1);
+        $response->assertJsonPath('data.summary.rows_processed', 1);
+        $response->assertJsonPath('data.summary.entries_created', 1);
+        $response->assertJsonPath('data.summary.exits_created', 1);
+        $response->assertJsonPath('data.summary.commissions_created', 1);
     }
 
     public function test_import_accepts_numeric_currency_cells_with_excel_format()
@@ -202,10 +202,10 @@ class ImportTest extends TestCase
         ]);
 
         $response->assertStatus(201);
-        $response->assertJsonPath('summary.rows_processed', 1);
-        $response->assertJsonPath('summary.entries_created', 1);
-        $response->assertJsonPath('summary.exits_created', 1);
-        $response->assertJsonPath('summary.commissions_created', 1);
+        $response->assertJsonPath('data.summary.rows_processed', 1);
+        $response->assertJsonPath('data.summary.entries_created', 1);
+        $response->assertJsonPath('data.summary.exits_created', 1);
+        $response->assertJsonPath('data.summary.commissions_created', 1);
     }
 
     public function test_import_creates_import_log()
@@ -257,8 +257,8 @@ class ImportTest extends TestCase
         ]);
 
         $response->assertStatus(422);
-        $response->assertJsonPath('message', 'Falha ao importar arquivo');
-        $response->assertJsonPath('error', 'Nenhuma linha válida foi encontrada no arquivo. Use datas no formato dd/mm/aaaa.');
+        $response->assertJsonPath('data.message', 'Falha ao importar arquivo');
+        $response->assertJsonPath('data.error', 'Nenhuma linha válida foi encontrada no arquivo. Use datas no formato dd/mm/aaaa.');
     }
 
     public function test_import_fails_when_dates_are_in_unsupported_format()
@@ -278,9 +278,9 @@ class ImportTest extends TestCase
         ]);
 
         $response->assertStatus(422);
-        $response->assertJsonPath('message', 'Falha ao importar arquivo');
+        $response->assertJsonPath('data.message', 'Falha ao importar arquivo');
         $response->assertJsonPath(
-            'error',
+            'data.error',
             'Nenhuma linha válida foi encontrada no arquivo. As datas lidas estão em formato inválido para a importação atual. Exemplos: 2025.31.01, 2025.30.01. Use datas no formato dd/mm/aaaa.'
         );
 

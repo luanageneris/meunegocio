@@ -11,7 +11,7 @@ ZIP_PACKAGE_FILE="$DIST_DIR/my_business_hostinger_${TIMESTAMP}.zip"
 require_cmd() {
   local cmd="$1"
   if ! command -v "$cmd" >/dev/null 2>&1; then
-    echo "Erro: comando '$cmd' nao encontrado." >&2
+    echo "Erro: comando '$cmd' não encontrado." >&2
     exit 1
   fi
 }
@@ -73,7 +73,7 @@ echo "$PACKAGE_FILE"
 if [[ "$GENERATED_ZIP" == "1" ]]; then
   echo "$ZIP_PACKAGE_FILE"
 else
-  echo "Aviso: comando 'zip' nao encontrado, arquivo .zip nao foi gerado."
+  echo "Aviso: comando 'zip' não encontrado, arquivo .zip não foi gerado."
 fi
 echo
 echo "Proximos passos no servidor:"

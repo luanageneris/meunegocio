@@ -398,7 +398,7 @@ Quero importar dados de entrada e saida de um excel que será carregado na pagin
  
  O usuario precisa  carregar esse ficheiro no botão "Importar Entradas e SAidas"
  Ao clicar neste botão deve abrir o explorer para selecionar o excel;
- apos confirmar o excel, deve ser possivel ver o nome do ficheiro selecionado, o tamanho dele e um botão para confirmar importação ou cancelar submissão. Alem disso, o usuario pode alterar o default qu ederá usado durante a importação para os dados que nao contem no excel: o tipo de saida para todos; usar o tipo de entrada para todos; a comissão para todos; por default o tipo de entrada chamado "Não definido" que já existe no sistema;usar por default o tipo de saida chamado "Não definido" que já existe no sistema; usar por default o colaborador chamado "Não definido" que já existe no sistema. e enviar o que for seleiconado (o user pode alterar para outro valor presente em sua lista) para o backend processar com esses valores.
+ apos confirmar o excel, deve ser possivel ver o nome do ficheiro selecionado, o tamanho dele e um botão para confirmar importação ou cancelar submissão. Alem disso, o usuario pode alterar o default qu ederá usado durante a importação para os dados que não contem no excel: o tipo de saida para todos; usar o tipo de entrada para todos; a comissão para todos; por default o tipo de entrada chamado "Não definido" que já existe no sistema;usar por default o tipo de saida chamado "Não definido" que já existe no sistema; usar por default o colaborador chamado "Não definido" que já existe no sistema. e enviar o que for seleiconado (o user pode alterar para outro valor presente em sua lista) para o backend processar com esses valores.
 
  se cancelar, deve sumir tudo de improtação que apreceu ao clicar no botão importar;
  se confirmar, deve ler o ficheiro e persistir os dados;
@@ -411,10 +411,10 @@ Quero importar dados de entrada e saida de um excel que será carregado na pagin
  - Total Final (E)	
  - motivo da saida (F)
 
-Depois do header começam os dados e termina a leitura quando a coluna A conter o valor "Total", esta é a ultima linha com dados totais que nao será necessario registar.
+Depois do header começam os dados e termina a leitura quando a coluna A conter o valor "Total", esta é a ultima linha com dados totais que não será necessario registar.
 
 ## Detalhes sobre cada campo e como registar:
-- Data: é um campo de data d/m/Y que pode nao ter todos os dias do mes, apenas o dia que há registo.
+- Data: é um campo de data d/m/Y que pode não ter todos os dias do mes, apenas o dia que há registo.
 - Total de Entrada: é o valor que entrou naquele dia; deve ser registada uma entrada 
  - Total de Comissões: é o valor da comissão que foi paga para alguem
  - Pagamentos (Saida):  é o valor que saiu naquele dia; deve ser registada uma saida 
@@ -425,9 +425,9 @@ Todos os valores são no formato definido na celula:
 pro exemplo R$ 198,00
 
  ## Se todos os campos desta linha forem preenchidos, significa que teremos 3 registos:
- - uma entrada (como nao temos identificação do tipo de entrada, usar por default o tipo de entrada chamado "Não definido" que já existe no sistema)
- - uma saida (como nao temos identificação do tipo de saida, usar por default o tipo de saida chamado "Não definido" que já existe no sistema)
- - uma comissão (como nao temos identificação de quem foi, usar por default o colaborador chamado "Não definido" que já existe no sistema)
+ - uma entrada (como não temos identificação do tipo de entrada, usar por default o tipo de entrada chamado "Não definido" que já existe no sistema)
+ - uma saida (como não temos identificação do tipo de saida, usar por default o tipo de saida chamado "Não definido" que já existe no sistema)
+ - uma comissão (como não temos identificação de quem foi, usar por default o colaborador chamado "Não definido" que já existe no sistema)
 
 
 

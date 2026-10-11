@@ -47,19 +47,19 @@ class FakeFinancialDataByEmailSeeder extends Seeder
 
         $entryType = EntryType::query()
             ->where('company_id', $companyId)
-            ->whereRaw('LOWER(name) IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido'])
+            ->whereRaw('LOWER(name) IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'não definido'])
             ->first()
             ?? EntryType::query()->where('company_id', $companyId)->first();
 
         $exitType = ExitType::query()
             ->where('company_id', $companyId)
-            ->whereRaw('LOWER(name) IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido'])
+            ->whereRaw('LOWER(name) IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'não definido'])
             ->first()
             ?? ExitType::query()->where('company_id', $companyId)->first();
 
         $collaborator = Collaborator::query()
             ->where('company_id', $companyId)
-            ->whereRaw('LOWER(name) IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido'])
+            ->whereRaw('LOWER(name) IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'não definido'])
             ->first()
             ?? Collaborator::query()->where('company_id', $companyId)->first();
 

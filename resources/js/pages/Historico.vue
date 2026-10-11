@@ -44,7 +44,7 @@ const auth = useAuth();
 const logs = ref<AuditLog[]>([]);
 const stats = ref<Stats | null>(null);
 const loading = ref(false);
-const selectedFilter = ref<'all' | 'create' | 'update' | 'delete' | 'restore'>('all');
+const selectedFilter = ref<'all' | 'create' | 'update' | 'delete' | 'restore' | 'login' | 'login_failed'>('all');
 const selectedModel = ref('');
 const dateFrom = ref('');
 const dateTo = ref('');
@@ -134,6 +134,8 @@ const getActionBadgeClass = (action: string) => {
     'update': 'bg-blue-100 text-blue-800',
     'delete': 'bg-red-100 text-red-800',
     'restore': 'bg-purple-100 text-purple-800',
+    'login': 'bg-emerald-100 text-emerald-800',
+    'login_failed': 'bg-amber-100 text-amber-800',
   }[action] || 'bg-gray-100 text-gray-800';
 };
 
@@ -143,6 +145,8 @@ const getActionLabel = (action: string) => {
     'update': 'Atualizado',
     'delete': 'Deletado',
     'restore': 'Restaurado',
+    'login': 'Login realizado',
+    'login_failed': 'Falha no login',
   }[action] || action;
 };
 
@@ -158,6 +162,7 @@ const getModelLabel = (model: string) => {
     'ExitType': 'Tipo de Saída',
     'DailyClosure': 'Fechamento Diário',
     'Balance': 'Saldo',
+    'User': 'Usuário',
   }[modelName] || modelName;
 };
 
@@ -253,6 +258,13 @@ const fieldLabels: Record<string, Record<string, string>> = {
   },
   ImportLog: {
     import_summary: 'Resumo da Importação',
+  },
+  User: {
+    event: 'Evento',
+    login_at: 'Momento do login',
+    attempted_at: 'Momento da tentativa',
+    ip_address: 'IP',
+    location: 'Localização',
   },
 };
 
@@ -758,6 +770,8 @@ onMounted(() => {
                 <option value="update">Atualizado</option>
                 <option value="delete">Deletado</option>
                 <option value="restore">Restaurado</option>
+                <option value="login">Login realizado</option>
+                <option value="login_failed">Falha no login</option>
               </select>
             </div>
 
@@ -778,6 +792,7 @@ onMounted(() => {
                 <option value="App\Models\ExitType">Tipos de Saída</option>
                 <option value="App\Models\DailyClosure">Fechamentos Diários</option>
                 <option value="App\Models\Balance">Saldos</option>
+                <option value="App\Models\User">Usuários</option>
               </select>
             </div>
 

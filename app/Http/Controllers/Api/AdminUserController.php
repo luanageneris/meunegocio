@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class AdminUserController extends Controller
@@ -66,6 +67,26 @@ class AdminUserController extends Controller
                 'last_login_at' => $user->last_login_at ? $user->last_login_at->toISOString() : null,
             ],
         ], 201);
+    }
+
+    public function resetPassword(Request $request, User $user)
+    {
+        $this->ensureMasterAdmin($request);
+
+        $newPassword = Str::password(12, true, true, false, false);
+
+        $user->forceFill([
+            'password' => Hash::make($newPassword),
+        ])->save();
+
+        return response()->json([
+            'data' => [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'new_password' => $newPassword,
+            ],
+            'message' => 'Senha redefinida com sucesso.',
+        ]);
     }
 
     private function ensureMasterAdmin(Request $request): void

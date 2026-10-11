@@ -6,12 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateCompanyRequest;
 use App\Models\Company;
 use App\Models\User;
+use App\Services\CompanyDefaultsService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class CompanyController extends Controller
 {
+    public function __construct(private CompanyDefaultsService $companyDefaultsService)
+    {
+    }
+
     /**
      * Obter dados da empresa do usuário autenticado
      */
@@ -41,19 +47,68 @@ class CompanyController extends Controller
             return response()->json(['message' => 'Não autenticado'], 401);
         }
 
-        $company = $user->company;
-
         // Validar se é proprietário/root
         if ($user->role !== 'root' && $user->role !== 'owner') {
             return response()->json(['message' => 'Não autorizado'], 403);
         }
 
-        $company->update($request->validated());
+        $validated = $request->validated();
+        $company = $user->company;
+
+        // Primeiro acesso: usuário ainda não está associado a uma empresa.
+        if (!$company) {
+            $company = DB::transaction(function () use ($user, $validated) {
+                $newCompany = Company::create([
+                    'owner_id' => $user->id,
+                    'name' => $validated['name'],
+                    'slug' => $this->generateUniqueSlug($validated['name']),
+                    'email' => $validated['email'] ?? null,
+                    'phone' => $validated['phone'] ?? null,
+                    'document' => $validated['document'] ?? null,
+                    'address' => $validated['address'] ?? null,
+                    'city' => $validated['city'] ?? null,
+                    'state' => $validated['state'] ?? null,
+                    'postal_code' => $validated['postal_code'] ?? null,
+                    'active' => true,
+                    'use_service_types' => (bool) ($validated['use_service_types'] ?? false),
+                ]);
+
+                $user->forceFill([
+                    'company_id' => $newCompany->id,
+                ])->save();
+
+                $this->companyDefaultsService->ensureForCompany((int) $newCompany->id);
+
+                return $newCompany;
+            });
+
+            return response()->json([
+                'data' => $company->fresh(),
+                'message' => 'Empresa criada com sucesso',
+            ], 200);
+        }
+
+        $company->update($validated);
 
         return response()->json([
             'data' => $company,
             'message' => 'Empresa atualizada com sucesso',
         ], 200);
+    }
+
+    private function generateUniqueSlug(string $name): string
+    {
+        $baseSlug = Str::slug($name);
+        $baseSlug = $baseSlug !== '' ? $baseSlug : 'empresa';
+        $slug = $baseSlug;
+        $suffix = 2;
+
+        while (Company::withTrashed()->where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $suffix;
+            $suffix++;
+        }
+
+        return $slug;
     }
 
     /**

@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 
-const lastUpdated = '19/01/2026';
-const privacyMailToHref = 'mailto:privacidade@meunegocio.app?subject=Solicitacao%20de%20privacidade&body=Por%20favor,%20informe:%0D%0A-%20Email%20de%20contato:%0D%0A-%20Empresa%20(ou%20CNPJ/NIF):%0D%0A-%20Direito%20que%20deseja%20exercer:%0D%0A-%20Detalhes%20da%20solicitacao:%0D%0A';
-const isOpeningPrivacyEmail = ref(false);
+const lastUpdated = '11/10/2026';
+const privacyEmailHref = 'https://mail.google.com/mail/?view=cm&fs=1&to=luanacarvalhomesquita@gmail.com&su=Solicita%C3%A7%C3%A3o%20de%20privacidade&body=Por%20favor,%20informe:%0D%0A-%20Email%20de%20contato:%0D%0A-%20Empresa%20(ou%20CNPJ/NIF):%0D%0A-%20Direito%20que%20deseja%20exercer:%0D%0A-%20Detalhes%20da%20solicita%C3%A7%C3%A3o:%0D%0A';
 
 const page = usePage();
 const isAuthenticated = computed(() => {
@@ -25,23 +24,10 @@ const handleBack = () => {
 
     router.visit('/login');
 };
-
-const handleOpenPrivacyEmail = () => {
-    if (isOpeningPrivacyEmail.value) {
-        return;
-    }
-
-    isOpeningPrivacyEmail.value = true;
-    window.location.href = privacyMailToHref;
-
-    setTimeout(() => {
-        isOpeningPrivacyEmail.value = false;
-    }, 3000);
-};
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-100 text-gray-900">
+    <div class="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-100 text-gray-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-foreground">
         <Head title="Política de Privacidade - MEU NEGÓCIO" />
 
         <header class="max-w-6xl mx-auto px-6 pt-10 pb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -53,7 +39,7 @@ const handleOpenPrivacyEmail = () => {
             <div class="flex items-center gap-3 self-start sm:self-auto">
                 <button
                     type="button"
-                    class="px-4 py-2 rounded-full border border-orange-200 text-orange-700 font-semibold hover:border-orange-400 hover:text-orange-800 transition"
+                    class="px-4 py-2 rounded-full border border-orange-200 text-orange-700 font-semibold hover:border-orange-400 hover:text-orange-800 transition dark:border-orange-500/40 dark:text-orange-300 dark:hover:border-orange-400 dark:hover:text-orange-200"
                     @click="handleBack"
                 >
                     Voltar
@@ -62,7 +48,7 @@ const handleOpenPrivacyEmail = () => {
         </header>
 
         <main class="w-full min-w-0 max-w-6xl mx-auto px-6 pb-16 space-y-10 overflow-x-hidden">
-            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8">
+            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 dark:bg-card dark:border-border dark:shadow-none">
                 <div class="grid md:grid-cols-3 gap-6">
                     <div class="p-4 rounded-xl bg-orange-50 border border-orange-100">
                         <p class="text-sm text-orange-700 font-semibold">Controladora</p>
@@ -82,12 +68,12 @@ const handleOpenPrivacyEmail = () => {
                 </div>
             </section>
 
-            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-4">
+            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-4 dark:bg-card dark:border-border dark:shadow-none">
                 <div class="flex items-center gap-3">
                     <div class="h-10 w-10 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold">1</div>
                     <div>
-                        <h2 class="text-2xl font-black text-gray-900">Quais dados coletamos</h2>
-                        <p class="text-gray-700">Coletamos somente o necessário para operar o serviço e cumprir obrigações legais.</p>
+                        <h2 class="text-2xl font-black text-gray-900 dark:text-foreground">Quais dados coletamos</h2>
+                        <p class="text-gray-700 dark:text-muted-foreground">Coletamos somente o necessário para operar o serviço e cumprir obrigações legais.</p>
                     </div>
                 </div>
                 <div class="grid md:grid-cols-2 gap-4">
@@ -105,17 +91,17 @@ const handleOpenPrivacyEmail = () => {
                     </div>
                     <div class="p-4 rounded-xl border border-orange-100 bg-orange-50">
                         <p class="text-sm font-semibold text-orange-700">Logs e segurança</p>
-                        <p class="text-gray-800">Logs de acesso, dispositivo, endereço IP e eventos relevantes para auditoria e fraude.</p>
+                        <p class="text-gray-800">Logs de acesso, tentativas de login com sucesso e falha, endereço IP, localização aproximada por IP e eventos relevantes para auditoria e prevenção de fraude.</p>
                     </div>
                 </div>
             </section>
 
-            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-6">
+            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-6 dark:bg-card dark:border-border dark:shadow-none">
                 <div class="flex items-center gap-3">
                     <div class="h-10 w-10 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold">2</div>
                     <div>
-                        <h2 class="text-2xl font-black text-gray-900">Como usamos os dados</h2>
-                        <p class="text-gray-700">Tratamos dados pessoais apenas para operar a plataforma, prestar suporte e cumprir obrigações legais.</p>
+                        <h2 class="text-2xl font-black text-gray-900 dark:text-foreground">Como usamos os dados</h2>
+                        <p class="text-gray-700 dark:text-muted-foreground">Tratamos dados pessoais apenas para operar a plataforma, prestar suporte e cumprir obrigações legais.</p>
                     </div>
                 </div>
                 <div class="grid md:grid-cols-2 gap-4">
@@ -125,11 +111,11 @@ const handleOpenPrivacyEmail = () => {
                     </div>
                     <div class="p-4 rounded-xl border border-orange-100">
                         <p class="text-sm font-semibold text-orange-700">Segurança e prevenção a fraudes</p>
-                        <p class="text-gray-800">Monitorar acesso, detectar uso indevido, aplicar isolamento por empresa e responder a incidentes.</p>
+                        <p class="text-gray-800">Monitorar acesso, detectar uso indevido, aplicar isolamento por empresa, responder a incidentes e bloquear tentativas excessivas de login por período de segurança.</p>
                     </div>
                     <div class="p-4 rounded-xl border border-orange-100">
                         <p class="text-sm font-semibold text-orange-700">Suporte</p>
-                        <p class="text-gray-800">Responder solicitações em /suporte e manter histórico de atendimento.</p>
+                        <p class="text-gray-800">Responder solicitações por meio do canal de atendimento da plataforma e manter histórico de atendimento.</p>
                     </div>
                     <div class="p-4 rounded-xl border border-orange-100">
                         <p class="text-sm font-semibold text-orange-700">Obrigação legal</p>
@@ -138,12 +124,12 @@ const handleOpenPrivacyEmail = () => {
                 </div>
             </section>
 
-            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-6">
+            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-6 dark:bg-card dark:border-border dark:shadow-none">
                 <div class="flex items-center gap-3">
                     <div class="h-10 w-10 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold">3</div>
                     <div>
-                        <h2 class="text-2xl font-black text-gray-900">Bases legais</h2>
-                        <p class="text-gray-700">Fundamentamos cada tratamento nos princípios de necessidade, transparência e segurança.</p>
+                        <h2 class="text-2xl font-black text-gray-900 dark:text-foreground">Bases legais</h2>
+                        <p class="text-gray-700 dark:text-muted-foreground">Fundamentamos cada tratamento nos princípios de necessidade, transparência e segurança.</p>
                     </div>
                 </div>
                 <div class="grid md:grid-cols-3 gap-4">
@@ -153,7 +139,7 @@ const handleOpenPrivacyEmail = () => {
                     </div>
                     <div class="p-4 rounded-xl border border-orange-100 bg-orange-50">
                         <p class="text-sm font-semibold text-orange-700">Legítimo interesse</p>
-                        <p class="text-gray-800">Prevenir fraude, manter segurança, melhorar o serviço e equilibrar direitos do titular com salvaguardas.</p>
+                        <p class="text-gray-800">Prevenir fraude, manter segurança da conta (incluindo análise de tentativas de login com IP e localização aproximada), melhorar o serviço e equilibrar direitos do titular com salvaguardas.</p>
                     </div>
                     <div class="p-4 rounded-xl border border-orange-100 bg-orange-50">
                         <p class="text-sm font-semibold text-orange-700">Consentimento</p>
@@ -162,12 +148,12 @@ const handleOpenPrivacyEmail = () => {
                 </div>
             </section>
 
-            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-6">
+            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-6 dark:bg-card dark:border-border dark:shadow-none">
                 <div class="flex items-center gap-3">
                     <div class="h-10 w-10 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold">4</div>
                     <div>
-                        <h2 class="text-2xl font-black text-gray-900">Direitos do titular</h2>
-                        <p class="text-gray-700">Você pode exercer seus direitos a qualquer momento pelos canais indicados.</p>
+                        <h2 class="text-2xl font-black text-gray-900 dark:text-foreground">Direitos do titular</h2>
+                        <p class="text-gray-700 dark:text-muted-foreground">Você pode exercer seus direitos a qualquer momento pelos canais indicados.</p>
                     </div>
                 </div>
                 <div class="grid md:grid-cols-2 gap-4">
@@ -190,12 +176,12 @@ const handleOpenPrivacyEmail = () => {
                 </div>
             </section>
 
-            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-6">
+            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-6 dark:bg-card dark:border-border dark:shadow-none">
                 <div class="flex items-center gap-3">
                     <div class="h-10 w-10 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold">5</div>
                     <div>
-                        <h2 class="text-2xl font-black text-gray-900">Compartilhamento e transferências</h2>
-                        <p class="text-gray-700">Não vendemos nem compartilhamos dados pessoais com terceiros para fins comerciais. Se um dia precisarmos compartilhar, faremos apenas o mínimo necessário, com base legal, contrato adequado e, quando exigido, consentimento prévio.</p>
+                        <h2 class="text-2xl font-black text-gray-900 dark:text-foreground">Compartilhamento e transferências</h2>
+                        <p class="text-gray-700 dark:text-muted-foreground">Não vendemos nem compartilhamos dados pessoais com terceiros para fins comerciais. Se um dia precisarmos compartilhar, faremos apenas o mínimo necessário, com base legal, contrato adequado e, quando exigido, consentimento prévio.</p>
                     </div>
                 </div>
                 <div class="grid md:grid-cols-3 gap-4">
@@ -214,12 +200,12 @@ const handleOpenPrivacyEmail = () => {
                 </div>
             </section>
 
-            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-6">
+            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-6 dark:bg-card dark:border-border dark:shadow-none">
                 <div class="flex items-center gap-3">
                     <div class="h-10 w-10 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold">6</div>
                     <div>
-                        <h2 class="text-2xl font-black text-gray-900">Retenção, segurança e multi-tenant</h2>
-                        <p class="text-gray-700">Protegemos dados por design e os mantemos apenas pelo tempo necessário.</p>
+                        <h2 class="text-2xl font-black text-gray-900 dark:text-foreground">Retenção, segurança e multi-tenant</h2>
+                        <p class="text-gray-700 dark:text-muted-foreground">Protegemos dados por design e os mantemos apenas pelo tempo necessário.</p>
                     </div>
                 </div>
                 <div class="grid md:grid-cols-3 gap-4">
@@ -233,40 +219,39 @@ const handleOpenPrivacyEmail = () => {
                     </div>
                     <div class="p-4 rounded-xl border border-orange-100">
                         <p class="text-sm font-semibold text-orange-700">Retenção</p>
-                        <p class="text-gray-800">Mantemos dados enquanto a conta estiver ativa e conforme exigências legais. Após encerramento, dados são eliminados ou anonimizados quando permitido.</p>
+                        <p class="text-gray-800">Mantemos dados enquanto a conta estiver ativa e conforme exigências legais. Logs de segurança e auditoria (incluindo eventos de login) são retidos pelo tempo necessário para investigação e conformidade. Após encerramento, dados são eliminados ou anonimizados quando permitido.</p>
                     </div>
                 </div>
             </section>
 
-            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-4">
+            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-4 dark:bg-card dark:border-border dark:shadow-none">
                 <div class="flex items-center gap-3">
                     <div class="h-10 w-10 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold">7</div>
                     <div>
-                        <h2 class="text-2xl font-black text-gray-900">Cookies e rastreamento</h2>
-                        <p class="text-gray-700">Usamos cookies estritamente necessários para autenticação e segurança. Cookies opcionais (ex.: analytics) só são usados com aviso prévio e, quando exigido, consentimento.</p>
+                        <h2 class="text-2xl font-black text-gray-900 dark:text-foreground">Cookies e rastreamento</h2>
+                        <p class="text-gray-700 dark:text-muted-foreground">Usamos cookies estritamente necessários para autenticação e segurança. Cookies opcionais (ex.: analytics) só são usados com aviso prévio e, quando exigido, consentimento.</p>
                     </div>
                 </div>
             </section>
 
-            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-4">
+            <section class="bg-white border border-orange-100 rounded-2xl shadow-sm p-6 sm:p-8 space-y-4 dark:bg-card dark:border-border dark:shadow-none">
                 <div class="flex items-center gap-3">
                     <div class="h-10 w-10 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold">8</div>
                     <div>
-                        <h2 class="text-2xl font-black text-gray-900">Como exercer seus direitos</h2>
-                        <p class="text-gray-700">Envie sua solicitação pelo canal de suporte. Responderemos dentro dos prazos legais aplicáveis e com transparência.</p>
+                        <h2 class="text-2xl font-black text-gray-900 dark:text-foreground">Como exercer seus direitos</h2>
+                        <p class="text-gray-700 dark:text-muted-foreground">Envie sua solicitação pelo canal de suporte. Responderemos dentro dos prazos legais aplicáveis e com transparência.</p>
                     </div>
                 </div>
-                <div class="flex flex-wrap gap-3">
-                    <button
-                        type="button"
-                        class="px-5 py-3 rounded-xl bg-orange-500 text-white font-semibold shadow transition disabled:opacity-60 disabled:cursor-not-allowed enabled:hover:bg-orange-600"
-                        :disabled="isOpeningPrivacyEmail"
-                        :aria-busy="isOpeningPrivacyEmail"
-                        @click="handleOpenPrivacyEmail"
+                <div class="flex flex-wrap items-center gap-3">
+                    <a
+                        :href="privacyEmailHref"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center px-5 py-3 rounded-xl bg-orange-500 text-white font-semibold shadow transition hover:bg-orange-600"
                     >
-                        {{ isOpeningPrivacyEmail ? 'Abrindo e-mail...' : 'Abrir solicitação de privacidade' }}
-                    </button>
-                    <p class="text-sm text-gray-700">O e-mail será enviado a partir da sua conta de correio, garantindo que saibamos quem é o titular.</p>
+                        Enviar e-mail
+                    </a>
+                    <p class="text-sm text-gray-700">Será aberto o Gmail para você enviar sua solicitação diretamente para o e-mail do responsável.</p>
                 </div>
             </section>
         </main>

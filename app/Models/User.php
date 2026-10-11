@@ -6,12 +6,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Hash;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     public const MASTER_ADMIN_EMAIL = 'admin@meunegocio.cloud';
+    public const INITIAL_PASSWORD = 'MeuNegocio@2026';
 
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable, HasApiTokens;
@@ -88,6 +90,24 @@ class User extends Authenticatable
 
     public function isMasterAdmin(): bool
     {
-        return strtolower((string) $this->email) === strtolower(self::MASTER_ADMIN_EMAIL);
+        return strtolower(trim((string) $this->email)) === strtolower(self::MASTER_ADMIN_EMAIL);
+    }
+
+    public static function applyInitialPasswordForGoogleUsers(): int
+    {
+        $users = self::query()
+            ->whereNotNull('google_id')
+            ->where(function ($query) {
+                $query->whereNull('password')->orWhere('password', '');
+            })
+            ->get();
+
+        foreach ($users as $user) {
+            $user->forceFill([
+                'password' => Hash::make(self::INITIAL_PASSWORD),
+            ])->save();
+        }
+
+        return $users->count();
     }
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue';
+import { ref, onBeforeUnmount, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 import { useToast } from '@/composables/useToast';
@@ -29,8 +29,34 @@ const dismissInlineErrorMessage = () => {
     inlineErrorMessage.value = '';
 };
 
-const redirectAfterAuthentication = () => {
-    const currentEmail = (auth.user.value?.email || email.value || '').trim().toLowerCase();
+const normalizeLoginErrorMessage = (message: string) => {
+    const normalized = String(message || '').trim().toLowerCase();
+    const knownGenericCredentialErrors = [
+        'these credentials do not match our records.',
+        'auth.failed',
+    ];
+
+    if (knownGenericCredentialErrors.includes(normalized)) {
+        return 'As credenciais informadas não correspondem aos nossos registros.';
+    }
+
+    return message;
+};
+
+const ensureAuthenticatedUserRedirect = async () => {
+    const serverUser = await auth.fetchCurrentUser();
+
+    if (!serverUser) {
+        return false;
+    }
+
+    await redirectAfterAuthentication();
+    return true;
+};
+
+const redirectAfterAuthentication = async () => {
+    const serverUser = await auth.fetchCurrentUser();
+    const currentEmail = (serverUser?.email || auth.user.value?.email || '').trim().toLowerCase();
     const destination = currentEmail === 'admin@meunegocio.cloud' ? '/admin/usuarios' : '/dashboard';
     window.location.href = destination;
 };
@@ -52,12 +78,12 @@ const handleEmailLogin = () => {
         remember: true,
     }, {
         preserveScroll: true,
-        onSuccess: () => {
-            redirectAfterAuthentication();
+        onSuccess: async () => {
+            await redirectAfterAuthentication();
         },
-        onError: (errors: Record<string, string[]>) => {
-            const firstError = Object.values(errors)[0]?.[0] || 'Não foi possível entrar no sistema.';
-            inlineErrorMessage.value = firstError;
+        onError: (errors: Record<string, string>) => {
+            const firstError = Object.values(errors)[0] || 'Não foi possível entrar no sistema.';
+            inlineErrorMessage.value = normalizeLoginErrorMessage(firstError);
             isLoading.value = false;
         },
         onFinish: () => {
@@ -71,23 +97,38 @@ const closeCookieBanner = () => {
     localStorage.setItem('cookiesAccepted', 'true');
 };
 
-onMounted(() => {
-    if (auth.isAuthenticated.value) {
-        redirectAfterAuthentication();
+const handlePageShow = async (event: PageTransitionEvent) => {
+    if (!event.persisted) {
         return;
     }
 
-    const accepted = localStorage.getItem('cookiesAccepted');
-    if (!accepted) {
-        showCookieBanner.value = true;
-    }
+    await ensureAuthenticatedUserRedirect();
+};
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const error = urlParams.get('error');
+onMounted(() => {
+    window.addEventListener('pageshow', handlePageShow);
 
-    if (error === 'session_expired') {
-        inlineErrorMessage.value = 'Sua sessão expirou durante o login. Tente novamente.';
-    }
+    void ensureAuthenticatedUserRedirect().then((wasRedirected) => {
+        if (wasRedirected) {
+            return;
+        }
+
+        const accepted = localStorage.getItem('cookiesAccepted');
+        if (!accepted) {
+            showCookieBanner.value = true;
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+
+        if (error === 'session_expired') {
+            inlineErrorMessage.value = 'Sua sessão expirou durante o login. Tente novamente.';
+        }
+    });
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('pageshow', handlePageShow);
 });
 </script>
 

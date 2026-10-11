@@ -22,7 +22,7 @@ class CollaboratorController extends Controller
         $query = Collaborator::forCompany();
 
         if (!$request->boolean('include_defaults')) {
-            $query->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido']);
+            $query->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'não definido']);
         }
 
         $collaborators = $query->orderBy('name')->get();
@@ -37,7 +37,7 @@ class CollaboratorController extends Controller
     {
         $collaborators = Collaborator::withTrashed()
             ->forCompany()
-            ->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'nao definido'])
+            ->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'não definido'])
             ->orderByDesc('deleted_at')
             ->orderBy('name')
             ->get();
@@ -231,6 +231,6 @@ class CollaboratorController extends Controller
         $normalized = mb_strtolower(trim($name));
         $defaultName = mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL);
 
-        return $normalized === $defaultName || $normalized === 'nao definido';
+        return $normalized === $defaultName || $normalized === 'não definido';
     }
 }

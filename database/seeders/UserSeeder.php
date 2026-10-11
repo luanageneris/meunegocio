@@ -39,7 +39,7 @@ class UserSeeder extends Seeder
                 'name' => 'Dona Genilda',
                 'password' => bcrypt('password'),
                 'google_id' => null,
-                'role' => 'root',
+                'role' => 'owner',
                 'email_verified_at' => now(),
             ]
         );
@@ -56,6 +56,8 @@ class UserSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
+
+        User::applyInitialPasswordForGoogleUsers();
 
         $this->companyDefaultsService->ensureForCompany((int) $company->id);
     }
