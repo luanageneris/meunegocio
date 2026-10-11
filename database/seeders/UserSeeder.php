@@ -31,13 +31,26 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // Criar usuário root
-        User::firstOrCreate(
+        // Usuário proprietário da empresa
+        User::updateOrCreate(
             ['email' => 'luanacarvalhomesquita@gmail.com'],
             [
                 'company_id' => $company->id,
                 'name' => 'Dona Genilda',
-                'password' => bcrypt('password'), // Mudar após deploy
+                'password' => bcrypt('password'),
+                'google_id' => null,
+                'role' => 'root',
+                'email_verified_at' => now(),
+            ]
+        );
+
+        // Usuário master para administração geral do sistema
+        User::updateOrCreate(
+            ['email' => 'admin@meunegocio.cloud'],
+            [
+                'company_id' => $company->id,
+                'name' => 'Administrador Master',
+                'password' => bcrypt('password'),
                 'google_id' => null,
                 'role' => 'root',
                 'email_verified_at' => now(),

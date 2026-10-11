@@ -8,7 +8,7 @@ use App\Http\Middleware\CheckSanctumToken;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
-        'canRegister' => Features::enabled(Features::registration()),
+        'canRegister' => false,
     ]);
 })->name('home');
 
@@ -16,20 +16,12 @@ Route::get('/login', function () {
     return Inertia::render('auth/Login');
 })->name('login');
 
-Route::get('/registre-se', function () {
-    return Inertia::render('auth/Register');
-})->name('register.form');
+Route::redirect('/register', '/login');
+Route::redirect('/registre-se', '/login');
 
-// OAuth Routes (precisam de session)
-Route::prefix('auth')->group(function () {
-    Route::get('/google', [AuthController::class, 'redirectToGoogle'])->name('google.redirect');
-    Route::get('/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('google.callback');
-});
-
-// Página de processamento OAuth (recebe token e redireciona)
-Route::get('/oauth/callback', function () {
-    return Inertia::render('auth/GoogleCallback');
-})->name('oauth.callback.page');
+Route::get('/admin/usuarios', function () {
+    return Inertia::render('AdminUsers');
+})->middleware(['auth:sanctum', 'verified', 'master.admin'])->name('admin.users');
 
 // Setup de Empresa
 Route::get('/setup-empresa', function () {

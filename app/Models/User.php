@@ -11,6 +11,8 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
+    public const MASTER_ADMIN_EMAIL = 'admin@meunegocio.cloud';
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable, HasApiTokens;
 
@@ -26,6 +28,7 @@ class User extends Authenticatable
         'google_id',
         'role',
         'company_id',
+        'last_login_at',
     ];
 
     /**
@@ -52,6 +55,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
             'role' => 'string',
+            'last_login_at' => 'datetime',
         ];
     }
 
@@ -80,5 +84,10 @@ class User extends Authenticatable
     public function isRoot(): bool
     {
         return $this->role === 'root';
+    }
+
+    public function isMasterAdmin(): bool
+    {
+        return strtolower((string) $this->email) === strtolower(self::MASTER_ADMIN_EMAIL);
     }
 }

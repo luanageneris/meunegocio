@@ -4,6 +4,7 @@ use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\EnsureUserIsRoot;
 use App\Http\Middleware\EnsureCompanyIsolation;
+use App\Http\Middleware\EnsureMasterAdminAccess;
 use App\Http\Middleware\TrackChanges;
 use App\Http\Middleware\SetSecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -37,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'root' => EnsureUserIsRoot::class,
+            'master.admin' => EnsureMasterAdminAccess::class,
             'company.isolation' => EnsureCompanyIsolation::class,
             'track.changes' => TrackChanges::class,
         ]);

@@ -1,1 +1,0 @@
-import{P as r}from"./app-CUYj7Q3Z.js";function c(){return{success:(o,t)=>{r.success(o,{duration:5e3,position:"top-right",...t})},error:(o,t)=>{r.error(o,{duration:6e3,position:"top-right",...t})},info:(o,t)=>{r.info(o,{duration:5e3,position:"top-right",...t})},warning:(o,t)=>{r.warning(o,{duration:5e3,position:"top-right",...t})}}}export{c as u};

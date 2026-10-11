@@ -36,12 +36,14 @@ Route::get('/health', function () {
 
 // Autenticação (pública)
 Route::prefix('auth')->group(function () {
-    Route::post('/google', [AuthController::class, 'loginGoogle']);
-    Route::get('/pending-registration', [AuthController::class, 'pendingRegistration']);
-    Route::post('/register', [AuthController::class, 'registerGoogle']);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
     Route::get('/user', [AuthController::class, 'user'])->middleware('auth:sanctum');
     Route::post('/impersonate/{user}', [AuthController::class, 'impersonate'])->middleware(['auth:sanctum', 'root']);
+});
+
+Route::middleware(['auth:sanctum', 'master.admin'])->group(function () {
+    Route::get('/admin/users', [\App\Http\Controllers\Api\AdminUserController::class, 'index']);
+    Route::post('/admin/users', [\App\Http\Controllers\Api\AdminUserController::class, 'store']);
 });
 
 // ========================================================================
