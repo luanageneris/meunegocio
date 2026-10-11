@@ -46,6 +46,17 @@ jobs:
           npm ci
           npm run build
 
+      - name: Run production deploy script
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT }}
+          script_stop: true
+          script: |
+            bash "${{ secrets.PROD_APP_DIR }}/deploy-production.sh"
+
       - name: Ensure build target path exists on server
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -68,7 +79,7 @@ jobs:
           target: ${{ secrets.PROD_APP_DIR }}/public/build
           strip_components: 2
 
-      - name: Run production deploy script
+      - name: Report deployed revision
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -77,5 +88,12 @@ jobs:
           port: ${{ secrets.PROD_PORT }}
           script_stop: true
           script: |
-            bash "${{ secrets.PROD_APP_DIR }}/deploy-production.sh"
+            cd "${{ secrets.PROD_APP_DIR }}"
+            echo "EXPECTED_SHA=${GITHUB_SHA}"
+            echo "DEPLOYED_SHA=$(git rev-parse HEAD)"
+            echo "DEPLOYED_SHORT_SHA=$(git rev-parse --short HEAD)"
+
+      - name: Health check production
+        run: |
+          curl --fail --silent --show-error --location --max-time 30 "${{ secrets.PROD_HEALTHCHECK_URL }}"
 
