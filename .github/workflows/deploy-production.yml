@@ -46,6 +46,26 @@ jobs:
           npm ci
           npm run build
 
+      - name: Validate built manifest on runner
+        run: |
+          test -f dist/manifest.json
+          ls -la dist | head -20
+
+      - name: Backup current production build as fallback
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT }}
+          script_stop: true
+          script: |
+            APP_DIR="${{ secrets.PROD_APP_DIR }}"
+            if [ -d "$APP_DIR/public/build" ] && [ -f "$APP_DIR/public/build/manifest.json" ]; then
+              rm -rf "$APP_DIR/public/build_prev"
+              cp -a "$APP_DIR/public/build" "$APP_DIR/public/build_prev"
+            fi
+
       - name: Run production deploy script
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -57,7 +77,7 @@ jobs:
           script: |
             bash "${{ secrets.PROD_APP_DIR }}/deploy-production.sh"
 
-      - name: Ensure build target path exists on server
+      - name: Restore fallback build if deploy cleaned assets
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -66,18 +86,62 @@ jobs:
           port: ${{ secrets.PROD_PORT }}
           script_stop: true
           script: |
-            mkdir -p "${{ secrets.PROD_APP_DIR }}/public/build"
+            APP_DIR="${{ secrets.PROD_APP_DIR }}"
+            if [ ! -f "$APP_DIR/public/build/manifest.json" ] && [ -f "$APP_DIR/public/build_prev/manifest.json" ]; then
+              rm -rf "$APP_DIR/public/build"
+              cp -a "$APP_DIR/public/build_prev" "$APP_DIR/public/build"
+            fi
 
-      - name: Upload built assets to server
+      - name: Prepare temporary build directory on server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT }}
+          script_stop: true
+          script: |
+            mkdir -p "${{ secrets.PROD_APP_DIR }}/public/build_tmp"
+            rm -rf "${{ secrets.PROD_APP_DIR }}/public/build_tmp"/*
+
+      - name: Upload built assets to temporary directory
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.PROD_HOST }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_PORT }}
-          source: public/build/*
-          target: ${{ secrets.PROD_APP_DIR }}/public/build
-          strip_components: 2
+          source: dist/*
+          target: ${{ secrets.PROD_APP_DIR }}/public/build_tmp
+          strip_components: 1
+
+      - name: Promote temporary build atomically
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT }}
+          script_stop: true
+          script: |
+            APP_DIR="${{ secrets.PROD_APP_DIR }}"
+            test -f "$APP_DIR/public/build_tmp/manifest.json"
+            rm -rf "$APP_DIR/public/build_prev"
+            if [ -d "$APP_DIR/public/build" ]; then mv "$APP_DIR/public/build" "$APP_DIR/public/build_prev"; fi
+            mv "$APP_DIR/public/build_tmp" "$APP_DIR/public/build"
+
+      - name: Verify manifest exists on server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT }}
+          script_stop: true
+          script: |
+            APP_DIR="${{ secrets.PROD_APP_DIR }}"
+            test -f "$APP_DIR/public/build/manifest.json"
+            ls -la "$APP_DIR/public/build" | head -20
 
       - name: Report deployed revision
         uses: appleboy/ssh-action@v1.2.0
