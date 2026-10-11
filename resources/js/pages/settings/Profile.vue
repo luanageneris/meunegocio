@@ -2,7 +2,6 @@
 import PasswordController from '@/actions/App/Http/Controllers/Settings/PasswordController';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import { edit } from '@/routes/profile';
-import { send } from '@/routes/verification';
 import { Form, Head, Link, usePage } from '@inertiajs/vue3';
 
 import DeleteUser from '@/components/DeleteUser.vue';
@@ -21,6 +20,8 @@ interface Props {
 }
 
 defineProps<Props>();
+
+const verificationNotificationUrl = '/email/verification-notification';
 
 const breadcrumbItems: BreadcrumbItem[] = [
     {
@@ -82,7 +83,8 @@ const user = page.props.auth.user;
                         <p class="-mt-4 text-sm text-muted-foreground">
                             Your email address is unverified.
                             <Link
-                                :href="send()"
+                                :href="verificationNotificationUrl"
+                                method="post"
                                 as="button"
                                 class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
                             >
