@@ -287,7 +287,6 @@ onMounted(async () => {
                                         <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Perfil</label>
                                         <select v-model="form.role" class="w-full rounded-xl border-2 border-amber-200 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-100 px-3 py-2.5 outline-none transition focus:border-amber-400 dark:focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-500/40">
                                             <option value="owner">Owner</option>
-                                            <option value="root">Root</option>
                                         </select>
                                     </div>
 

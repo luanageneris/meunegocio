@@ -46,14 +46,14 @@ class AdminUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique(User::class, 'email')],
             'password' => ['required', 'string', 'min:8'],
-            'role' => ['nullable', 'string', Rule::in(['root', 'owner'])],
+            'role' => ['nullable', 'string', Rule::in(['owner'])],
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => strtolower(trim($validated['email'])),
             'password' => Hash::make($validated['password']),
-            'role' => $validated['role'] ?? 'owner',
+            'role' => 'owner',
             'email_verified_at' => now(),
             'company_id' => $request->company_id ?? null,
         ]);

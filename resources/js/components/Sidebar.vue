@@ -101,13 +101,6 @@ const menuItems = computed<MenuItem[]>(() => {
         ];
     }
 
-    if (isRootUser.value) {
-        return [
-            { name: 'Acesso', icon: 'shield', route: '/admin/usuarios', key: 'admin-usuarios' },
-            { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },
-        ];
-    }
-
     return [
         { name: 'Dashboard', icon: 'dashboard', route: '/dashboard', key: 'dashboard' },
         { name: 'Registros', icon: 'list', route: '/registros', key: 'registros' },

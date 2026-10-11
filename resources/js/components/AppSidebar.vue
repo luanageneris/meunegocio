@@ -22,8 +22,9 @@ import AppLogo from './AppLogo.vue';
 const page = usePage();
 const currentUser = page.props.auth.user as User;
 
-const isRootUser = computed(() => {
-    return currentUser?.role === 'root' || currentUser?.email === 'admin@meunegocio.cloud';
+const isMasterAdminUser = computed(() => {
+    const userEmail = String(currentUser?.email || '').trim().toLowerCase();
+    return userEmail === 'admin@meunegocio.cloud';
 });
 
 const mainNavItems = computed<NavItem[]>(() => {
@@ -35,7 +36,7 @@ const mainNavItems = computed<NavItem[]>(() => {
         },
     ];
 
-    if (isRootUser.value) {
+    if (isMasterAdminUser.value) {
         items.push({
             title: 'Access management',
             href: '/admin/usuarios',
