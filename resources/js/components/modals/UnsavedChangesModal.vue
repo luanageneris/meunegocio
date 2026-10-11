@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ModalShell from './ModalShell.vue';
 
-const props = defineProps<{
+defineProps<{
     show: boolean;
     title?: string;
     message?: string;

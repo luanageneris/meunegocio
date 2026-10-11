@@ -4,10 +4,7 @@ interface Props {
     size?: 'sm' | 'md' | 'lg';
 }
 
-const props = withDefaults(defineProps<Props>(), {
-    message: 'Carregando dados...',
-    size: 'md',
-});
+const { message = 'Carregando dados...', size = 'md' } = defineProps<Props>();
 
 const sizeClasses = {
     sm: 'h-8 w-8',

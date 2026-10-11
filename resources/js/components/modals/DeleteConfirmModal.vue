@@ -11,7 +11,7 @@ interface DeleteItem {
     data?: string;
 }
 
-const props = defineProps<{
+defineProps<{
     show: boolean;
     record: DeleteItem | null;
     isLoading?: boolean;

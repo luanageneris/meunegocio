@@ -67,20 +67,8 @@ const selectedService = computed(() => {
     return tiposServico.value.find(s => s.name === form.value.tipoServico);
 });
 
-const valorUnitario = computed(() => {
-    if (selectedService.value) {
-        return parseFloat(selectedService.value.service_value);
-    }
-    return form.value.valor;
-});
-
 const unidade = computed(() => {
     return selectedService.value?.unit || '';
-});
-
-const totalRecebido = computed(() => {
-    const base = valorUnitario.value * form.value.quantidade;
-    return base - form.value.desconto;
 });
 
 const hasChanges = computed(() => JSON.stringify(form.value) !== JSON.stringify(initialForm.value));

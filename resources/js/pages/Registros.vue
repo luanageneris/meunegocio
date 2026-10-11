@@ -577,7 +577,6 @@ const getRecordDeleteLabel = (record: { categoria?: string; descricao?: string; 
 };
 
 const privacyOptionLabel = computed(() => (isPrivacyMode.value ? 'Mostrar valores sensíveis' : 'Ocultar valores sensíveis'));
-const privacyStatusLabel = computed(() => (isPrivacyMode.value ? 'Ocultos' : 'Visíveis'));
 
 const normalizedSearchQuery = computed({
     get: () => {
@@ -1557,10 +1556,6 @@ const openImportPicker = async () => {
 const openImportHelpModal = () => {
     importTemplateError.value = '';
     showImportHelpModal.value = true;
-};
-
-const closeImportHelpModal = () => {
-    showImportHelpModal.value = false;
 };
 
 const downloadImportTemplate = async () => {

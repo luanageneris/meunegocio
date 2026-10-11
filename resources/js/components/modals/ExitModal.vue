@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, computed, onMounted } from 'vue';
+import { ref, watch, nextTick, computed } from 'vue';
 import axios from 'axios';
 import ModalShell from './ModalShell.vue';
 import RecordFormFields from './RecordFormFields.vue';

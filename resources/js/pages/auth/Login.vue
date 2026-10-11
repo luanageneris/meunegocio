@@ -3,7 +3,6 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, onBeforeUnmount, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
-import { useToast } from '@/composables/useToast';
 import { Eye, EyeOff, Moon, Sun } from 'lucide-vue-next';
 import logoUrl from '../../../img/icon-logo.svg';
 import Footer from '@/components/Footer.vue';
@@ -11,7 +10,6 @@ import AppInlineNotice from '@/components/AppInlineNotice.vue';
 import { useAppearance } from '@/composables/useAppearance';
 
 const auth = useAuth();
-const toast = useToast();
 const isLoading = ref(false);
 const showCookieBanner = ref(false);
 const inlineErrorMessage = ref('');

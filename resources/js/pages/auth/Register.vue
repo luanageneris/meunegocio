@@ -175,8 +175,8 @@ const fetchPendingRegistration = async () => {
         googleUser.value = null;
         clearAutoSubmit();
         return false;
-    } catch (error: any) {
-        console.error('Erro ao buscar registro pendente:', error);
+    } catch (_error: any) {
+        console.error('Erro ao buscar registro pendente:', _error);
         inlineErrorMessage.value = 'Não conseguimos carregar seus dados de registro. Tente fazer login novamente.';
         return false;
     } finally {
@@ -293,7 +293,7 @@ const handleSubmit = async () => {
         setTimeout(() => {
             window.location.href = '/dashboard';
         }, 900);
-    } catch (error: any) {
+    } catch {
         inlineErrorMessage.value = 'Nao foi possivel concluir o cadastro agora. Tente novamente em instantes.';
     } finally {
         isSubmitting.value = false;
