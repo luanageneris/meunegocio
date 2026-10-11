@@ -179,11 +179,6 @@ const getDisplayModelLabel = (log: AuditLog) => {
   return stripEntityId(raw);
 };
 
-const getDisplaySummary = (log: AuditLog) => {
-  const raw = log.summary || (getActionLabel(log.action) + ' ' + getModelLabel(log.model));
-  return stripEntityId(raw);
-};
-
 const fieldLabels: Record<string, Record<string, string>> = {
   Collaborator: {
     name: 'Nome',
@@ -612,8 +607,8 @@ const fetchLogs = async (page = 1) => {
     totalPages.value = response.data.pagination.last_page;
     totalRecords.value = response.data.pagination.total;
     currentPage.value = page;
-  } catch (error) {
-    console.error('Erro ao carregar histórico:', error);
+    } catch (_error) {
+    console.error('Erro ao carregar histórico:', _error);
   } finally {
     loading.value = false;
   }
@@ -663,8 +658,8 @@ onMounted(() => {
 
     <div class="flex-1 min-w-0 lg:ml-64 transition-all duration-300 overflow-x-hidden flex flex-col">
       <FixedPageHeaderTitle
-        title="Histórico"
-       subtitle="Acompanhe todas as alterações realizadas no sistema"
+        title="Historico"
+        subtitle="Acompanhe todas as alteracoes realizadas no sistema"
       />
 
       <main class="w-full min-w-0 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">

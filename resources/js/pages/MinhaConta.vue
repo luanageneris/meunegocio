@@ -126,7 +126,7 @@ const createdAtText = computed(() => {
             hour: '2-digit',
             minute: '2-digit',
         });
-    } catch (err) {
+    } catch {
         return '-';
     }
 });

@@ -409,7 +409,7 @@ const toggleServiceMode = async () => {
         const payload = { ...company.value, use_service_types: !company.value.use_service_types };
         const { data } = await axios.put('/api/company', payload);
         company.value = data?.data ?? data;
-    } catch (error: any) {
+    } catch {
         // noop toast here optional
     } finally {
         savingSettings.value = false;

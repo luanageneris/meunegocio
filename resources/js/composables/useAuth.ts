@@ -4,8 +4,8 @@ import axios from 'axios';
 // ⭐ CRÍTICO: Configurar axios globalmente para enviar cookies
 axios.defaults.withCredentials = true;
 
-let token = ref<string | null>(null);
-let user = ref<any>(null);
+const token = ref<string | null>(null);
+const user = ref<any>(null);
 const isLoading = ref(false);
 const DRAFT_STORAGE_PREFIX = 'draft:';
 
@@ -41,7 +41,7 @@ export const useAuth = () => {
                 user.value = userData;
                 return userData;
             }
-        } catch (error) {
+        } catch {
             // Usuário não autenticado
             user.value = null;
         }

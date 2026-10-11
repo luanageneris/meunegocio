@@ -175,12 +175,6 @@ const handleLogout = async () => {
     }
 };
 
-const toggleSidebar = () => {
-    isOpen.value = !isOpen.value;
-    // Salvar estado no localStorage
-    localStorage.setItem('sidebarOpen', isOpen.value ? 'true' : 'false');
-};
-
 const toggleMobileNav = () => {
     showMobileNav.value = !showMobileNav.value;
     localStorage.setItem('mobileNavVisible', showMobileNav.value ? 'true' : 'false');

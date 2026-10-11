@@ -212,18 +212,6 @@ const fetchRangeData = async (range: RangeKey) => {
     }
 };
 
-const maxValueLucroInvestimento = computed(() => {
-    return Math.max(...mockDataUltimos7Dias.graficoLucroInvestimento.flatMap(item => [item.lucro, item.investimento]));
-});
-
-const maxValueEntradasSaidas = computed(() => {
-    return Math.max(...mockDataMensal.graficoEntradasSaidas.flatMap(item => [item.entradas, item.saidas]));
-});
-
-const maxValueLinha = computed(() => {
-    return Math.max(...mockDataMensal.graficoLinha.flatMap(item => [item.lucro, item.investimento]));
-});
-
 onMounted(async () => {
     // Verificar autenticação
     if (!auth.isAuthenticated.value) {

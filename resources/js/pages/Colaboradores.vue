@@ -314,7 +314,6 @@ const confirmRestore = async () => {
     isRestoreLoading.value = true;
 
     try {
-        const restoringName = restoringCollaborator.value.name;
         const collaboratorId = restoringCollaborator.value.id;
         await axios.post(`/api/personalizar/collaborators/${collaboratorId}/restore`);
         collaborators.value = applyRestoreLocally(collaborators.value, collaboratorId);
