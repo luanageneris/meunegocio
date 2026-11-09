@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import DateInput from '@/components/DateInput.vue';
 
 const props = defineProps<{
     variant: 'entrada' | 'saida';
@@ -31,7 +32,7 @@ const model = computed({
                 <select
                     v-model="model.tipoSaida"
                     @keydown.enter="$emit('submit')"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    class="app-select-control w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                 >
                     <option value="">Selecione</option>
                     <option
@@ -46,9 +47,9 @@ const model = computed({
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
-                <input
+                <DateInput
                     v-model="model.data"
-                    type="date"
+                    aria-label="Data do movimento"
                     @keydown.enter="$emit('submit')"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg font-normal leading-normal [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                 />
@@ -59,7 +60,7 @@ const model = computed({
                 <select
                     v-model="model.colaborador"
                     @keydown.enter="$emit('submit')"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    class="app-select-control w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                 >
                     <option value="">Selecione</option>
                     <option
@@ -119,7 +120,7 @@ const model = computed({
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Entrada</label>
                 <select
                     v-model="model.tipoEntrada"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    class="app-select-control w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                 >
                     <option
                         v-for="tipo in (tiposEntrada || [])"
@@ -139,7 +140,7 @@ const model = computed({
                 <select
                     v-model="model.tipoSaida"
                     @keydown.enter="$emit('submit')"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    class="app-select-control w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                 >
                     <option value="">Selecione</option>
                     <option
@@ -154,9 +155,9 @@ const model = computed({
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
-                <input
+                <DateInput
                     v-model="model.data"
-                    type="date"
+                    aria-label="Data do movimento"
                     @keydown.enter="$emit('submit')"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg font-normal leading-normal [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                 />
@@ -220,7 +221,7 @@ const model = computed({
                 <select
                     v-model="model.colaborador"
                     @keydown.enter="$emit('submit')"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    class="app-select-control w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                 >
                     <option value="">Selecione</option>
                     <option

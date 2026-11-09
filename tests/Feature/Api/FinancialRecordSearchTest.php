@@ -40,7 +40,7 @@ class FinancialRecordSearchTest extends TestCase
         $this->actingAs($user, 'sanctum')->getJson('/api/registros/financial-records?search=quigley')
             ->assertOk()->assertJsonCount(1, 'data')
             ->assertJsonPath('pagination.total', 1)->assertJsonPath('data.0.collaborator.name', 'Hilbert Quigley')
-            ->assertJsonPath('totals.entries', 155);
+            ->assertJsonPath('totals.entries', 100);
         $this->actingAs($user, 'sanctum')->postJson('/api/registros/financial-records/between-dates?search=quigley', [
             'start_date' => '2025-01-01', 'end_date' => '2025-01-31',
         ])->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('pagination.total', 1);
@@ -66,11 +66,16 @@ class FinancialRecordSearchTest extends TestCase
             $this->actingAs($user, 'sanctum')->getJson('/api/registros/financial-records?'.http_build_query(['search' => $term]))
                 ->assertOk()->assertJsonPath('pagination.total', 1);
         }
+        $this->actingAs($user, 'sanctum')->getJson('/api/registros/financial-records?search=03%2F01')
+            ->assertOk()->assertJsonPath('pagination.total', 1)
+            ->assertJsonPath('totals.entries', 250)
+            ->assertJsonPath('totals.entry_discounts', 1)
+            ->assertJsonPath('totals.final_total', 250);
         $this->actingAs($user, 'sanctum')->getJson('/api/registros/financial-records?search=250%2C00&search_amount=0')
             ->assertOk()->assertJsonPath('pagination.total', 0);
     }
 
-    public function test_filtering_happens_before_pagination_and_keeps_period_totals(): void
+    public function test_filtering_happens_before_pagination_and_updates_totals(): void
     {
         $company = Company::factory()->create();
         $user = User::factory()->root()->for($company)->create();
@@ -86,7 +91,8 @@ class FinancialRecordSearchTest extends TestCase
         $this->actingAs($user, 'sanctum')->postJson($url, [
             'start_date' => '2025-01-01', 'end_date' => '2025-01-31',
         ])->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('pagination.total', 1)
-            ->assertJsonPath('totals.entries', 55)->assertJsonPath('totals.exits', 10);
+            ->assertJsonPath('totals.entries', 0)->assertJsonPath('totals.exits', 10)
+            ->assertJsonPath('totals.commissions', 0);
         $this->actingAs($user, 'sanctum')->postJson(str_replace('comissao', 'entrada', $url), [
             'start_date' => '2025-01-01', 'end_date' => '2025-01-31',
         ])->assertOk()->assertJsonPath('pagination.total', 0);

@@ -30,6 +30,7 @@
         "vue-tsc": "^3.3.14"
     },
     "dependencies": {
+        "@internationalized/date": "^3.10.0",
         "@inertiajs/vue3": "^2.1.0",
         "@vueuse/core": "^12.8.2",
         "chart.js": "^4.6.1",

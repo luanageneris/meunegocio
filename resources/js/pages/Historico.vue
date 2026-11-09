@@ -7,6 +7,7 @@ import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import { useAuth } from '@/composables/useAuth';
 import Footer from '@/components/Footer.vue';
+import DateInput from '@/components/DateInput.vue';
 
 interface AuditLog {
   id: number;
@@ -763,7 +764,7 @@ onMounted(() => {
               <label class="block text-sm font-semibold text-gray-700 mb-2">Ação</label>
               <select
                 v-model="selectedFilter"
-                class="w-full px-4 py-2 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                class="app-select-control w-full px-4 py-2 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               >
                 <option value="all">Todas as ações</option>
                 <option value="create">Criado</option>
@@ -780,7 +781,7 @@ onMounted(() => {
               <label class="block text-sm font-semibold text-gray-700 mb-2">Tipo de Registro</label>
               <select
                 v-model="selectedModel"
-                class="w-full px-4 py-2 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                class="app-select-control w-full px-4 py-2 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               >
                 <option value="">Todos</option>
                 <option value="App\Models\Collaborator">Colaboradores</option>
@@ -799,9 +800,9 @@ onMounted(() => {
             <!-- Date From -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">De</label>
-              <input
+              <DateInput
                 v-model="dateFrom"
-                type="date"
+                aria-label="Data inicial"
                 class="w-full h-11 px-4 py-2 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               />
             </div>
@@ -809,9 +810,9 @@ onMounted(() => {
             <!-- Date To -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">Até</label>
-              <input
+              <DateInput
                 v-model="dateTo"
-                type="date"
+                aria-label="Data final"
                 class="w-full h-11 px-4 py-2 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               />
             </div>

@@ -927,7 +927,7 @@ onMounted(async () => {
                                                 <select
                                                     v-model="reminderSettings.daily_condition"
                                                     :disabled="!canEdit || !reminderSettings.daily_enabled"
-                                                    class="w-full px-3 py-2.5 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100"
+                                                    class="app-select-control w-full px-3 py-2.5 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100"
                                                 >
                                                     <option value="missing_entry_or_exit">Quando faltar entrada ou saída</option>
                                                     <option value="missing_both">Quando faltar entrada e saída</option>

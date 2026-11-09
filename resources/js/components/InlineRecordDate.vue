@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue';
+import { ref } from 'vue';
 import InlineRecordEditor from '@/components/InlineRecordEditor.vue';
+import DateInput from '@/components/DateInput.vue';
 
 const props = defineProps<{
     value: string;
@@ -12,16 +13,13 @@ const editing = ref(false);
 const saving = ref(false);
 const selected = ref('');
 const error = ref('');
-const input = ref<HTMLInputElement | null>(null);
 let initialValue = '';
 
-async function startEditing() {
+function startEditing() {
     initialValue = props.value;
     selected.value = initialValue;
     error.value = '';
     editing.value = true;
-    await nextTick();
-    input.value?.focus();
 }
 
 async function submit() {
@@ -48,8 +46,8 @@ async function submit() {
 </script>
 
 <template>
-    <InlineRecordEditor v-if="editing" label="data do movimento" :loading="false" :saving="saving" :disabled="false" :error="error" @save="submit" @cancel="editing = false">
-        <input ref="input" v-model="selected" type="date" aria-label="Selecionar data do movimento" :disabled="saving" class="min-w-0 w-36 rounded border border-orange-400 bg-white px-2 py-1 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:bg-slate-950 dark:text-slate-100" />
+    <InlineRecordEditor v-if="editing" label="data do movimento" :loading="false" :saving="saving" :disabled="false" :error="error" :ignore-outside="['[data-record-date-calendar]']" @save="submit" @cancel="editing = false">
+        <DateInput v-model="selected" auto-open inline-editor aria-label="Selecionar data do movimento" :disabled="saving" class="app-select-control min-w-0 w-36 text-sm text-gray-800 dark:text-slate-100" />
     </InlineRecordEditor>
     <button v-else type="button" class="font-medium decoration-orange-500 underline-offset-4 decoration-dotted hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-orange-500 cursor-pointer" aria-label="Editar data do movimento" title="Editar data do movimento" @click.stop="startEditing">{{ text }}</button>
 </template>

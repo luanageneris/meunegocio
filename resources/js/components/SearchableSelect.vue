@@ -158,8 +158,8 @@ watch(
                 @click="toggleDropdown"
                 type="button"
                 :disabled="disabled"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-left flex justify-between items-center hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
-                :class="{ 'ring-2 ring-red-400': error }"
+                class="app-select-control w-full text-left flex justify-between items-center hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed cursor-pointer"
+                :class="{ 'app-select-error': error }"
             >
                 <span :class="{ 'text-gray-500': !modelValue }">
                     {{ modelValue?.name || placeholder }}
@@ -178,7 +178,7 @@ watch(
             <!-- Dropdown Menu -->
             <div
                 v-show="isOpen"
-                class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg"
+                class="app-select-menu absolute z-50 w-full mt-1"
             >
                 <!-- Search Input -->
                 <div class="p-2 border-b border-gray-200">
@@ -188,7 +188,7 @@ watch(
                         type="text"
                         @keydown="handleKeyDown"
                         placeholder="Digite para buscar..."
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm"
+                        class="app-select-control w-full text-sm"
                     />
                 </div>
 
@@ -199,9 +199,9 @@ watch(
                         :key="option.id"
                         @click="selectOption(option)"
                         type="button"
-                        class="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 transition-colors flex justify-between items-center cursor-pointer"
+                        class="app-select-option w-full px-2 py-2 text-left text-sm transition-colors flex justify-between items-center cursor-pointer"
                         :class="{
-                            'bg-blue-100 text-blue-900': modelValue?.id === option.id,
+                            'app-select-option-selected': modelValue?.id === option.id,
                         }"
                     >
                         <span>{{ option.name }}</span>
@@ -217,12 +217,12 @@ watch(
                 <!-- Create New Option Hint -->
                 <div
                     v-if="searchInput.trim() && noExactMatch"
-                    class="p-2 border-t border-gray-200 bg-blue-50"
+                    class="app-select-create p-2 border-t border-gray-200"
                 >
                     <button
                         @click="openCreateModal"
                         type="button"
-                        class="w-full px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded-lg transition-colors font-medium flex items-center gap-2 cursor-pointer"
+                        class="w-full px-3 py-2 text-sm transition-colors font-medium flex items-center gap-2 cursor-pointer"
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />

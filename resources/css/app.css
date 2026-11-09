@@ -331,6 +331,138 @@
     }
 }
 
+.app-form-control,
+.app-select-control {
+    box-sizing: border-box;
+    min-width: 0;
+    border: 1px solid var(--primary);
+    border-radius: 0.25rem;
+    background-color: #fff;
+    color: #1f2937;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition:
+        border-color 150ms ease,
+        box-shadow 150ms ease;
+}
+
+.app-form-control {
+    height: 2.5rem;
+    min-height: 2.5rem;
+    padding: 0 0.75rem;
+}
+
+.app-select-control {
+    height: 2.5rem;
+    min-height: 2.5rem;
+    padding: 0 0.75rem;
+}
+
+.app-form-control:focus,
+.app-form-control:focus-within,
+.app-select-control:focus,
+.app-select-control:focus-within {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 50%, transparent);
+}
+
+.app-form-control:disabled,
+.app-select-control:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+select.app-select-control {
+    appearance: none;
+    padding-right: 2rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1rem;
+}
+
+.dark .app-select-control,
+.dark .app-form-control {
+    border-color: var(--primary);
+    background-color: #020617;
+    color: #f1f5f9;
+}
+
+.dark .app-form-control::placeholder,
+.dark select.app-select-control {
+    color: #94a3b8;
+}
+
+.dark select.app-select-control {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+select.app-select-control option:checked,
+select.app-select-control option:hover,
+select.app-select-control option:focus {
+    background-color: var(--primary) !important;
+    color: var(--primary-foreground) !important;
+}
+
+.app-select-control.app-select-error {
+    border-color: #f87171;
+}
+
+.app-select-control.app-select-error:focus {
+    box-shadow: 0 0 0 2px rgb(248 113 113 / 50%);
+}
+
+.app-select-menu {
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 10%);
+}
+
+.app-select-option {
+    border-radius: 0.25rem;
+}
+
+.app-select-option[data-highlighted],
+.app-select-option-highlighted,
+.app-select-option:hover {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+}
+
+.app-select-option[data-state='checked'] {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.app-select-option-selected {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+}
+
+.app-select-option-selected {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.app-select-option-selected:hover,
+.app-select-option-selected[data-highlighted],
+.app-select-option-selected.app-select-option-highlighted {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+}
+
+.app-select-create {
+    background-color: color-mix(in srgb, #fb923c 10%, transparent);
+    color: #c2410c;
+}
+
+.app-select-create:hover {
+    background-color: color-mix(in srgb, #fb923c 18%, transparent);
+}
+
 /* Toast Title */
 .sonner-toast [data-title] {
     font-weight: 700 !important;

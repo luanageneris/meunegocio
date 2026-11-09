@@ -34,12 +34,9 @@ class FinancialRecordController
             ->orderBy('id', 'desc')
             ->paginate(15);
 
-        $totals = $this->calculateFinancialTotals(clone $baseQuery);
-
         $commissionQuery = Commission::forCompany();
         $this->applyTrashFilter($commissionQuery, $request);
-        $totals['commissions'] = (float) $commissionQuery->sum('amount');
-        $totals['final_total'] = $totals['entries'] - $totals['exits'] + $totals['commissions'];
+        $totals = $this->calculateListTotals(clone $baseQuery, $commissionQuery, $request);
 
         return response()->json([
             'data' => $records->items(),
@@ -206,7 +203,7 @@ class FinancialRecordController
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!$request->user()->isRoot()) {
+        if (!$request->user()->canManageFinancialRecords()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -226,7 +223,7 @@ class FinancialRecordController
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!$request->user()->isRoot()) {
+        if (!$request->user()->canManageFinancialRecords()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -274,13 +271,10 @@ class FinancialRecordController
             ->orderBy('id', 'desc')
             ->paginate(50);
 
-        $totals = $this->calculateFinancialTotals(clone $baseQuery);
-
         $commissionQuery = Commission::forCompany()
             ->whereBetween('date', [$request->start_date, $request->end_date]);
         $this->applyTrashFilter($commissionQuery, $request);
-        $totals['commissions'] = (float) $commissionQuery->sum('amount');
-        $totals['final_total'] = $totals['entries'] - $totals['exits'] + $totals['commissions'];
+        $totals = $this->calculateListTotals(clone $baseQuery, $commissionQuery, $request);
 
         return response()->json([
             'data' => $records->items(),
@@ -512,6 +506,47 @@ class FinancialRecordController
         } elseif ($request->boolean('include_deleted')) {
             $query->withTrashed();
         }
+    }
+
+    private function calculateListTotals(Builder $recordsQuery, Builder $commissionQuery, Request $request): array
+    {
+        $this->applyListFilters($recordsQuery, $request);
+        $totals = $this->calculateFinancialTotals($recordsQuery);
+
+        if ($request->filled('financial_type') && $request->input('financial_type') !== 'comissao') {
+            $totals['commissions'] = 0.0;
+        } else {
+            $this->applyCommissionSearchFilter($commissionQuery, $request);
+            $totals['commissions'] = (float) $commissionQuery->sum('amount');
+        }
+
+        $totals['final_total'] = $totals['entries'] - $totals['exits'] + $totals['commissions'];
+
+        return $totals;
+    }
+
+    private function applyCommissionSearchFilter(Builder $query, Request $request): void
+    {
+        $search = trim((string) $request->input('search', ''));
+        if ($search === '') {
+            return;
+        }
+
+        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($search)).'%';
+        $driver = DB::connection()->getDriverName();
+        $dateExpression = $driver === 'sqlite'
+            ? "strftime('%d/%m/%Y', commissions.date)"
+            : "DATE_FORMAT(commissions.date, '%d/%m/%Y')";
+
+        $query->where(function (Builder $query) use ($pattern, $dateExpression, $request) {
+            $query->whereRaw("LOWER(commissions.notes) LIKE ? ESCAPE '!'", [$pattern])
+                ->orWhereRaw("CAST(commissions.date AS CHAR) LIKE ? ESCAPE '!'", [$pattern])
+                ->orWhereRaw("$dateExpression LIKE ? ESCAPE '!'", [$pattern])
+                ->orWhereHas('collaborator', fn (Builder $related) => $related->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", [$pattern]))
+                ->orWhereHas('financialRecord', function (Builder $recordQuery) use ($request) {
+                    $this->applyListFilters($recordQuery, $request);
+                });
+        });
     }
 
     private function calculateFinancialTotals(Builder $query): array

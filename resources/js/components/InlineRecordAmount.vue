@@ -20,7 +20,7 @@ const editor = ref<HTMLElement | null>(null);
 let initialCents = 0;
 
 onClickOutside(editor, () => {
-    if (editing.value && !saving.value) editing.value = false;
+    if (editing.value && !saving.value) void submit();
 }, { ignore: ['[data-slot="tooltip-content"]'] });
 
 async function startEditing() {
@@ -55,7 +55,7 @@ async function submit() {
 <template>
     <div v-if="editing" ref="editor" class="min-w-0" @click.stop @keydown.stop @keydown.esc.prevent="!saving && (editing = false)">
         <form class="flex w-max items-center gap-1" @submit.prevent="submit">
-            <input ref="input" v-model="expression" type="text" maxlength="100" aria-label="Novo valor ou operação" :disabled="saving" class="w-24 rounded border border-orange-400 bg-white px-2 py-1 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:bg-slate-950 dark:text-slate-100" />
+            <input ref="input" v-model="expression" type="text" maxlength="100" aria-label="Novo valor ou operação" :disabled="saving" class="app-select-control w-24 text-sm text-gray-800 dark:text-slate-100" />
             <TooltipProvider :delay-duration="0">
                 <Tooltip>
                     <TooltipTrigger as-child>

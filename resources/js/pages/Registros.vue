@@ -10,9 +10,11 @@ import Sidebar from '@/components/Sidebar.vue';
 import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import Footer from '@/components/Footer.vue';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
+import AppSelect from '@/components/AppSelect.vue';
 import InlineRecordAmount from '@/components/InlineRecordAmount.vue';
 import InlineRecordSelect from '@/components/InlineRecordSelect.vue';
 import InlineRecordDate from '@/components/InlineRecordDate.vue';
+import DateInput from '@/components/DateInput.vue';
 import InlineRecordDescription from '@/components/InlineRecordDescription.vue';
 import RecordDateTooltip from '@/components/RecordDateTooltip.vue';
 import RecordTotalSummary from '@/components/RecordTotalSummary.vue';
@@ -44,7 +46,10 @@ const isLoading = ref(false);
 const isListLoading = ref(false);
 const isLoadingMore = ref(false);
 const listError = ref('');
+const reconciliationError = ref('');
 let listRequestId = 0;
+let reconciliationId = 0;
+const pendingReconciliation = new Map<number, number>();
 let listRequestController: AbortController | null = null;
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 let listInitialized = false;
@@ -287,11 +292,19 @@ const getCsrfToken = (): string => {
 const registros = ref<any[]>([]);
 const sortKey = ref<'valor' | 'categoria' | 'colaborador' | 'descricao' | 'dataOperacao' | 'registradoEm' | 'tipo'>('registradoEm');
 const sortDir = ref<'asc' | 'desc'>('desc');
+const registrosFilterStorageKey = 'registros_filters';
 
 const validTabs = ['hoje', 'ultimos7dias', 'mensal', 'anual', 'todos'] as const;
 const validSortKeys = ['valor', 'categoria', 'colaborador', 'descricao', 'dataOperacao', 'registradoEm', 'tipo'] as const;
 const validFinancialFilters = ['entrada', 'saida', 'comissao'] as const;
 const yearOptions = computed(() => Array.from({ length: 5 }, (_, index) => selectedYear.value - 2 + index));
+const isDateSearchQuery = (value: string) =>
+    /^(?:\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?|\d{4}-\d{1,2}(?:-\d{1,2})?)$/.test(value.trim());
+const createYearOption = (query: string) => {
+    if (!/^\d{4}$/.test(query)) return null;
+    const year = Number(query);
+    return year >= 2000 && year <= 2100 ? { value: year, label: query } : null;
+};
 
 const normalizeNullableString = (value: unknown): string => {
     if (typeof value !== 'string') {
@@ -330,6 +343,45 @@ const sanitizeFilterState = () => {
 const applyFiltersFromQueryString = () => {
     if (typeof window === 'undefined') return;
 
+    const savedFilters = window.sessionStorage.getItem(registrosFilterStorageKey);
+    if (savedFilters) {
+        try {
+            const parsed: unknown = JSON.parse(savedFilters);
+            if (parsed && typeof parsed === 'object') {
+                const filters = parsed as Record<string, unknown>;
+                if (typeof filters.tab === 'string' && validTabs.includes(filters.tab as typeof validTabs[number])) {
+                    activeTab.value = filters.tab as typeof activeTab.value;
+                }
+                if (Number.isInteger(filters.month) && Number(filters.month) >= 1 && Number(filters.month) <= 12) {
+                    selectedMonth.value = Number(filters.month);
+                }
+                if (Number.isInteger(filters.year) && Number(filters.year) >= 2000 && Number(filters.year) <= 2100) {
+                    selectedYear.value = Number(filters.year);
+                }
+                if (Number.isInteger(filters.page) && Number(filters.page) >= 1) {
+                    currentPage.value = Number(filters.page);
+                }
+                if (typeof filters.search === 'string') {
+                    searchQuery.value = normalizeNullableString(filters.search);
+                }
+                if (typeof filters.sortKey === 'string' && validSortKeys.includes(filters.sortKey as typeof validSortKeys[number])) {
+                    sortKey.value = filters.sortKey as typeof sortKey.value;
+                }
+                if (filters.sortDir === 'asc' || filters.sortDir === 'desc') {
+                    sortDir.value = filters.sortDir;
+                }
+                if (typeof filters.financialType === 'string' && validFinancialFilters.includes(filters.financialType as typeof validFinancialFilters[number])) {
+                    financialTypeFilter.value = filters.financialType as typeof financialTypeFilter.value;
+                }
+                showRemoved.value = filters.showRemoved === true;
+                isChartsView.value = filters.charts === true;
+            }
+        } catch (error) {
+            console.error('Não foi possível restaurar os filtros de Registros:', error);
+            window.sessionStorage.removeItem(registrosFilterStorageKey);
+        }
+    }
+
     const params = new URLSearchParams(window.location.search);
 
     const tab = params.get('tab');
@@ -367,19 +419,39 @@ const applyFiltersFromQueryString = () => {
         sortDir.value = sortDirParam;
     }
 
-    const financialTypeParam = normalizeNullableString(params.get('financial_type'));
-    if (financialTypeParam && validFinancialFilters.includes(financialTypeParam as typeof validFinancialFilters[number])) {
-        financialTypeFilter.value = financialTypeParam as typeof financialTypeFilter.value;
+    if (params.has('financial_type')) {
+        const financialTypeParam = normalizeNullableString(params.get('financial_type'));
+        financialTypeFilter.value =
+            financialTypeParam && validFinancialFilters.includes(financialTypeParam as typeof validFinancialFilters[number])
+                ? financialTypeParam as typeof financialTypeFilter.value
+                : null;
     }
 
-    showRemoved.value = params.get('removed') === '1';
-    isChartsView.value = params.get('charts') === '1';
+    if (params.has('removed')) {
+        showRemoved.value = params.get('removed') === '1';
+    }
+
+    if (params.has('charts')) {
+        isChartsView.value = params.get('charts') === '1';
+    }
 };
 
 const syncFiltersToQueryString = () => {
     if (typeof window === 'undefined') return;
 
     sanitizeFilterState();
+    window.sessionStorage.setItem(registrosFilterStorageKey, JSON.stringify({
+        tab: activeTab.value,
+        month: selectedMonth.value,
+        year: selectedYear.value,
+        page: currentPage.value,
+        search: searchQuery.value,
+        sortKey: sortKey.value,
+        sortDir: sortDir.value,
+        financialType: financialTypeFilter.value,
+        showRemoved: showRemoved.value,
+        charts: isChartsView.value,
+    }));
 
     const params = new URLSearchParams();
 
@@ -790,7 +862,8 @@ const totalEntradasBrutas = computed(() => totalEntradas.value + totalDescontosE
 const totalFinal = computed(() => Number(resumoTotais.value.final_total ?? 0));
 
 const chartRangeKey = computed<RangeKey>(() => {
-    if (activeTab.value === 'hoje' || activeTab.value === 'ultimos7dias' || activeTab.value === 'mensal' || activeTab.value === 'anual') {
+    const searchByDate = isDateSearchQuery(searchQuery.value);
+    if (!searchByDate && (activeTab.value === 'hoje' || activeTab.value === 'ultimos7dias' || activeTab.value === 'mensal' || activeTab.value === 'anual')) {
         return activeTab.value;
     }
 
@@ -1149,8 +1222,8 @@ const toggleChartsView = async () => {
     }
 };
 
-const fetchRegistros = async (page = 1, showPageLoading = false, append = false, preserveLoaded = false, refreshCharts = true) => {
-    if (searchTimer !== null) {
+const fetchRegistros = async (page = 1, showPageLoading = false, append = false, preserveLoaded = false, refreshCharts = true, reconciliation?: { id: number; recordIds: number[] }) => {
+    if (!reconciliation && searchTimer !== null) {
         clearTimeout(searchTimer);
         searchTimer = null;
     }
@@ -1158,21 +1231,26 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false,
         return;
     }
 
-    if (preserveLoaded && (searchQuery.value.trim() || financialTypeFilter.value)) page = 1;
-    listRequestController?.abort();
+    if (!reconciliation && preserveLoaded && (searchQuery.value.trim() || financialTypeFilter.value)) page = 1;
+    if (!reconciliation) listRequestController?.abort();
     const controller = new AbortController();
-    listRequestController = controller;
-    const requestId = ++listRequestId;
-    isLoading.value = false;
-    isListLoading.value = false;
-    isLoadingMore.value = false;
-    listError.value = '';
-    if (showPageLoading) {
-        isLoading.value = true;
-    } else if (append) {
-        isLoadingMore.value = true;
-    } else {
-        isListLoading.value = true;
+    if (!reconciliation) listRequestController = controller;
+    const requestId = reconciliation ? listRequestId : ++listRequestId;
+    if (!reconciliation) {
+        reconciliationId++;
+        pendingReconciliation.clear();
+        reconciliationError.value = '';
+        isLoading.value = false;
+        isListLoading.value = false;
+        isLoadingMore.value = false;
+        listError.value = '';
+        if (showPageLoading) {
+            isLoading.value = true;
+        } else if (append) {
+            isLoadingMore.value = true;
+        } else {
+            isListLoading.value = true;
+        }
     }
     try {
         const params = new URLSearchParams({ page: String(page), only_deleted: showRemoved.value ? '1' : '0' });
@@ -1237,10 +1315,20 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false,
         }
 
         const json = await response.json();
-        if (requestId !== listRequestId) return;
+        if (requestId !== listRequestId || (reconciliation && reconciliation.id !== reconciliationId)) return;
         const incomingData = (json?.data) ?? [];
         console.log('Registros recebidos:', { showRemoved: showRemoved.value, activeTab: activeTab.value, incomingData, total: json.pagination?.total });
-        if (preserveLoaded && !searchQuery.value.trim() && !financialTypeFilter.value) {
+        if (reconciliation) {
+            const incomingIds = new Set<number>(incomingData.map((record: any) => record.id));
+            const targets = new Set(reconciliation.recordIds);
+            const removed = registros.value.some((record: any) => targets.has(record.id) && !incomingIds.has(record.id));
+            registros.value = registros.value.filter((record: any) => !targets.has(record.id) || incomingIds.has(record.id));
+            if (removed) {
+                const loadedIds = new Set<number>(registros.value.map((record: any) => record.id));
+                registros.value.push(...incomingData.filter((record: any) => !loadedIds.has(record.id)).map((record: any) => ({ ...record, _page: page })));
+            }
+            for (const id of reconciliation.recordIds) pendingReconciliation.delete(id);
+        } else if (preserveLoaded && !searchQuery.value.trim() && !financialTypeFilter.value) {
             const refreshed = new Map<number, any>(incomingData.map((record: any) => [record.id, record]));
             const retained = registros.value.filter((record: any) => refreshed.has(record.id) || !record._page || record._page !== page);
             const retainedIds = new Set<number>(retained.map((record: any) => record.id));
@@ -1264,17 +1352,21 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false,
             final_total: Number(json?.totals?.final_total ?? 0),
             entry_discounts: Number(json?.totals?.entry_discounts ?? 0),
         };
-        currentPage.value = pagination.value.current_page || page;
+        if (!reconciliation) currentPage.value = pagination.value.current_page || page;
 
-        if (refreshCharts && activeTab.value !== 'todos') {
+        if (!reconciliation && refreshCharts && activeTab.value !== 'todos') {
             await fetchRangeData(activeTab.value as RangeKey);
         }
     } catch (error) {
-        if (controller.signal.aborted || requestId !== listRequestId) return;
+        if (controller.signal.aborted || requestId !== listRequestId || (reconciliation && reconciliation.id !== reconciliationId)) return;
         console.error('Erro ao carregar registros:', error);
-        listError.value = 'Não foi possível carregar os registros. Verifique sua conexão e tente novamente.';
+        if (reconciliation) {
+            reconciliationError.value = 'A alteração foi salva, mas não foi possível atualizar os totais e filtros. Atualize a lista para tentar novamente.';
+        } else {
+            listError.value = 'Não foi possível carregar os registros. Verifique sua conexão e tente novamente.';
+        }
     } finally {
-        if (requestId === listRequestId) {
+        if (!reconciliation && requestId === listRequestId) {
             if (showPageLoading) {
                 isLoading.value = false;
             } else if (append) {
@@ -1333,6 +1425,12 @@ const changeTab = (tab: 'hoje' | 'ultimos7dias' | 'mensal' | 'anual' | 'todos') 
 
 const handleDelete = (id: number) => {
     deletingRecordId.value = id;
+};
+
+const startDeleteFromEdit = (id: number) => {
+    if (isEntryLoading.value || isExitLoading.value) return;
+    closeAllForms();
+    handleDelete(id);
 };
 
 const cancelDelete = () => {
@@ -2020,6 +2118,20 @@ const openEditRecord = async (id: number) => {
     }
 };
 
+const reconcileInlineRecord = (id: number, page: number) => {
+    pendingReconciliation.set(id, page);
+    const revision = ++reconciliationId;
+    const pages = new Map<number, number[]>();
+    for (const [recordId, recordPage] of pendingReconciliation) {
+        const ids = pages.get(recordPage) ?? [];
+        ids.push(recordId);
+        pages.set(recordPage, ids);
+    }
+    for (const [recordPage, recordIds] of pages) {
+        void fetchRegistros(recordPage, false, false, false, false, { id: revision, recordIds });
+    }
+};
+
 const saveRecordTotal = async (id: number, totalCents: number, expectedTotalCents: number) => {
     try {
         const response = await axios.patch(`/api/registros/financial-records/${id}/total`, {
@@ -2029,8 +2141,11 @@ const saveRecordTotal = async (id: number, totalCents: number, expectedTotalCent
             headers: { 'X-CSRF-TOKEN': getCsrfToken() },
         });
         const index = registros.value.findIndex((record: any) => record.id === id);
-        if (index !== -1) registros.value[index] = { ...response.data.data, _page: registros.value[index]._page };
-        await fetchRegistros(currentPage.value, false, false, activeTab.value === 'todos');
+        if (index !== -1) {
+            const record = registros.value[index];
+            record.amount = response.data.data.amount;
+            reconcileInlineRecord(id, record._page ?? currentPage.value);
+        }
     } catch (error) {
         if (axios.isAxiosError(error)) {
             const message = error.response?.data?.message;
@@ -2041,10 +2156,17 @@ const saveRecordTotal = async (id: number, totalCents: number, expectedTotalCent
 };
 
 type InlineField = 'entry_type_id' | 'exit_type_id' | 'collaborator_id';
+type InlineOptionField = InlineField | 'service_type_id';
 type InlineOption = { id: number; name: string };
 
-const loadInlineOptions = async (field: InlineField): Promise<InlineOption[]> => {
-    const endpoint = field === 'entry_type_id' ? 'entry-types' : field === 'exit_type_id' ? 'exit-types' : 'collaborators';
+const loadInlineOptions = async (field: InlineOptionField): Promise<InlineOption[]> => {
+    const endpoint = field === 'entry_type_id'
+        ? 'entry-types'
+        : field === 'exit_type_id'
+          ? 'exit-types'
+          : field === 'service_type_id'
+            ? 'service-types'
+            : 'collaborators';
     try {
         const response = await axios.get(`/api/personalizar/${endpoint}?include_defaults=1`);
         const options = response.data.data ?? response.data;
@@ -2053,6 +2175,40 @@ const loadInlineOptions = async (field: InlineField): Promise<InlineOption[]> =>
     } catch (error) {
         console.error('Erro ao carregar opções:', error);
         throw new Error('Não foi possível carregar as opções. Cancele e tente novamente.');
+    }
+};
+
+const createInlineOption = async (
+    field: InlineOptionField,
+    name: string,
+    cpf?: string,
+    serviceDetails?: { unit: string; service_value: number; commission_percentage: number },
+): Promise<InlineOption> => {
+    const endpoint = field === 'entry_type_id'
+        ? 'entry-types'
+        : field === 'exit_type_id'
+          ? 'exit-types'
+          : field === 'service_type_id'
+            ? 'service-types'
+            : 'collaborators';
+    try {
+        const response = await axios.post(`/api/personalizar/${endpoint}`, {
+            name,
+            ...(field === 'collaborator_id' ? { cpf } : {}),
+            ...(field === 'service_type_id' ? serviceDetails : {}),
+        }, { headers: { 'X-CSRF-TOKEN': getCsrfToken() } });
+        const option = response.data.data ?? response.data;
+        if (typeof option?.id !== 'number' || typeof option?.name !== 'string') {
+            throw new Error('Resposta de criação inválida.');
+        }
+        return { id: option.id, name: option.name };
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            const message = error.response?.data?.message;
+            const itemLabel = field === 'collaborator_id' ? 'o colaborador' : field === 'service_type_id' ? 'o tipo de serviço' : 'a categoria';
+            throw new Error(typeof message === 'string' ? message : `Não foi possível criar ${itemLabel}. Verifique os dados e tente novamente.`);
+        }
+        throw error;
     }
 };
 
@@ -2065,8 +2221,15 @@ const saveRecordField = async (id: number, type: 'entrada' | 'saida', field: Inl
             expected_type: type === 'entrada' ? 'entry' : 'exit',
         }, { headers: { 'X-CSRF-TOKEN': getCsrfToken() } });
         const index = registros.value.findIndex((record: any) => record.id === id);
-        if (index !== -1) registros.value[index] = { ...response.data.data, _page: registros.value[index]._page };
-        await fetchRegistros(currentPage.value, false, false, activeTab.value === 'todos' && field !== 'date');
+        if (index !== -1) {
+            const record = registros.value[index];
+            const updated = response.data.data;
+            record[field] = updated[field];
+            if (field === 'entry_type_id') record.entry_type = updated.entry_type;
+            if (field === 'exit_type_id') record.exit_type = updated.exit_type;
+            if (field === 'collaborator_id') record.collaborator = updated.collaborator;
+            reconcileInlineRecord(id, record._page ?? currentPage.value);
+        }
     } catch (error) {
         if (axios.isAxiosError(error)) {
             const message = error.response?.data?.message;
@@ -2466,25 +2629,24 @@ onBeforeUnmount(() => {
                 <!-- Period Selectors -->
                 <div v-if="activeTab === 'mensal' || activeTab === 'anual'" class="mb-3 -mx-4 px-4 sm:-mx-0 sm:px-0 overflow-x-auto sm:overflow-visible scrollbar-hide">
                     <div class="flex flex-wrap gap-2 pb-2 sm:pb-1 justify-center items-center">
-                        <select
+                        <AppSelect
                             v-if="activeTab === 'mensal'"
                             v-model.number="selectedMonth"
-                            @change="(currentPage = 1, fetchRegistros(1))"
-                            class="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white dark:bg-input dark:text-foreground text-sm"
-                        >
-                            <option v-for="m in monthOptions" :key="m.value" :value="m.value">
-                                {{ m.label }}
-                            </option>
-                        </select>
-                        <select
+                            @update:model-value="(currentPage = 1, fetchRegistros(1))"
+                            label="Mês"
+                            searchable
+                            class="w-40 text-sm"
+                            :options="monthOptions"
+                        />
+                        <AppSelect
                             v-model.number="selectedYear"
-                            @change="(currentPage = 1, fetchRegistros(1))"
-                            class="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white dark:bg-input dark:text-foreground text-sm"
-                        >
-                            <option v-for="y in yearOptions" :key="y" :value="y">
-                                {{ y }}
-                            </option>
-                        </select>
+                            @update:model-value="(currentPage = 1, fetchRegistros(1))"
+                            label="Ano"
+                            searchable
+                            :create-input-option="createYearOption"
+                            class="w-24 text-sm"
+                            :options="yearOptions.map((year) => ({ value: year, label: String(year) }))"
+                        />
                         <button
                             v-if="canExportPeriodData"
                             type="button"
@@ -2665,21 +2827,21 @@ onBeforeUnmount(() => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Tipo de Entrada</label>
-                                <select v-model="importDefaults.default_entry_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm appearance-none">
+                                <select v-model="importDefaults.default_entry_type_id" class="app-select-control w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm appearance-none">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Tipo de Saída</label>
-                                <select v-model="importDefaults.default_exit_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm appearance-none">
+                                <select v-model="importDefaults.default_exit_type_id" class="app-select-control w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm appearance-none">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Colaborador</label>
-                                <select v-model="importDefaults.default_collaborator_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm appearance-none">
+                                <select v-model="importDefaults.default_collaborator_id" class="app-select-control w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm appearance-none">
                                     <option :value="null">Selecione</option>
                                     <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
@@ -2848,30 +3010,30 @@ onBeforeUnmount(() => {
                     <template v-if="!isChartsView">
                     <!-- Summary (hidden when viewing removed items) -->
                     <div v-if="!showRemoved" class="mb-4 space-y-3">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                            <div class="rounded-lg border border-slate-200 dark:border-border bg-white dark:bg-card p-3 text-center">
+                        <div class="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                            <div class="min-w-0 rounded-lg border border-slate-200 dark:border-border bg-white dark:bg-card p-2 sm:p-3 text-center">
                                 <p class="text-xs font-medium text-slate-500 dark:text-muted-foreground">Total</p>
-                                <p class="mt-1 text-lg font-bold text-slate-800 dark:text-foreground">{{ totalRegistros }}</p>
+                                <p class="mt-1 break-words text-xs sm:text-lg font-bold text-slate-800 dark:text-foreground">{{ totalRegistros }}</p>
                             </div>
-                            <div class="rounded-lg border border-yellow-200 bg-yellow-50/70 p-3 text-center">
+                            <div class="min-w-0 rounded-lg border border-yellow-200 bg-yellow-50/70 p-2 sm:p-3 text-center">
                                 <p class="text-xs font-medium text-yellow-700">Entradas</p>
-                                <p class="mt-1 text-lg font-bold text-yellow-700">{{ formatCurrency(totalEntradas) }}</p>
+                                <p class="mt-1 break-words text-xs sm:text-lg font-bold text-yellow-700">{{ formatCurrency(totalEntradas) }}</p>
                             </div>
-                            <div class="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-center">
+                            <div class="min-w-0 rounded-lg border border-amber-200 bg-amber-50/70 p-2 sm:p-3 text-center">
                                 <p class="text-xs font-medium text-amber-700">Descontos</p>
-                                <p class="mt-1 text-lg font-bold text-amber-700">{{ formatCurrency(totalDescontosEntradas) }}</p>
+                                <p class="mt-1 break-words text-xs sm:text-lg font-bold text-amber-700">{{ formatCurrency(totalDescontosEntradas) }}</p>
                             </div>
-                            <div class="rounded-lg border border-orange-200 bg-orange-50/70 p-3 text-center">
+                            <div class="min-w-0 rounded-lg border border-orange-200 bg-orange-50/70 p-2 sm:p-3 text-center">
                                 <p class="text-xs font-medium text-orange-700">Saídas</p>
-                                <p class="mt-1 text-lg font-bold text-orange-700">{{ formatCurrency(totalSaidas) }}</p>
+                                <p class="mt-1 break-words text-xs sm:text-lg font-bold text-orange-700">{{ formatCurrency(totalSaidas) }}</p>
                             </div>
-                            <div class="rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-center">
+                            <div class="min-w-0 rounded-lg border border-blue-200 bg-blue-50/70 p-2 sm:p-3 text-center">
                                 <p class="text-xs font-medium text-blue-700">Comissões</p>
-                                <p class="mt-1 text-lg font-bold text-blue-700">{{ formatCurrency(totalComissoes) }}</p>
+                                <p class="mt-1 break-words text-xs sm:text-lg font-bold text-blue-700">{{ formatCurrency(totalComissoes) }}</p>
                             </div>
-                            <div class="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 text-center">
+                            <div class="min-w-0 rounded-lg border border-emerald-200 bg-emerald-50/70 p-2 sm:p-3 text-center">
                                 <p class="text-xs font-medium text-emerald-700">Total final</p>
-                                <p class="mt-1 text-lg font-bold text-emerald-700">{{ formatCurrency(totalFinal) }}</p>
+                                <p class="mt-1 break-words text-xs sm:text-lg font-bold text-emerald-700">{{ formatCurrency(totalFinal) }}</p>
                             </div>
                         </div>
 
@@ -2980,26 +3142,28 @@ onBeforeUnmount(() => {
                         <div class="flex flex-wrap items-center gap-1 sm:gap-2">
                             <div class="flex items-center gap-1 sm:gap-2">
                                 <label class="text-xs text-gray-600 whitespace-nowrap">Ordenar</label>
-                                <select
+                                <AppSelect
                                     v-model="sortKey"
-                                    class="px-2 py-1 border border-orange-300 rounded-lg bg-white dark:bg-input dark:text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03]"
-                                >
-                                    <option value="registradoEm">Registrado</option>
-                                    <option value="dataOperacao">Data</option>
-                                    <option value="valor">Valor</option>
-                                    <option value="categoria">Categoria</option>
-                                    <option value="colaborador">Colaborador</option>
-                                    <option value="descricao">Descrição</option>
-                                    <option value="tipo">Tipo</option>
-                                </select>
+                                    label="Campo de ordenação"
+                                    :options="[
+                                        { value: 'registradoEm', label: 'Registrado' },
+                                        { value: 'dataOperacao', label: 'Data' },
+                                        { value: 'valor', label: 'Valor' },
+                                        { value: 'categoria', label: 'Categoria' },
+                                        { value: 'colaborador', label: 'Colaborador' },
+                                        { value: 'descricao', label: 'Descrição' },
+                                        { value: 'tipo', label: 'Tipo' },
+                                    ]"
+                                />
                             </div>
-                            <select
+                            <AppSelect
                                 v-model="sortDir"
-                                class="px-2 py-1 border border-orange-300 rounded-lg bg-white dark:bg-input dark:text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03]"
-                            >
-                                <option value="asc">A-Z</option>
-                                <option value="desc">Z-A</option>
-                            </select>
+                                label="Direção da ordenação"
+                                :options="[
+                                    { value: 'asc', label: 'A-Z' },
+                                    { value: 'desc', label: 'Z-A' },
+                                ]"
+                            />
                         </div>
 
                         <div class="flex gap-1 sm:gap-2"></div>
@@ -3014,44 +3178,35 @@ onBeforeUnmount(() => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo</label>
-                                <select v-model="entryForm.entry_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm appearance-none">
-                                    <option :value="null">Selecione</option>
-                                    <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
-                                </select>
+                                <InlineRecordSelect v-model="entryForm.entry_type_id" mode="form" label="tipo de entrada" :load-options="() => loadInlineOptions('entry_type_id')" :create-option="(name) => createInlineOption('entry_type_id', name)" />
                             </div>
                             <div v-if="useServiceTypes">
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Serviço</label>
-                                <select v-model="entryForm.service_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm appearance-none">
-                                    <option :value="null">Selecione</option>
-                                    <option v-for="s in tiposServico" :key="s.id" :value="s.id">{{ s.name }}</option>
-                                </select>
+                                <InlineRecordSelect v-model="entryForm.service_type_id" mode="form" label="tipo de serviço" :load-options="() => loadInlineOptions('service_type_id')" :create-option="(name, _cpf, details) => createInlineOption('service_type_id', name, undefined, details)" :requires-service-details="true" />
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Responsável</label>
-                                <select v-model="entryForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm appearance-none">
-                                    <option :value="null">Selecione</option>
-                                    <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
-                                </select>
+                                <InlineRecordSelect v-model="entryForm.collaborator_id" mode="form" label="responsável" :load-options="() => loadInlineOptions('collaborator_id')" :create-option="(name, cpf) => createInlineOption('collaborator_id', name, cpf)" :requires-cpf="true" />
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Data</label>
-                                <input type="date" v-model="entryForm.date" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 font-normal leading-normal [color-scheme:light] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:[color-scheme:dark] sm:px-3 sm:py-2 sm:text-sm" />
+                                <DateInput v-model="entryForm.date" aria-label="Data da entrada" class="app-form-control w-full font-normal leading-normal text-xs text-gray-800 dark:text-slate-100 sm:text-sm" />
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Valor (R$)</label>
-                                <input ref="entryAmountInput" type="text" inputmode="numeric" v-model="entryForm.amount" @input="handleEntryAmountInput" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500 sm:px-3 sm:py-2 sm:text-sm" placeholder="0,00" />
+                                <input ref="entryAmountInput" type="text" inputmode="numeric" v-model="entryForm.amount" @input="handleEntryAmountInput" class="app-form-control w-full text-xs text-gray-800 placeholder:text-gray-400 dark:text-slate-100 dark:placeholder:text-slate-500 sm:text-sm" placeholder="0,00" />
                             </div>
                             <div v-if="useServiceTypes">
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Qtd</label>
-                                <input type="number" min="1" v-model="entryForm.quantity" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm" />
+                                <input type="number" min="1" v-model="entryForm.quantity" class="app-form-control w-full text-xs text-gray-800 dark:text-slate-100 sm:text-sm" />
                             </div>
                             <div v-if="useServiceTypes">
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Desconto (R$)</label>
-                                <input type="text" inputmode="numeric" v-model="entryForm.discount" @input="handleEntryDiscountInput" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="0,00" />
+                                <input type="text" inputmode="numeric" v-model="entryForm.discount" @input="handleEntryDiscountInput" class="app-form-control w-full text-sm text-gray-800 placeholder:text-gray-400 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="0,00" />
                             </div>
                             <div class="sm:col-span-2">
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Descrição</label>
-                                <input type="text" v-model="entryForm.description" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="Opcional" />
+                                <input type="text" v-model="entryForm.description" class="app-form-control w-full text-sm text-gray-800 placeholder:text-gray-400 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="Opcional" />
                             </div>
                             <div class="sm:col-span-2">
                                 <RecordTotalSummary :total="formatCurrency(entryCalculatedTotal)" :show-formula="useServiceTypes" />
@@ -3074,37 +3229,31 @@ onBeforeUnmount(() => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo de Saída</label>
-                                <select v-model="exitForm.exit_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm appearance-none">
-                                    <option :value="null">Selecione</option>
-                                    <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
-                                </select>
+                                <InlineRecordSelect v-model="exitForm.exit_type_id" mode="form" label="tipo de saída" :load-options="() => loadInlineOptions('exit_type_id')" :create-option="(name) => createInlineOption('exit_type_id', name)" />
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Responsável</label>
-                                <select v-model="exitForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm appearance-none">
-                                    <option :value="null">Selecione</option>
-                                    <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
-                                </select>
+                                <InlineRecordSelect v-model="exitForm.collaborator_id" mode="form" label="responsável" :load-options="() => loadInlineOptions('collaborator_id')" :create-option="(name, cpf) => createInlineOption('collaborator_id', name, cpf)" :requires-cpf="true" />
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Data</label>
-                                <input type="date" v-model="exitForm.date" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 font-normal leading-normal [color-scheme:light] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:[color-scheme:dark] sm:px-3 sm:py-2 sm:text-sm" />
+                                <DateInput v-model="exitForm.date" aria-label="Data da saída" class="app-form-control w-full font-normal leading-normal text-xs text-gray-800 dark:text-slate-100 sm:text-sm" />
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Valor (R$)</label>
-                                <input ref="exitAmountInput" type="text" inputmode="numeric" v-model="exitForm.amount" @input="handleExitAmountInput" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500 sm:px-3 sm:py-2 sm:text-sm" placeholder="0,00" />
+                                <input ref="exitAmountInput" type="text" inputmode="numeric" v-model="exitForm.amount" @input="handleExitAmountInput" class="app-form-control w-full text-xs text-gray-800 placeholder:text-gray-400 dark:text-slate-100 dark:placeholder:text-slate-500 sm:text-sm" placeholder="0,00" />
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Quantidade</label>
-                                <input type="number" min="1" v-model="exitForm.quantity" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm" />
+                                <input type="number" min="1" v-model="exitForm.quantity" class="app-form-control w-full text-xs text-gray-800 dark:text-slate-100 sm:text-sm" />
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Desconto (R$)</label>
-                                <input type="text" inputmode="numeric" v-model="exitForm.discount" @input="handleExitDiscountInput" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500 sm:px-3 sm:py-2 sm:text-sm" placeholder="0,00" />
+                                <input type="text" inputmode="numeric" v-model="exitForm.discount" @input="handleExitDiscountInput" class="app-form-control w-full text-xs text-gray-800 placeholder:text-gray-400 dark:text-slate-100 dark:placeholder:text-slate-500 sm:text-sm" placeholder="0,00" />
                             </div>
                             <div class="sm:col-span-2">
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Descrição</label>
-                                <input type="text" v-model="exitForm.description" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500 sm:px-3 sm:py-2 sm:text-sm" placeholder="Opcional" />
+                                <input type="text" v-model="exitForm.description" class="app-form-control w-full text-xs text-gray-800 placeholder:text-gray-400 dark:text-slate-100 dark:placeholder:text-slate-500 sm:text-sm" placeholder="Opcional" />
                             </div>
                             <div class="sm:col-span-2">
                                 <RecordTotalSummary :total="formatCurrency(exitCalculatedTotal)" :show-formula="true" />
@@ -3120,6 +3269,10 @@ onBeforeUnmount(() => {
 
                     <!-- Records List -->
                     <div class="space-y-3 min-h-[320px] w-full">
+                        <div v-if="reconciliationError" role="alert" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+                            {{ reconciliationError }}
+                            <button type="button" class="ml-2 underline cursor-pointer" @click="fetchRegistros(currentPage)">Atualizar lista</button>
+                        </div>
                         <div v-if="listError" role="alert" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
                             {{ listError }}
                             <button type="button" class="ml-2 underline cursor-pointer" @click="fetchRegistros(currentPage)">Tentar novamente</button>
@@ -3215,28 +3368,19 @@ onBeforeUnmount(() => {
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo de Entrada</label>
-                                        <select v-model="entryForm.entry_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 appearance-none">
-                                            <option :value="null">Selecione</option>
-                                            <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
-                                        </select>
+                                        <InlineRecordSelect v-model="entryForm.entry_type_id" mode="form" label="tipo de entrada" :load-options="() => loadInlineOptions('entry_type_id')" :create-option="(name) => createInlineOption('entry_type_id', name)" />
                                     </div>
                                     <div v-if="useServiceTypes">
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo de Serviço</label>
-                                        <select v-model="entryForm.service_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 appearance-none">
-                                            <option :value="null">Selecione</option>
-                                            <option v-for="s in tiposServico" :key="s.id" :value="s.id">{{ s.name }}</option>
-                                        </select>
+                                        <InlineRecordSelect v-model="entryForm.service_type_id" mode="form" label="tipo de serviço" :load-options="() => loadInlineOptions('service_type_id')" :create-option="(name, _cpf, details) => createInlineOption('service_type_id', name, undefined, details)" :requires-service-details="true" />
                                     </div>
                                     <div>
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Responsável</label>
-                                        <select v-model="entryForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 appearance-none">
-                                            <option :value="null">Selecione</option>
-                                            <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
-                                        </select>
+                                        <InlineRecordSelect v-model="entryForm.collaborator_id" mode="form" label="responsável" :load-options="() => loadInlineOptions('collaborator_id')" :create-option="(name, cpf) => createInlineOption('collaborator_id', name, cpf)" :requires-cpf="true" />
                                     </div>
                                     <div>
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Data</label>
-                                        <input type="date" v-model="entryForm.date" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 font-normal leading-normal [color-scheme:light] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:[color-scheme:dark]" />
+                                        <DateInput v-model="entryForm.date" aria-label="Data da entrada" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 font-normal leading-normal dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100" />
                                     </div>
                                     <div>
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Valor (R$)</label>
@@ -3260,6 +3404,7 @@ onBeforeUnmount(() => {
                                 </div>
                                 <div class="flex justify-end gap-2 mt-4">
                                     <button type="button" @click="invertEditingRecord" @keydown.enter.stop :disabled="isEntryLoading" class="mr-auto px-4 py-2 text-sm text-orange-700 hover:bg-orange-100 rounded-lg cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50 dark:text-orange-300 dark:hover:bg-slate-800">Inverter para saída</button>
+                                    <button type="button" @click="startDeleteFromEdit(registro.id)" @keydown.enter.stop :disabled="isEntryLoading" class="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-slate-800">Remover</button>
                                     <button @click="() => closeAllForms()" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer">Cancelar</button>
                                     <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed">
                                         {{ isEntryLoading ? 'Salvando...' : 'Salvar' }}
@@ -3296,21 +3441,15 @@ onBeforeUnmount(() => {
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo de Saída</label>
-                                        <select v-model="exitForm.exit_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 appearance-none">
-                                            <option :value="null">Selecione</option>
-                                            <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
-                                        </select>
+                                        <InlineRecordSelect v-model="exitForm.exit_type_id" mode="form" label="tipo de saída" :load-options="() => loadInlineOptions('exit_type_id')" :create-option="(name) => createInlineOption('exit_type_id', name)" />
                                     </div>
                                     <div>
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Responsável</label>
-                                        <select v-model="exitForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 appearance-none">
-                                            <option :value="null">Selecione</option>
-                                            <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
-                                        </select>
+                                        <InlineRecordSelect v-model="exitForm.collaborator_id" mode="form" label="responsável" :load-options="() => loadInlineOptions('collaborator_id')" :create-option="(name, cpf) => createInlineOption('collaborator_id', name, cpf)" :requires-cpf="true" />
                                     </div>
                                     <div>
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Data</label>
-                                        <input type="date" v-model="exitForm.date" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 font-normal leading-normal [color-scheme:light] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:leading-normal focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:[color-scheme:dark]" />
+                                        <DateInput v-model="exitForm.date" aria-label="Data da saída" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 font-normal leading-normal dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100" />
                                     </div>
                                     <div>
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Valor (R$)</label>
@@ -3334,6 +3473,7 @@ onBeforeUnmount(() => {
                                 </div>
                                 <div class="flex justify-end gap-2 mt-4">
                                     <button type="button" @click="invertEditingRecord" @keydown.enter.stop :disabled="isExitLoading" class="mr-auto px-4 py-2 text-sm text-orange-700 hover:bg-orange-100 rounded-lg cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50 dark:text-orange-300 dark:hover:bg-slate-800">Inverter para entrada</button>
+                                    <button type="button" @click="startDeleteFromEdit(registro.id)" @keydown.enter.stop :disabled="isExitLoading" class="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-slate-800">Remover</button>
                                     <button @click="() => closeAllForms()" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer">Cancelar</button>
                                     <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed">
                                         {{ isExitLoading ? 'Salvando...' : 'Salvar' }}
@@ -3386,12 +3526,12 @@ onBeforeUnmount(() => {
                                     <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
                                         <div>
                                             <span class="text-gray-400 block">Categoria</span>
-                                            <InlineRecordSelect v-if="!showRemoved" label="categoria" :value="registro.categoriaId" :text="registro.categoria" :load-options="() => loadInlineOptions(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id')" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', value, expected)" class="font-medium" />
+                                            <InlineRecordSelect v-if="!showRemoved" label="categoria" :value="registro.categoriaId" :text="registro.categoria" :load-options="() => loadInlineOptions(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id')" :create-option="(name) => createInlineOption(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', name)" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', value, expected)" class="font-medium" />
                                             <p v-else class="text-gray-700 font-medium truncate">{{ registro.categoria || '-' }}</p>
                                         </div>
                                         <div>
                                             <span class="text-gray-400 block">Colaborador</span>
-                                            <InlineRecordSelect v-if="!showRemoved" label="colaborador" :value="registro.colaboradorId" :text="registro.colaborador" :load-options="() => loadInlineOptions('collaborator_id')" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, 'collaborator_id', value, expected)" />
+                                            <InlineRecordSelect v-if="!showRemoved" label="colaborador" :value="registro.colaboradorId" :text="registro.colaborador" :load-options="() => loadInlineOptions('collaborator_id')" :create-option="(name, cpf) => createInlineOption('collaborator_id', name, cpf)" :requires-cpf="true" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, 'collaborator_id', value, expected)" />
                                             <p v-else class="text-gray-700 truncate">{{ registro.colaborador || '-' }}</p>
                                         </div>
                                         <div v-if="!showRemoved || registro.descricao" class="col-span-2">
@@ -3419,12 +3559,12 @@ onBeforeUnmount(() => {
                                     </div>
                                     <!-- Categoria -->
                                     <div class="w-32 flex-shrink-0 has-[form]:w-52">
-                                        <InlineRecordSelect v-if="!showRemoved" label="categoria" :value="registro.categoriaId" :text="registro.categoria" :load-options="() => loadInlineOptions(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id')" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', value, expected)" class="text-sm" />
+                                        <InlineRecordSelect v-if="!showRemoved" label="categoria" :value="registro.categoriaId" :text="registro.categoria" :load-options="() => loadInlineOptions(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id')" :create-option="(name) => createInlineOption(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', name)" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', value, expected)" class="text-sm" />
                                         <span v-else class="text-gray-700 text-sm truncate block">{{ registro.categoria }}</span>
                                     </div>
                                     <!-- Colaborador -->
                                     <div class="w-40 flex-shrink-0 has-[form]:w-52">
-                                        <InlineRecordSelect v-if="!showRemoved" label="colaborador" :value="registro.colaboradorId" :text="registro.colaborador" :load-options="() => loadInlineOptions('collaborator_id')" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, 'collaborator_id', value, expected)" class="text-sm" />
+                                        <InlineRecordSelect v-if="!showRemoved" label="colaborador" :value="registro.colaboradorId" :text="registro.colaborador" :load-options="() => loadInlineOptions('collaborator_id')" :create-option="(name, cpf) => createInlineOption('collaborator_id', name, cpf)" :requires-cpf="true" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, 'collaborator_id', value, expected)" class="text-sm" />
                                         <span v-else class="text-gray-700 text-sm truncate block">{{ registro.colaborador || '-' }}</span>
                                     </div>
                                     <!-- Descrição -->

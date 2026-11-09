@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
-import { AlertTriangle, Building2, CalendarDays, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-vue-next';
+import { AlertTriangle, Building2, CalendarDays, ChevronLeft, ChevronRight, RefreshCw, RotateCcw } from 'lucide-vue-next';
 import Sidebar from '@/components/Sidebar.vue';
 import Footer from '@/components/Footer.vue';
 import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
+import AppSelect from '@/components/AppSelect.vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 
@@ -48,6 +49,7 @@ type DashboardSummary = {
 const auth = useAuth();
 const { isPrivacyMode } = usePrivacy();
 const registrationSuccessToastKey = 'registration_success_toast';
+const dashboardFilterStorageKey = 'dashboard_filters';
 const registrationSuccessMessage = ref('');
 
 const monthOptions = [
@@ -68,7 +70,6 @@ const monthOptions = [
 const currentYear = new Date().getFullYear();
 const selectedMonth = ref(new Date().getMonth() + 1);
 const selectedYear = ref(currentYear);
-const selectedDayKey = ref<string | null>(null);
 const isLoading = ref(true);
 const isRefreshing = ref(false);
 const loadError = ref('');
@@ -84,6 +85,11 @@ const yearOptions = computed(() => {
 
     return years;
 });
+const createYearOption = (query: string) => {
+    if (!/^\d{4}$/.test(query)) return null;
+    const year = Number(query);
+    return year >= 2000 && year <= 2100 ? { value: year, label: query } : null;
+};
 
 const companyName = computed(() => dashboardData.value?.company?.name || auth.getCompanyName.value || 'Empresa');
 const monthLabel = computed(() => monthOptions.find((item) => item.value === selectedMonth.value)?.label || 'Mês');
@@ -158,14 +164,42 @@ const updateQueryString = () => {
     }
 
     const params = new URLSearchParams(window.location.search);
-    params.set('month', String(selectedMonth.value));
-    params.set('year', String(selectedYear.value));
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    if (selectedMonth.value === currentMonth) params.delete('month');
+    else params.set('month', String(selectedMonth.value));
+
+    if (selectedYear.value === currentYear) params.delete('year');
+    else params.set('year', String(selectedYear.value));
 
     const query = params.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+
+    if (selectedMonth.value === currentMonth && selectedYear.value === currentYear) {
+        window.sessionStorage.removeItem(dashboardFilterStorageKey);
+    } else {
+        window.sessionStorage.setItem(dashboardFilterStorageKey, JSON.stringify({
+            month: selectedMonth.value,
+            year: selectedYear.value,
+        }));
+    }
 };
 
 const loadDashboard = async (withSpinner = false) => {
+    if (typeof window !== 'undefined') {
+        const now = new Date();
+        if (selectedMonth.value === now.getMonth() + 1 && selectedYear.value === now.getFullYear()) {
+            window.sessionStorage.removeItem(dashboardFilterStorageKey);
+        } else {
+            window.sessionStorage.setItem(dashboardFilterStorageKey, JSON.stringify({
+                month: selectedMonth.value,
+                year: selectedYear.value,
+            }));
+        }
+    }
+
     if (withSpinner) {
         isRefreshing.value = true;
     } else {
@@ -190,7 +224,6 @@ const loadDashboard = async (withSpinner = false) => {
         }
 
         dashboardData.value = payload.data;
-        selectedDayKey.value = null;
         updateQueryString();
     } catch (error) {
         loadError.value = error instanceof Error ? error.message : 'Não foi possível carregar o dashboard.';
@@ -204,24 +237,20 @@ const previousMonth = () => {
     if (selectedMonth.value === 1) {
         selectedMonth.value = 12;
         selectedYear.value -= 1;
-        selectedDayKey.value = null;
         return;
     }
 
     selectedMonth.value -= 1;
-    selectedDayKey.value = null;
 };
 
 const nextMonth = () => {
     if (selectedMonth.value === 12) {
         selectedMonth.value = 1;
         selectedYear.value += 1;
-        selectedDayKey.value = null;
         return;
     }
 
     selectedMonth.value += 1;
-    selectedDayKey.value = null;
 };
 
 const goToCurrentMonth = async () => {
@@ -230,14 +259,28 @@ const goToCurrentMonth = async () => {
     const currentYearValue = now.getFullYear();
 
     if (selectedMonth.value === currentMonthValue && selectedYear.value === currentYearValue) {
-        selectedDayKey.value = null;
         await loadDashboard(true);
         return;
     }
 
     selectedMonth.value = currentMonthValue;
     selectedYear.value = currentYearValue;
-    selectedDayKey.value = null;
+};
+
+const clearDashboardFilter = async () => {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    const unchanged = selectedMonth.value === currentMonth && selectedYear.value === currentYear;
+
+    selectedMonth.value = currentMonth;
+    selectedYear.value = currentYear;
+    window.sessionStorage.removeItem(dashboardFilterStorageKey);
+    updateQueryString();
+
+    if (unchanged) {
+        await loadDashboard(true);
+    }
 };
 
 const calendarCells = computed<Array<DashboardDay | null>>(() => {
@@ -278,42 +321,18 @@ const calendarCells = computed<Array<DashboardDay | null>>(() => {
     return cells;
 });
 
-const statusLabel = (day: DashboardDay) => {
-    if (day.status === 'entry') {
-        return 'Entrada';
-    }
-
-    if (day.status === 'exit') {
-        return 'Saída';
-    }
-
-    if (day.status === 'positive' || day.status === 'negative') {
-        return 'Saldo';
-    }
-
-    if (day.status === 'zero') {
-        return 'Empate';
-    }
-
-    return 'Sem lançamento';
-};
-
-const tooltipValueLabel = (day: DashboardDay) => {
-    if (day.status === 'entry') {
-        return formatSignedCurrency(day.entries);
-    }
-
-    if (day.status === 'exit') {
-        return formatSignedCurrency(-day.exits);
-    }
-
-    return formatSignedCurrency(day.net);
-};
-
-const isSelectedDay = (day: DashboardDay) => selectedDayKey.value === day.date;
-
-const toggleDayDetails = (day: DashboardDay) => {
-    selectedDayKey.value = selectedDayKey.value === day.date ? null : day.date;
+const openRecordsForDay = (day: DashboardDay) => {
+    const [year, month, dayOfMonth] = day.date.split('-');
+    const search = `${dayOfMonth}/${month}/${year}`;
+    const params = new URLSearchParams({
+        tab: 'todos',
+        page: '1',
+        search,
+        financial_type: '',
+        removed: '0',
+        charts: '0',
+    });
+    window.location.assign(`/registros?${params.toString()}`);
 };
 
 const dayValueLabel = (day: DashboardDay) => {
@@ -367,6 +386,25 @@ watch([selectedMonth, selectedYear], async () => {
 onMounted(async () => {
     showRegistrationSuccessMessageIfNeeded();
 
+    const savedFilters = window.sessionStorage.getItem(dashboardFilterStorageKey);
+    if (savedFilters) {
+        try {
+            const parsed: unknown = JSON.parse(savedFilters);
+            if (parsed && typeof parsed === 'object') {
+                const filters = parsed as Record<string, unknown>;
+                if (typeof filters.month === 'number' && Number.isInteger(filters.month) && filters.month >= 1 && filters.month <= 12) {
+                    selectedMonth.value = filters.month;
+                }
+                if (typeof filters.year === 'number' && Number.isInteger(filters.year) && filters.year >= 2000 && filters.year <= 2100) {
+                    selectedYear.value = filters.year;
+                }
+            }
+        } catch (error) {
+            console.error('Não foi possível restaurar os filtros do Dashboard:', error);
+            window.sessionStorage.removeItem(dashboardFilterStorageKey);
+        }
+    }
+
     const params = new URLSearchParams(window.location.search);
     const queryMonth = Number(params.get('month'));
     const queryYear = Number(params.get('year'));
@@ -378,8 +416,6 @@ onMounted(async () => {
     if (Number.isInteger(queryYear) && queryYear >= 2000) {
         selectedYear.value = queryYear;
     }
-
-    selectedDayKey.value = null;
 
     const currentUser = auth.user.value || (await auth.fetchCurrentUser());
 
@@ -460,24 +496,36 @@ onMounted(async () => {
                             <div class="flex items-end gap-3">
                                 <div class="flex flex-col gap-1">
                                     <span class="text-xs font-semibold text-gray-500 dark:text-slate-400">Mês</span>
-                                    <select
+                                    <AppSelect
                                         v-model.number="selectedMonth"
-                                        class="h-10 px-3 border-2 border-amber-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg text-sm text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-                                    >
-                                        <option v-for="month in monthOptions" :key="month.value" :value="month.value">{{ month.label }}</option>
-                                    </select>
+                                        label="Mês"
+                                        searchable
+                                        class="w-40 text-sm"
+                                        :options="monthOptions"
+                                    />
                                 </div>
 
                                 <div class="flex flex-col gap-1">
                                     <span class="text-xs font-semibold text-gray-500 dark:text-slate-400">Ano</span>
-                                    <select
+                                    <AppSelect
                                         v-model.number="selectedYear"
-                                        class="h-10 px-3 border-2 border-amber-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg text-sm text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-                                    >
-                                        <option v-for="year in yearOptions" :key="year" :value="year">{{ year }}</option>
-                                    </select>
+                                        label="Ano"
+                                        searchable
+                                        :create-input-option="createYearOption"
+                                        class="w-24 text-sm"
+                                        :options="yearOptions.map((year) => ({ value: year, label: String(year) }))"
+                                    />
                                 </div>
                             </div>
+
+                            <button
+                                type="button"
+                                class="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-300 px-4 py-2 text-sm font-medium text-orange-700 transition-all hover:bg-orange-50 dark:border-orange-700 dark:text-orange-300 dark:hover:bg-orange-950/40 cursor-pointer"
+                                @click="clearDashboardFilter"
+                            >
+                                <RotateCcw class="h-4 w-4" />
+                                Limpar filtro
+                            </button>
 
                             <button
                                 type="button"
@@ -538,9 +586,11 @@ onMounted(async () => {
                                     :class="[cellStyle(day), day.is_today ? 'ring-2 ring-orange-400 ring-offset-1 dark:ring-offset-slate-900' : '']"
                                     role="button"
                                     tabindex="0"
-                                    @click="toggleDayDetails(day)"
-                                    @keyup.enter.prevent="toggleDayDetails(day)"
-                                    @keyup.space.prevent="toggleDayDetails(day)"
+                                    title="Clique para ver detalhes"
+                                    aria-label="Clique para ver detalhes"
+                                    @click="openRecordsForDay(day)"
+                                    @keyup.enter.prevent="openRecordsForDay(day)"
+                                    @keyup.space.prevent="openRecordsForDay(day)"
                                 >
                                     <div class="flex flex-col gap-1 overflow-hidden">
                                         <span class="text-[10px] font-semibold sm:text-sm lg:text-base">{{ day.day }}</span>
@@ -549,26 +599,6 @@ onMounted(async () => {
                                         </p>
                                     </div>
 
-                                    <transition
-                                        enter-active-class="transition-all duration-150 ease-out"
-                                        leave-active-class="transition-all duration-120 ease-in"
-                                        enter-from-class="opacity-0 translate-y-1 scale-95"
-                                        enter-to-class="opacity-100 translate-y-0 scale-100"
-                                        leave-from-class="opacity-100 translate-y-0 scale-100"
-                                        leave-to-class="opacity-0 translate-y-1 scale-95"
-                                    >
-                                        <div
-                                            v-if="isSelectedDay(day)"
-                                            class="absolute inset-x-0.5 bottom-0.5 z-10 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 shadow-lg"
-                                        >
-                                            <p class="text-[7px] font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400 sm:text-[8px]">
-                                                {{ statusLabel(day) }}
-                                            </p>
-                                            <p v-if="day.status !== 'empty'" class="mt-0.5 text-[9px] font-semibold leading-tight text-gray-900 dark:text-slate-100 sm:text-[10px]">
-                                                {{ tooltipValueLabel(day) }}
-                                            </p>
-                                        </div>
-                                    </transition>
                                 </div>
 
                                 <div
