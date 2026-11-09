@@ -7,6 +7,7 @@ use App\Http\Requests\StoreEntryTypeRequest;
 use App\Http\Requests\UpdateEntryTypeRequest;
 use App\Models\EntryType;
 use App\Services\CompanyDefaultsService;
+use App\Services\MasterDataService;
 use Illuminate\Http\Request;
 
 class EntryTypeController extends Controller
@@ -14,6 +15,9 @@ class EntryTypeController extends Controller
     public function index(Request $request)
     {
         $query = EntryType::forCompany();
+        if (!$request->boolean('include_inactive')) {
+            $query->where('active', true);
+        }
 
         if (!$request->boolean('include_defaults')) {
             $query->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'não definido']);
@@ -64,15 +68,16 @@ class EntryTypeController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!$request->user()->isRoot()) {
-            return response()->json(['message' => 'Forbidden'], 403);
+        if (!$request->user()->canManageFinancialRecords()) {
+            return response()->json(['message' => 'Apenas o proprietário pode remover este item.'], 403);
         }
 
         if ($this->isProtectedDefault($entryType->name)) {
             return response()->json(['message' => 'O tipo padrão "Não definido" não pode ser removido'], 422);
         }
 
-        $entryType->delete();
+        $validated = $request->validate(['replacement_id' => 'nullable|integer']);
+        app(MasterDataService::class)->delete($entryType, $validated['replacement_id'] ?? null);
 
         return response()->json([
             'message' => 'Tipo de entrada removido com sucesso',
@@ -102,8 +107,8 @@ class EntryTypeController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!$request->user()->isRoot()) {
-            return response()->json(['message' => 'Forbidden'], 403);
+        if (!$request->user()->canManageFinancialRecords()) {
+            return response()->json(['message' => 'Apenas o proprietário pode restaurar este item.'], 403);
         }
 
         $type->restore();

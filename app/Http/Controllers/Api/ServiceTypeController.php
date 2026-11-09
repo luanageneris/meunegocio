@@ -6,15 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreServiceTypeRequest;
 use App\Http\Requests\UpdateServiceTypeRequest;
 use App\Models\ServiceType;
+use App\Services\MasterDataService;
 use Illuminate\Http\Request;
 
 class ServiceTypeController extends Controller
 {
     public function index(Request $request)
     {
-        $types = ServiceType::forCompany()
-            ->orderBy('name')
-            ->get();
+        $query = ServiceType::forCompany();
+        if (!$request->boolean('include_inactive')) {
+            $query->where('active', true);
+        }
+        $types = $query->orderBy('name')->get();
 
         return response()->json($types);
     }
@@ -55,11 +58,12 @@ class ServiceTypeController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!$request->user()->isRoot()) {
-            return response()->json(['message' => 'Forbidden'], 403);
+        if (!$request->user()->canManageFinancialRecords()) {
+            return response()->json(['message' => 'Apenas o proprietário pode remover este item.'], 403);
         }
 
-        $serviceType->delete();
+        $validated = $request->validate(['replacement_id' => 'nullable|integer']);
+        app(MasterDataService::class)->delete($serviceType, $validated['replacement_id'] ?? null);
 
         return response()->json([
             'message' => 'Tipo de serviço removido com sucesso',
@@ -88,8 +92,8 @@ class ServiceTypeController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!$request->user()->isRoot()) {
-            return response()->json(['message' => 'Forbidden'], 403);
+        if (!$request->user()->canManageFinancialRecords()) {
+            return response()->json(['message' => 'Apenas o proprietário pode restaurar este item.'], 403);
         }
 
         $type->restore();

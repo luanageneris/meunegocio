@@ -71,6 +71,15 @@
 - [ ] Testes Feature para cada endpoint
 
 ### 2.2 CRUD Colaboradores (Personalizar)
+
+Dados mestres (colaboradores e tipos de entrada, saída e serviço) podem ser
+colocados para dormir e reativados. Itens dormindo não aparecem nas opções de
+novos lançamentos, mas permanecem nos registros históricos. Ao remover um item
+em uso, é obrigatório escolher um substituto ativo da mesma empresa; os
+vínculos, inclusive de registros removidos, são transferidos antes da remoção.
+Para colaboradores, comissões e turnos também são transferidos. Caso ambos
+tenham turno na mesma data (inclusive removido), escolha outro substituto ou
+coloque o colaborador para dormir. Itens padrão protegidos não podem dormir.
 - [ ] GET /api/collaborators (listar)
 - [ ] POST /api/collaborators (criar)
 - [ ] GET /api/collaborators/{id}

@@ -125,9 +125,10 @@ class ExitTypeControllerTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_destroy_requires_root_role()
+    public function test_destroy_denies_user_who_is_not_company_owner()
     {
         $user = User::factory()->create(['company_id' => $this->company->id, 'role' => 'owner']);
+        $this->company->update(['owner_id' => $this->user->id]);
         $type = ExitType::factory()->create(['company_id' => $this->company->id]);
 
         $response = $this->actingAs($user)->deleteJson("/api/personalizar/exit-types/{$type->id}");

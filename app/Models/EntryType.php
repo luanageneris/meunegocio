@@ -13,12 +13,15 @@ class EntryType extends Model
 {
     use HasFactory, SoftDeletes, BelongsToCompany, ProtectsDefaultRecords;
 
+    protected $attributes = ['active' => true];
+
     protected $fillable = [
         'company_id',
         'name',
     ];
 
     protected $casts = [
+        'active' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',

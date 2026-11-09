@@ -12,10 +12,13 @@ import { useToast } from '@/composables/useToast';
 import { useInputMasks } from '@/composables/useInputMasks';
 import Footer from '@/components/Footer.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
+import MasterDataDeletePanel from '@/components/MasterDataDeletePanel.vue';
+import MasterDataStatusButton from '@/components/MasterDataStatusButton.vue';
 
 interface EntryType {
     id: number;
     name: string;
+    active: boolean;
     created_at?: string;
     deleted_at?: string | null;
 }
@@ -23,6 +26,7 @@ interface EntryType {
 interface ExitType {
     id: number;
     name: string;
+    active: boolean;
     created_at?: string;
     deleted_at?: string | null;
 }
@@ -30,6 +34,7 @@ interface ExitType {
 interface ServiceType {
     id: number;
     name: string;
+    active: boolean;
     unit: string;
     service_value: string | number;
     commission_percentage: string | number;
@@ -120,9 +125,7 @@ const deletingServiceType = ref<ServiceType | null>(null);
 const restoringServiceType = ref<ServiceType | null>(null);
 const newServiceTypeInputRef = ref<HTMLInputElement | null>(null);
 const editingServiceTypeInputRef = ref<HTMLInputElement | null>(null);
-const serviceTypeDeleteConfirmButtonRef = ref<HTMLButtonElement | null>(null);
 const isServiceTypeModalLoading = ref(false);
-const isServiceTypeDeleteLoading = ref(false);
 const isServiceTypeRestoreLoading = ref(false);
 const showServiceTypeRemoved = ref(false);
 const clearServiceTypeSearchOnSave = ref(false);
@@ -362,19 +365,19 @@ const fetchCompany = async () => {
 
 const fetchEntryTypes = async (showRemoved = showEntryTypeRemoved.value) => {
     const endpoint = showRemoved ? '/api/personalizar/entry-types/with-trashed' : '/api/personalizar/entry-types';
-    const { data } = await axios.get(endpoint);
+    const { data } = await axios.get(endpoint, { params: { include_inactive: 1 } });
     entryTypes.value = sortByCreatedAtDesc(data || []);
 };
 
 const fetchExitTypes = async (showRemoved = showExitTypeRemoved.value) => {
     const endpoint = showRemoved ? '/api/personalizar/exit-types/with-trashed' : '/api/personalizar/exit-types';
-    const { data } = await axios.get(endpoint);
+    const { data } = await axios.get(endpoint, { params: { include_inactive: 1 } });
     exitTypes.value = sortByCreatedAtDesc(data || []);
 };
 
 const fetchServiceTypes = async (showRemoved = showServiceTypeRemoved.value) => {
     const endpoint = showRemoved ? '/api/personalizar/service-types/with-trashed' : '/api/personalizar/service-types';
-    const { data } = await axios.get(endpoint);
+    const { data } = await axios.get(endpoint, { params: { include_inactive: 1 } });
     serviceTypes.value = sortByCreatedAtDesc(data || []);
 };
 
@@ -926,7 +929,6 @@ const handleDeleteServiceType = (type: ServiceType) => {
     if (type.deleted_at) return;
     deletingServiceType.value = type;
     showDeleteConfirmServiceTypeInline.value = true;
-    nextTick(() => serviceTypeDeleteConfirmButtonRef.value?.focus());
 };
 
 const cancelDeleteServiceType = () => {
@@ -938,23 +940,6 @@ const handleRestoreServiceType = async (type: ServiceType) => {
     if (!type.deleted_at || isServiceTypeRestoreLoading.value) return;
     restoringServiceType.value = type;
     await confirmRestoreServiceType();
-};
-
-const confirmDeleteServiceType = async () => {
-    if (!deletingServiceType.value) return;
-    isServiceTypeDeleteLoading.value = true;
-    try {
-        const serviceTypeId = deletingServiceType.value.id;
-        await axios.delete(`/api/personalizar/service-types/${serviceTypeId}`);
-        serviceTypes.value = applySoftDeleteLocally(serviceTypes.value, serviceTypeId, showServiceTypeRemoved.value);
-        showDeleteConfirmServiceTypeInline.value = false;
-        deletingServiceType.value = null;
-    } catch (error: any) {
-        const message = error?.response?.data?.message || 'Erro ao remover tipo de serviço';
-        toast.error('Erro ao remover', { description: message });
-    } finally {
-        isServiceTypeDeleteLoading.value = false;
-    }
 };
 
 const confirmRestoreServiceType = async () => {
@@ -1138,10 +1123,11 @@ onMounted(fetchData);
                                     <!-- Modo visualização normal -->
                                     <div v-else class="flex min-w-0 justify-between items-start gap-3">
                                         <div class="min-w-0 flex-1">
-                                            <p class="font-semibold text-gray-800 break-words">{{ type.name }}</p>
+                                            <p class="font-semibold break-words" :class="!type.active && !type.deleted_at ? 'text-gray-400 line-through' : 'text-gray-800'" :title="!type.active && !type.deleted_at ? 'Dormindo' : undefined">{{ type.name }}<span v-if="!type.active && !type.deleted_at" class="sr-only"> (Dormindo)</span></p>
                                             <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
                                         </div>
                                         <div class="flex shrink-0 gap-2" v-if="!type.deleted_at">
+                                            <MasterDataStatusButton kind="entry-types" :id="type.id" :active="type.active" @updated="type.active = $event" />
                                             <button
                                                 @click="handleEditEntryType(type)"
                                                 class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
@@ -1185,32 +1171,13 @@ onMounted(fetchData);
                                         </div>
                                     </div>
 
-                                    <!-- Confirmação de deleção inline -->
-                                    <div
+                                    <MasterDataDeletePanel
                                         v-if="deletingEntryType?.id === type.id && showDeleteConfirmEntryTypeInline"
-                                        class="border-l-4 border-green-500 bg-green-50/80 p-4 rounded mt-2 space-y-3 dark:border-green-500/60 dark:bg-green-950/30"
-                                    >
-                                        <p class="text-sm font-semibold text-gray-800 break-words dark:text-slate-100">
-                                            Tem certeza que deseja remover "<span class="text-green-600 break-all">{{ type.name }}</span>"?
-                                        </p>
-                                        <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-                                            <button
-                                                @click="cancelDeleteEntryType"
-                                                :disabled="isEntryTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
-                                            >
-                                                Cancelar
-                                            </button>
-                                            <button
-                                                ref="entryTypeDeleteConfirmButtonRef"
-                                                @click="confirmDeleteEntryType"
-                                                :disabled="isEntryTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                                            >
-                                                {{ isEntryTypeDeleteLoading ? 'Removendo...' : 'Remover' }}
-                                            </button>
-                                        </div>
-                                    </div>
+                                        kind="entry-types" :id="type.id" :name="type.name"
+                                        @cancel="cancelDeleteEntryType"
+                                        @deleted="entryTypes = applySoftDeleteLocally(entryTypes, type.id, showEntryTypeRemoved); cancelDeleteEntryType()"
+                                        @sleeping="type.active = false; cancelDeleteEntryType()"
+                                    />
                                 </div>
                             </div>
 
@@ -1380,10 +1347,11 @@ onMounted(fetchData);
                                     <!-- Modo visualização normal -->
                                     <div v-else class="flex min-w-0 justify-between items-start gap-3">
                                         <div class="min-w-0 flex-1">
-                                            <p class="font-semibold text-gray-800 break-words">{{ type.name }}</p>
+                                            <p class="font-semibold break-words" :class="!type.active && !type.deleted_at ? 'text-gray-400 line-through' : 'text-gray-800'" :title="!type.active && !type.deleted_at ? 'Dormindo' : undefined">{{ type.name }}<span v-if="!type.active && !type.deleted_at" class="sr-only"> (Dormindo)</span></p>
                                             <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
                                         </div>
                                         <div class="flex shrink-0 gap-2" v-if="!type.deleted_at">
+                                            <MasterDataStatusButton kind="exit-types" :id="type.id" :active="type.active" @updated="type.active = $event" />
                                             <button
                                                 @click="handleEditExitType(type)"
                                                 class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
@@ -1427,32 +1395,13 @@ onMounted(fetchData);
                                         </div>
                                     </div>
 
-                                    <!-- Confirmação de deleção inline -->
-                                    <div
+                                    <MasterDataDeletePanel
                                         v-if="deletingExitType?.id === type.id && showDeleteConfirmExitTypeInline"
-                                        class="border-l-4 border-red-500 bg-red-50/80 p-4 rounded mt-2 space-y-3 dark:border-red-500/60 dark:bg-red-950/30"
-                                    >
-                                        <p class="text-sm font-semibold text-gray-800 break-words dark:text-slate-100">
-                                            Tem certeza que deseja remover "<span class="text-red-600 break-all">{{ type.name }}</span>"?
-                                        </p>
-                                        <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-                                            <button
-                                                @click="cancelDeleteExitType"
-                                                :disabled="isExitTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
-                                            >
-                                                Cancelar
-                                            </button>
-                                            <button
-                                                ref="exitTypeDeleteConfirmButtonRef"
-                                                @click="confirmDeleteExitType"
-                                                :disabled="isExitTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                                            >
-                                                {{ isExitTypeDeleteLoading ? 'Removendo...' : 'Remover' }}
-                                            </button>
-                                        </div>
-                                    </div>
+                                        kind="exit-types" :id="type.id" :name="type.name"
+                                        @cancel="cancelDeleteExitType"
+                                        @deleted="exitTypes = applySoftDeleteLocally(exitTypes, type.id, showExitTypeRemoved); cancelDeleteExitType()"
+                                        @sleeping="type.active = false; cancelDeleteExitType()"
+                                    />
                                 </div>
                             </div>
 
@@ -1808,7 +1757,7 @@ onMounted(fetchData);
 
                                     <div v-else class="flex min-w-0 justify-between items-start gap-3">
                                         <div class="min-w-0 flex-1">
-                                            <p class="font-semibold text-gray-800 break-words">{{ type.name }}</p>
+                                            <p class="font-semibold break-words" :class="!type.active && !type.deleted_at ? 'text-gray-400 line-through' : 'text-gray-800'" :title="!type.active && !type.deleted_at ? 'Dormindo' : undefined">{{ type.name }}<span v-if="!type.active && !type.deleted_at" class="sr-only"> (Dormindo)</span></p>
                                             <p class="text-xs text-gray-500 mt-1">
                                                 Unidade: <span class="font-semibold">{{ type.unit }}</span>
                                             </p>
@@ -1821,6 +1770,7 @@ onMounted(fetchData);
                                             <p v-if="type.deleted_at" class="text-red-500 font-semibold text-xs mt-1">Removido</p>
                                         </div>
                                         <div class="flex shrink-0 gap-2" v-if="!type.deleted_at">
+                                            <MasterDataStatusButton kind="service-types" :id="type.id" :active="type.active" @updated="type.active = $event" />
                                             <button
                                                 @click="handleEditServiceType(type)"
                                                 :disabled="!serviceModeOn"
@@ -1872,31 +1822,13 @@ onMounted(fetchData);
                                         </div>
                                     </div>
 
-                                    <div
+                                    <MasterDataDeletePanel
                                         v-if="deletingServiceType?.id === type.id && showDeleteConfirmServiceTypeInline"
-                                        class="border-l-4 border-blue-500 bg-blue-50/80 p-4 rounded mt-2 space-y-3 dark:border-blue-500/60 dark:bg-blue-950/30"
-                                    >
-                                        <p class="text-sm font-semibold text-gray-800 break-words dark:text-slate-100">
-                                            Tem certeza que deseja remover "<span class="text-blue-600 break-all">{{ type.name }}</span>"?
-                                        </p>
-                                        <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-                                            <button
-                                                @click="cancelDeleteServiceType"
-                                                :disabled="isServiceTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
-                                            >
-                                                Cancelar
-                                            </button>
-                                            <button
-                                                ref="serviceTypeDeleteConfirmButtonRef"
-                                                @click="confirmDeleteServiceType"
-                                                :disabled="isServiceTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                                            >
-                                                {{ isServiceTypeDeleteLoading ? 'Removendo...' : 'Remover' }}
-                                            </button>
-                                        </div>
-                                    </div>
+                                        kind="service-types" :id="type.id" :name="type.name"
+                                        @cancel="cancelDeleteServiceType"
+                                        @deleted="serviceTypes = applySoftDeleteLocally(serviceTypes, type.id, showServiceTypeRemoved); cancelDeleteServiceType()"
+                                        @sleeping="type.active = false; cancelDeleteServiceType()"
+                                    />
                                 </div>
                             </div>
 

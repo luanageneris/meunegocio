@@ -3,13 +3,19 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\Rule;
 
 class UpdateServiceTypeRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->isRoot();
+        return $this->user()->canManageFinancialRecords();
+    }
+
+    protected function failedAuthorization(): void
+    {
+        throw new AuthorizationException('Apenas o proprietário da empresa pode editar tipos de serviço.');
     }
 
     public function rules(): array

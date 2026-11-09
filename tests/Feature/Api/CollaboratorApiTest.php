@@ -154,8 +154,9 @@ class CollaboratorApiTest extends TestCase
         $this->assertSoftDeleted('collaborators', ['id' => $collaborator->id]);
     }
 
-    public function test_owner_cannot_delete_collaborator()
+    public function test_user_who_is_not_company_owner_cannot_delete_collaborator()
     {
+        $this->company->update(['owner_id' => $this->rootUser->id]);
         $collaborator = Collaborator::create([
             'name' => 'João Silva',
             'cpf' => '123.456.789-00',

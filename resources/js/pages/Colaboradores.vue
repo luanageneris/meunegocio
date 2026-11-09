@@ -8,6 +8,8 @@ import { useAuth } from '@/composables/useAuth';
 import { useInputMasks } from '@/composables/useInputMasks';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import Footer from '@/components/Footer.vue';
+import MasterDataDeletePanel from '@/components/MasterDataDeletePanel.vue';
+import MasterDataStatusButton from '@/components/MasterDataStatusButton.vue';
 
 interface Collaborator {
     id: number;
@@ -57,7 +59,6 @@ const newCollaboratorError = ref('');
 const editCollaboratorError = ref('');
 
 const isFormLoading = ref(false);
-const isDeleteLoading = ref(false);
 const isRestoreLoading = ref(false);
 const showSummaryModal = ref(false);
 const summaryCollaborator = ref<Collaborator | null>(null);
@@ -71,7 +72,6 @@ const summary = ref<CollaboratorSummary>({
 
 const newNameInputRef = ref<HTMLInputElement | null>(null);
 const editNameInputRef = ref<HTMLInputElement | null>(null);
-const deleteConfirmButtonRef = ref<HTMLButtonElement | null>(null);
 
 const applySoftDeleteLocally = (items: Collaborator[], itemId: number, keepRemovedVisible: boolean) => {
     if (keepRemovedVisible) {
@@ -148,7 +148,7 @@ const fetchCollaborators = async (showPageLoading = false) => {
         const endpoint = showRemoved.value
             ? '/api/personalizar/collaborators/with-trashed'
             : '/api/personalizar/collaborators';
-        const { data } = await axios.get(endpoint);
+        const { data } = await axios.get(endpoint, { params: { include_inactive: 1 } });
         collaborators.value = data;
     } catch (error: any) {
         errorMessage.value = error?.response?.data?.message || 'Erro ao carregar colaboradores';
@@ -276,30 +276,11 @@ const handleDelete = (collab: Collaborator) => {
 
     deletingCollaborator.value = collab;
     showDeleteConfirmInline.value = true;
-    nextTick(() => deleteConfirmButtonRef.value?.focus());
 };
 
 const cancelDelete = () => {
     showDeleteConfirmInline.value = false;
     deletingCollaborator.value = null;
-};
-
-const confirmDelete = async () => {
-    if (!deletingCollaborator.value) return;
-
-    isDeleteLoading.value = true;
-
-    try {
-        const collaboratorId = deletingCollaborator.value.id;
-        await axios.delete(`/api/personalizar/collaborators/${collaboratorId}`);
-        collaborators.value = applySoftDeleteLocally(collaborators.value, collaboratorId, showRemoved.value);
-        cancelDelete();
-    } catch (error: any) {
-        const message = error?.response?.data?.message || 'Erro ao remover colaborador';
-        errorMessage.value = message;
-    } finally {
-        isDeleteLoading.value = false;
-    }
 };
 
 const handleRestore = async (collab: Collaborator) => {
@@ -612,12 +593,10 @@ onMounted(() => fetchCollaborators(true));
 
                             <div v-else class="flex justify-between items-start">
                                 <div>
-                                    <p class="font-semibold text-gray-800">{{ collab.name }}</p>
+                                    <p class="font-semibold" :class="!collab.active && !collab.deleted_at ? 'text-gray-400 line-through' : 'text-gray-800'" :title="!collab.active && !collab.deleted_at ? 'Dormindo' : undefined">{{ collab.name }}<span v-if="!collab.active && !collab.deleted_at" class="sr-only"> (Dormindo)</span></p>
                                     <p class="text-xs text-gray-500">CPF: {{ formatCpf(collab.cpf) }}</p>
                                     <p class="mt-1 text-xs flex items-center gap-2">
-                                        <span :class="collab.active ? 'text-green-600' : 'text-gray-400'">
-                                            {{ collab.active ? 'Ativo' : 'Inativo' }}
-                                        </span>
+                                        <span v-if="collab.active && !collab.deleted_at" class="text-green-600">Ativo</span>
                                         <span v-if="collab.deleted_at" class="text-red-500 font-semibold">Removido</span>
                                     </p>
                                 </div>
@@ -631,6 +610,7 @@ onMounted(() => fetchCollaborators(true));
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20V10m5 10V4m5 16v-7" />
                                         </svg>
                                     </button>
+                                    <MasterDataStatusButton kind="collaborators" :id="collab.id" :active="collab.active" @updated="collab.active = $event" />
                                     <button
                                         @click="handleEdit(collab)"
                                         class="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
@@ -669,31 +649,13 @@ onMounted(() => fetchCollaborators(true));
                                 </div>
                             </div>
 
-                            <div
+                            <MasterDataDeletePanel
                                 v-if="deletingCollaborator?.id === collab.id && showDeleteConfirmInline"
-                                class="border-l-4 border-red-500 bg-red-50/80 p-4 rounded mt-2 space-y-3 dark:border-red-500/60 dark:bg-red-950/30"
-                            >
-                                <p class="text-sm font-semibold text-gray-800 dark:text-slate-100">
-                                    Tem certeza que deseja remover "<span class="text-red-600">{{ collab.name }}</span>"?
-                                </p>
-                                <div class="flex gap-2 justify-end">
-                                    <button
-                                        @click="cancelDelete"
-                                        :disabled="isDeleteLoading"
-                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        ref="deleteConfirmButtonRef"
-                                        @click="confirmDelete"
-                                        :disabled="isDeleteLoading"
-                                        class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                                    >
-                                        {{ isDeleteLoading ? 'Removendo...' : 'Remover' }}
-                                    </button>
-                                </div>
-                            </div>
+                                kind="collaborators" :id="collab.id" :name="collab.name"
+                                @cancel="cancelDelete"
+                                @deleted="collaborators = applySoftDeleteLocally(collaborators, collab.id, showRemoved); cancelDelete()"
+                                @sleeping="collab.active = false; cancelDelete()"
+                            />
                         </div>
                     </div>
 

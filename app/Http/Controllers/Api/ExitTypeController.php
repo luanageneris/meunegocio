@@ -7,6 +7,7 @@ use App\Http\Requests\StoreExitTypeRequest;
 use App\Http\Requests\UpdateExitTypeRequest;
 use App\Models\ExitType;
 use App\Services\CompanyDefaultsService;
+use App\Services\MasterDataService;
 use Illuminate\Http\Request;
 
 class ExitTypeController extends Controller
@@ -14,6 +15,9 @@ class ExitTypeController extends Controller
     public function index(Request $request)
     {
         $query = ExitType::forCompany();
+        if (!$request->boolean('include_inactive')) {
+            $query->where('active', true);
+        }
 
         if (!$request->boolean('include_defaults')) {
             $query->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'não definido']);
@@ -64,15 +68,16 @@ class ExitTypeController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!$request->user()->isRoot()) {
-            return response()->json(['message' => 'Forbidden'], 403);
+        if (!$request->user()->canManageFinancialRecords()) {
+            return response()->json(['message' => 'Apenas o proprietário pode remover este item.'], 403);
         }
 
         if ($this->isProtectedDefault($exitType->name)) {
             return response()->json(['message' => 'Este tipo padrão não pode ser removido'], 422);
         }
 
-        $exitType->delete();
+        $validated = $request->validate(['replacement_id' => 'nullable|integer']);
+        app(MasterDataService::class)->delete($exitType, $validated['replacement_id'] ?? null);
 
         return response()->json([
             'message' => 'Tipo de saída removido com sucesso',
@@ -102,8 +107,8 @@ class ExitTypeController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!$request->user()->isRoot()) {
-            return response()->json(['message' => 'Forbidden'], 403);
+        if (!$request->user()->canManageFinancialRecords()) {
+            return response()->json(['message' => 'Apenas o proprietário pode restaurar este item.'], 403);
         }
 
         $type->restore();

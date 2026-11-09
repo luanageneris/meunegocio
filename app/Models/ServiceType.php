@@ -12,6 +12,8 @@ class ServiceType extends Model
 {
     use HasFactory, SoftDeletes, BelongsToCompany;
 
+    protected $attributes = ['active' => true];
+
     protected $fillable = [
         'company_id',
         'name',
@@ -23,6 +25,7 @@ class ServiceType extends Model
     ];
 
     protected $casts = [
+        'active' => 'boolean',
         'commission_percentage' => 'decimal:2',
         'service_value' => 'decimal:2',
         'commission_value' => 'decimal:2',

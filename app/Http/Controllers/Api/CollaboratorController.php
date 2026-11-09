@@ -9,6 +9,7 @@ use App\Models\Collaborator;
 use App\Models\Commission;
 use App\Models\FinancialRecord;
 use App\Services\CompanyDefaultsService;
+use App\Services\MasterDataService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -20,6 +21,9 @@ class CollaboratorController extends Controller
     public function index(Request $request)
     {
         $query = Collaborator::forCompany();
+        if (!$request->boolean('include_inactive')) {
+            $query->where('active', true);
+        }
 
         if (!$request->boolean('include_defaults')) {
             $query->whereRaw('LOWER(name) NOT IN (?, ?)', [mb_strtolower(CompanyDefaultsService::DEFAULT_LABEL), 'não definido']);
@@ -176,7 +180,7 @@ class CollaboratorController extends Controller
     }
 
     /**
-     * Deletar colaborador (soft delete) e inativar
+     * Deletar colaborador (soft delete)
      */
     public function destroy(Request $request, Collaborator $collaborator)
     {
@@ -185,17 +189,16 @@ class CollaboratorController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!$request->user()->isRoot()) {
-            return response()->json(['message' => 'Forbidden'], 403);
+        if (!$request->user()->canManageFinancialRecords()) {
+            return response()->json(['message' => 'Apenas o proprietário pode remover este item.'], 403);
         }
 
         if ($this->isProtectedDefault($collaborator->name)) {
             return response()->json(['message' => 'O colaborador padrão "Não definido" não pode ser removido'], 422);
         }
 
-        // Inativar antes de deletar
-        $collaborator->update(['active' => false]);
-        $collaborator->delete();
+        $validated = $request->validate(['replacement_id' => 'nullable|integer']);
+        app(MasterDataService::class)->delete($collaborator, $validated['replacement_id'] ?? null);
 
         return response()->json([
             'message' => 'Colaborador removido com sucesso',
@@ -207,6 +210,10 @@ class CollaboratorController extends Controller
      */
     public function restore(Request $request, int $id)
     {
+        if (!$request->user()->canManageFinancialRecords()) {
+            return response()->json(['message' => 'Apenas o proprietário pode restaurar este item.'], 403);
+        }
+
         $collaborator = Collaborator::onlyTrashed()
             ->where('id', $id)
             ->where('company_id', $request->user()->company_id)

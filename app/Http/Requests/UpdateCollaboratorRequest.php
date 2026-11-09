@@ -3,13 +3,19 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\Rule;
 
 class UpdateCollaboratorRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // Qualquer usuário autenticado pode editar colaborador em sua empresa
+        return $this->user()->canManageFinancialRecords();
+    }
+
+    protected function failedAuthorization(): void
+    {
+        throw new AuthorizationException('Apenas o proprietário da empresa pode editar colaboradores.');
     }
 
     public function rules(): array

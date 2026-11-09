@@ -107,7 +107,6 @@ const tiposEntrada = ref<any[]>([]);
 const tiposSaida = ref<any[]>([]);
 const tiposServico = ref<any[]>([]);
 const colaboradoresOptions = ref<any[]>([]);
-const optionsLoaded = ref(false);
 const importFileInput = ref<HTMLInputElement | null>(null);
 const showImportPanel = ref(false);
 const showImportHelpModal = ref(false);
@@ -1618,7 +1617,6 @@ const handleRestore = async (id: number) => {
 };
 
 const fetchOptions = async (includeDefaults = false) => {
-    if (optionsLoaded.value && !includeDefaults) return true;
     try {
         const headers: HeadersInit = {
             'Authorization': `Bearer ${auth.token.value}`,
@@ -1644,9 +1642,6 @@ const fetchOptions = async (includeDefaults = false) => {
         tiposSaida.value = exitData?.data ?? exitData ?? [];
         colaboradoresOptions.value = collabData?.data ?? collabData ?? [];
         tiposServico.value = serviceData?.data ?? serviceData ?? [];
-        if (!includeDefaults) {
-            optionsLoaded.value = true;
-        }
         return true;
     } catch (e) {
         console.error('Erro ao carregar opções:', e);

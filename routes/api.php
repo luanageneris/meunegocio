@@ -143,6 +143,8 @@ Route::middleware(['auth:sanctum', 'company.isolation', 'track.changes'])->group
     
     // Personalizar - Escrita
     Route::prefix('personalizar')->group(function () {
+        Route::patch('{kind}/{id}/status', [\App\Http\Controllers\Api\MasterDataStatusController::class, 'update'])
+            ->whereIn('kind', ['entry-types', 'exit-types', 'service-types', 'collaborators']);
         // Colaboradores
         Route::post('collaborators/get-or-create', [CollaboratorController::class, 'getOrCreate']);
         Route::post('collaborators/{id}/restore', [CollaboratorController::class, 'restore']);
