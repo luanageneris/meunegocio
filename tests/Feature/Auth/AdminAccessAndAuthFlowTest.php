@@ -71,6 +71,24 @@ test('master admin can reset user password without current password', function (
     $this->assertTrue(\Illuminate\Support\Facades\Hash::check($generatedPassword, $user->password));
 });
 
+test('master admin cannot reset the password of any root user', function () {
+    $master = \App\Models\User::factory()->root()->create([
+        'email' => 'admin@meunegocio.cloud',
+    ]);
+    $otherRoot = \App\Models\User::factory()->root()->create();
+
+    $this->actingAs($master, 'web');
+
+    foreach ([$master, $otherRoot] as $user) {
+        $oldHash = $user->password;
+        $this->postJson("/api/admin/users/{$user->id}/reset-password")
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Não é permitido redefinir a senha de um usuário root.');
+
+        expect($user->fresh()->password)->toBe($oldHash);
+    }
+});
+
 test('successful login updates the last login timestamp', function () {
     $user = \App\Models\User::factory()->create([
         'email' => 'teste-login@empresa.com',

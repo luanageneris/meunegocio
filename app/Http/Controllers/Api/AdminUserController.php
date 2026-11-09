@@ -73,6 +73,10 @@ class AdminUserController extends Controller
     {
         $this->ensureMasterAdmin($request);
 
+        if ($user->isRoot()) {
+            abort(403, 'Não é permitido redefinir a senha de um usuário root.');
+        }
+
         $newPassword = Str::password(12, true, true, false, false);
 
         $user->forceFill([

@@ -4,6 +4,7 @@ namespace App\Actions\Fortify;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\ResetsUserPasswords;
 
 class ResetUserPassword implements ResetsUserPasswords
@@ -17,6 +18,12 @@ class ResetUserPassword implements ResetsUserPasswords
      */
     public function reset(User $user, array $input): void
     {
+        if ($user->isRoot()) {
+            throw ValidationException::withMessages([
+                'email' => 'Não é permitido redefinir a senha de um usuário root.',
+            ]);
+        }
+
         Validator::make($input, [
             'password' => $this->passwordRules(),
         ])->validate();

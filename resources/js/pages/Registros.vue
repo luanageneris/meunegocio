@@ -2510,21 +2510,21 @@ onBeforeUnmount(() => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Tipo de Entrada</label>
-                                <select v-model="importDefaults.default_entry_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm">
+                                <select v-model="importDefaults.default_entry_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm appearance-none">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Tipo de Saída</label>
-                                <select v-model="importDefaults.default_exit_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm">
+                                <select v-model="importDefaults.default_exit_type_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm appearance-none">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1 dark:text-slate-300">Colaborador</label>
-                                <select v-model="importDefaults.default_collaborator_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm">
+                                <select v-model="importDefaults.default_collaborator_id" class="w-full px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 text-xs sm:text-sm appearance-none">
                                     <option :value="null">Selecione</option>
                                     <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
@@ -2858,21 +2858,21 @@ onBeforeUnmount(() => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo</label>
-                                <select v-model="entryForm.entry_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm">
+                                <select v-model="entryForm.entry_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm appearance-none">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div v-if="useServiceTypes">
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Serviço</label>
-                                <select v-model="entryForm.service_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm">
+                                <select v-model="entryForm.service_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm appearance-none">
                                     <option :value="null">Selecione</option>
                                     <option v-for="s in tiposServico" :key="s.id" :value="s.id">{{ s.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Responsável</label>
-                                <select v-model="entryForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm">
+                                <select v-model="entryForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm appearance-none">
                                     <option :value="null">Selecione</option>
                                     <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
@@ -2941,14 +2941,14 @@ onBeforeUnmount(() => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo de Saída</label>
-                                <select v-model="exitForm.exit_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm">
+                                <select v-model="exitForm.exit_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm appearance-none">
                                     <option :value="null">Selecione</option>
                                     <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Responsável</label>
-                                <select v-model="exitForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm">
+                                <select v-model="exitForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 sm:px-3 sm:py-2 sm:text-sm appearance-none">
                                     <option :value="null">Selecione</option>
                                     <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
@@ -3081,21 +3081,21 @@ onBeforeUnmount(() => {
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo de Entrada</label>
-                                        <select v-model="entryForm.entry_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100">
+                                        <select v-model="entryForm.entry_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 appearance-none">
                                             <option :value="null">Selecione</option>
                                             <option v-for="t in tiposEntrada" :key="t.id" :value="t.id">{{ t.name }}</option>
                                         </select>
                                     </div>
                                     <div v-if="useServiceTypes">
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo de Serviço</label>
-                                        <select v-model="entryForm.service_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100">
+                                        <select v-model="entryForm.service_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 appearance-none">
                                             <option :value="null">Selecione</option>
                                             <option v-for="s in tiposServico" :key="s.id" :value="s.id">{{ s.name }}</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Responsável</label>
-                                        <select v-model="entryForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100">
+                                        <select v-model="entryForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 appearance-none">
                                             <option :value="null">Selecione</option>
                                             <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                         </select>
@@ -3164,14 +3164,14 @@ onBeforeUnmount(() => {
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Tipo de Saída</label>
-                                        <select v-model="exitForm.exit_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100">
+                                        <select v-model="exitForm.exit_type_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 appearance-none">
                                             <option :value="null">Selecione</option>
                                             <option v-for="t in tiposSaida" :key="t.id" :value="t.id">{{ t.name }}</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-slate-300">Responsável</label>
-                                        <select v-model="exitForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100">
+                                        <select v-model="exitForm.collaborator_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 appearance-none">
                                             <option :value="null">Selecione</option>
                                             <option v-for="c in colaboradoresOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                                         </select>

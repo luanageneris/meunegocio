@@ -96,7 +96,8 @@ type MenuItem = {
 const menuItems = computed<MenuItem[]>(() => {
     if (isMasterRootUser.value) {
         return [
-            { name: 'Acesso', icon: 'shield', route: '/admin/usuarios', key: 'admin-usuarios' },
+            { name: 'Controle de Acesso', icon: 'shield', route: '/admin/usuarios', key: 'admin-usuarios' },
+            { name: 'Logs de Acesso', icon: 'lock', route: '/admin/access-logs', key: 'admin-access-logs' },
             { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },
         ];
     }
@@ -247,6 +248,9 @@ const toggleMobileNav = () => {
 
                             <!-- Shield -->
                             <path v-else-if="item.icon === 'shield'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l7 4v6c0 5-3.5 9-7 10-3.5-1-7-5-7-10V6l7-4z" />
+
+                            <!-- Lock -->
+                            <path v-else-if="item.icon === 'lock'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10V7a5 5 0 0110 0v3m-11 0h12a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-8a2 2 0 012-2zm5 4v4" />
                         </svg>
 
                         <span>{{ item.name }}</span>
@@ -315,6 +319,7 @@ const toggleMobileNav = () => {
                         <path v-else-if="item.icon === 'person'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         <path v-else-if="item.icon === 'help'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         <path v-else-if="item.icon === 'shield'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l7 4v6c0 5-3.5 9-7 10-3.5-1-7-5-7-10V6l7-4z" />
+                        <path v-else-if="item.icon === 'lock'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 10V7a5 5 0 0110 0v3m-11 0h12a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-8a2 2 0 012-2zm5 4v4" />
                     </svg>
                     <span class="text-[10px] sm:text-[11px] leading-tight">{{ item.name }}</span>
                 </a>

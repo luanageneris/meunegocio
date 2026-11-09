@@ -23,6 +23,10 @@ Route::get('/admin/usuarios', function () {
     return Inertia::render('AdminUsers');
 })->middleware(['auth:sanctum', 'verified', 'master.admin', 'prevent.auth.cache'])->name('admin.users');
 
+Route::get('/admin/access-logs', function () {
+    return Inertia::render('AccessLogs');
+})->middleware(['auth:sanctum', 'verified', 'master.admin', 'prevent.auth.cache'])->name('admin.access-logs');
+
 // Setup de Empresa
 Route::get('/setup-empresa', function () {
     return Inertia::render('SetupCompany');

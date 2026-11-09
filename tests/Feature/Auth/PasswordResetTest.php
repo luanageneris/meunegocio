@@ -59,6 +59,23 @@ test('password can be reset with valid token', function () {
     });
 });
 
+test('root password cannot be reset with a valid token', function () {
+    $user = User::factory()->root()->create();
+    $oldHash = $user->password;
+    $token = \Illuminate\Support\Facades\Password::createToken($user);
+
+    $this->post(route('password.update'), [
+        'token' => $token,
+        'email' => $user->email,
+        'password' => 'newpassword123',
+        'password_confirmation' => 'newpassword123',
+    ])->assertSessionHasErrors([
+        'email' => 'Não é permitido redefinir a senha de um usuário root.',
+    ]);
+
+    expect($user->fresh()->password)->toBe($oldHash);
+});
+
 test('password cannot be reset with invalid token', function () {
     $user = User::factory()->create();
 
