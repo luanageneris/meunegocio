@@ -98,7 +98,6 @@ const menuItems = computed<MenuItem[]>(() => {
         return [
             { name: 'Controle de Acesso', icon: 'shield', route: '/admin/usuarios', key: 'admin-usuarios' },
             { name: 'Logs de Acesso', icon: 'lock', route: '/admin/access-logs', key: 'admin-access-logs' },
-            { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },
         ];
     }
 
@@ -109,7 +108,7 @@ const menuItems = computed<MenuItem[]>(() => {
         { name: 'Colaboradores', icon: 'people', route: '/colaboradores', key: 'colaboradores' },
         { name: 'Histórico', icon: 'history', route: '/historico', key: 'historico' },
         { name: 'Minha conta', icon: 'person', route: '/minha-conta', key: 'conta' },
-    ];
+    ].filter((item) => item.key !== 'conta' || !isRootUser.value);
 });
 
 const isNavigating = ref(false);
@@ -258,7 +257,7 @@ const toggleMobileNav = () => {
                 </nav>
 
                 <!-- Privacy Toggle -->
-                <div class="px-4 pb-2 border-t border-gray-200 pt-4">
+                <div v-if="!isRootUser" class="px-4 pb-2 border-t border-gray-200 pt-4">
                     <button
                         @click="togglePrivacy"
                         class="flex items-center justify-between w-full px-4 py-3 text-gray-700 hover:bg-orange-50 rounded-lg transition-all duration-200"

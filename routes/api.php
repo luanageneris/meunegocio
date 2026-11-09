@@ -46,6 +46,9 @@ Route::middleware(['auth:sanctum', 'master.admin'])->group(function () {
     Route::get('/admin/users', [\App\Http\Controllers\Api\AdminUserController::class, 'index']);
     Route::post('/admin/users', [\App\Http\Controllers\Api\AdminUserController::class, 'store']);
     Route::post('/admin/users/{user}/reset-password', [\App\Http\Controllers\Api\AdminUserController::class, 'resetPassword']);
+    Route::get('/admin/access-logs', [\App\Http\Controllers\Api\AccessLogController::class, 'index']);
+    Route::get('/admin/access-logs/statistics', [\App\Http\Controllers\Api\AccessLogController::class, 'statistics']);
+    Route::get('/admin/access-logs/export', [\App\Http\Controllers\Api\AccessLogController::class, 'export']);
 });
 
 // ========================================================================

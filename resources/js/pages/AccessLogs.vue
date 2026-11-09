@@ -5,6 +5,7 @@ import { useAuth } from '@/composables/useAuth';
 import Sidebar from '@/components/Sidebar.vue';
 import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
+import AccessLineChart from '@/components/AccessLineChart.vue';
 
 interface AccessLog {
     id: number;
@@ -23,6 +24,39 @@ const logs = ref<AccessLog[]>([]);
 const isLoading = ref(false);
 const currentPage = ref(1);
 const totalPages = ref(1);
+const statistics = ref<{ daily: { date: string; count: number }[]; monthly: { month: string; count: number }[] } | null>(null);
+const isStatisticsLoading = ref(false);
+const statisticsError = ref('');
+const logsError = ref('');
+const exportError = ref('');
+
+const dailyLabels = computed(() => statistics.value?.daily.map(({ date }) => {
+    const [, month, day] = date.split('-');
+    return `${day}/${month}`;
+}) ?? []);
+const monthlyLabels = computed(() => statistics.value?.monthly.map(({ month }) => {
+    const [year, monthNumber] = month.split('-');
+    return `${monthNumber}/${year}`;
+}) ?? []);
+
+const fetchStatistics = async () => {
+    isStatisticsLoading.value = true;
+    statisticsError.value = '';
+    try {
+        const response = await fetch('/api/admin/access-logs/statistics', {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) throw new Error('Não foi possível carregar os gráficos de acesso.');
+        const payload = await response.json();
+        statistics.value = payload.data;
+    } catch (error) {
+        console.error('Erro ao carregar gráficos de acesso:', error);
+        statisticsError.value = 'Não foi possível carregar os gráficos de acesso. Tente novamente.';
+    } finally {
+        isStatisticsLoading.value = false;
+    }
+};
 
 const masterEmail = 'admin@meunegocio.cloud';
 const currentUserEmail = computed(() => auth.user.value?.email?.toLowerCase() ?? '');
@@ -51,6 +85,7 @@ const getStatusColor = (status: string) => {
 
 const fetchLogs = async (page = 1) => {
     isLoading.value = true;
+    logsError.value = '';
     try {
         const response = await fetch(`/api/admin/access-logs?page=${page}`, {
             method: 'GET',
@@ -63,13 +98,13 @@ const fetchLogs = async (page = 1) => {
 
         const payload = await response.json();
 
-        if (response.ok) {
-            logs.value = payload.data || [];
-            currentPage.value = payload.pagination?.current_page || 1;
-            totalPages.value = payload.pagination?.last_page || 1;
-        }
+        if (!response.ok) throw new Error('Não foi possível carregar os logs de acesso.');
+        logs.value = payload.data;
+        currentPage.value = payload.pagination.current_page;
+        totalPages.value = payload.pagination.last_page;
     } catch (error) {
         console.error('Erro ao carregar logs:', error);
+        logsError.value = 'Não foi possível carregar os logs de acesso. Tente novamente.';
     } finally {
         isLoading.value = false;
     }
@@ -83,6 +118,7 @@ const goToPage = (page: number) => {
 };
 
 const exportLogs = async () => {
+    exportError.value = '';
     try {
         const response = await fetch('/api/admin/access-logs/export', {
             method: 'GET',
@@ -92,17 +128,17 @@ const exportLogs = async () => {
             },
         });
 
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `access-logs-${new Date().toISOString().split('T')[0]}.csv`;
-            link.click();
-            window.URL.revokeObjectURL(url);
-        }
+        if (!response.ok) throw new Error('Não foi possível exportar os logs de acesso.');
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `logs-de-acesso-${new Date().toISOString().split('T')[0]}.xlsx`;
+        link.click();
+        window.URL.revokeObjectURL(url);
     } catch (error) {
         console.error('Erro ao exportar logs:', error);
+        exportError.value = 'Não foi possível exportar os logs de acesso. Tente novamente.';
     }
 };
 
@@ -120,6 +156,7 @@ onMounted(async () => {
     }
 
     fetchLogs();
+    fetchStatistics();
 });
 </script>
 
@@ -136,6 +173,25 @@ onMounted(async () => {
             />
 
             <main class="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 overflow-x-hidden">
+                <section class="mb-6 rounded-xl border border-amber-100 bg-white p-6 shadow-lg dark:border-slate-700 dark:bg-slate-900 sm:p-10">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Evolução dos acessos</h2>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-slate-300">Tentativas registradas para usuários vinculados a empresas, incluindo sucessos, falhas e bloqueios. Datas em UTC; o dia e o mês atuais estão em andamento.</p>
+                    <LoadingSpinner v-if="isStatisticsLoading" class="mt-6" message="Carregando gráficos de acesso..." />
+                    <div v-else-if="statisticsError" class="mt-6 text-sm text-red-700 dark:text-red-300" role="alert">
+                        {{ statisticsError }}
+                        <button type="button" class="ml-2 underline" @click="fetchStatistics">Tentar novamente</button>
+                    </div>
+                    <div v-else-if="statistics" class="mt-6 space-y-8">
+                        <div>
+                            <h3 class="mb-3 font-semibold text-gray-800 dark:text-slate-200">Acessos por dia — últimos 30 dias</h3>
+                            <AccessLineChart title="Tentativas de acesso por dia nos últimos 30 dias" :labels="dailyLabels" :counts="statistics.daily.map(item => item.count)" min-width="1500px" />
+                        </div>
+                        <div>
+                            <h3 class="mb-3 font-semibold text-gray-800 dark:text-slate-200">Acessos por mês — últimos 12 meses</h3>
+                            <AccessLineChart title="Tentativas de acesso por mês nos últimos 12 meses" :labels="monthlyLabels" :counts="statistics.monthly.map(item => item.count)" min-width="720px" />
+                        </div>
+                    </div>
+                </section>
                 <div class="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-blue-200/70 dark:border-slate-700 overflow-hidden">
                     <div class="p-6 sm:p-10">
                         <!-- Header -->
@@ -145,15 +201,20 @@ onMounted(async () => {
                                 <h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Histórico de acessos</h2>
                             </div>
                             <button
-                                v-if="!isLoading && logs.length > 0"
+                                v-if="!isLoading && !logsError && logs.length > 0"
                                 @click="exportLogs"
-                                class="rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2.5 font-semibold text-white transition hover:shadow-lg"
+                                class="rounded-xl bg-gradient-to-r cursor-pointer from-amber-400 to-orange-500 px-4 py-2.5 font-semibold text-white transition hover:shadow-lg"
                             >
-                                Exportar CSV
+                                Exportar Excel
                             </button>
                         </div>
 
+                        <p v-if="exportError" class="mb-4 text-sm text-red-700 dark:text-red-300" role="alert">{{ exportError }}</p>
                         <LoadingSpinner v-if="isLoading" message="Carregando logs de acesso..." />
+                        <div v-else-if="logsError" class="text-sm text-red-700 dark:text-red-300" role="alert">
+                            {{ logsError }}
+                            <button type="button" class="ml-2 underline" @click="fetchLogs(currentPage)">Tentar novamente</button>
+                        </div>
 
                         <div v-else class="space-y-4">
                             <!-- Desktop: Table -->
