@@ -6,6 +6,7 @@ import { useToast } from '@/composables/useToast';
 import Sidebar from '@/components/Sidebar.vue';
 import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
+import Footer from '@/components/Footer.vue';
 import {
     Dialog,
     DialogContent,
@@ -35,6 +36,10 @@ const form = ref({
 
 const masterEmail = 'admin@meunegocio.cloud';
 const currentUserEmail = computed(() => auth.user.value?.email?.toLowerCase() ?? '');
+
+const isFormValid = computed(() => {
+    return form.value.name.trim() !== '' && form.value.email.trim() !== '' && form.value.password.trim() !== '';
+});
 
 const formatDate = (value: string | null) => {
     if (!value) return 'Nunca';
@@ -270,12 +275,12 @@ onMounted(async () => {
                                 <div class="mt-5 space-y-4 lg:space-y-0 lg:grid lg:grid-cols-10 lg:gap-3">
                                     <div class="lg:col-span-2">
                                         <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Nome</label>
-                                        <input v-model="form.name" type="text" class="w-full rounded-xl border-2 border-amber-200 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-100 px-3 py-2.5 outline-none transition focus:border-amber-400 dark:focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-500/40" placeholder="Ex: Maria Souza" />
+                                        <input v-model="form.name" type="text" autocomplete="off" class="w-full rounded-xl border-2 border-amber-200 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-100 px-3 py-2.5 outline-none transition focus:border-amber-400 dark:focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-500/40" placeholder="Ex: Maria Souza" />
                                     </div>
 
                                     <div class="lg:col-span-3">
                                         <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">E-mail</label>
-                                        <input v-model="form.email" type="email" class="w-full rounded-xl border-2 border-amber-200 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-100 px-3 py-2.5 outline-none transition focus:border-amber-400 dark:focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-500/40" placeholder="nome@empresa.com" />
+                                        <input v-model="form.email" type="email" autocomplete="off" class="w-full rounded-xl border-2 border-amber-200 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-100 px-3 py-2.5 outline-none transition focus:border-amber-400 dark:focus:border-amber-300 focus:ring-2 focus:ring-amber-200 dark:focus:ring-amber-500/40" placeholder="nome@empresa.com" />
                                     </div>
 
                                     <div class="lg:col-span-2">
@@ -313,7 +318,7 @@ onMounted(async () => {
 
                                     <div class="lg:col-span-1 flex items-end">
                                         <button
-                                            :disabled="isSubmitting"
+                                            :disabled="isSubmitting || !isFormValid"
                                             @click="createUser"
                                             class="w-full rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2.5 font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                                         >
@@ -343,7 +348,7 @@ onMounted(async () => {
                                     <div class="mt-3 flex flex-wrap items-center gap-2">
                                         <button
                                             type="button"
-                                            class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-500/40 dark:text-emerald-200 dark:hover:bg-emerald-500/20"
+                                            class="rounded-lg border border-emerald-300 px-3 cursor-pointer py-1.5 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-500/40 dark:text-emerald-200 dark:hover:bg-emerald-500/20"
                                             @click="copyGeneratedPassword"
                                         >
                                             Copiar senha
@@ -464,6 +469,7 @@ onMounted(async () => {
                     </div>
                 </div>
             </main>
+            <Footer />
         </div>
 
         <Dialog :open="showResetPasswordModal" @update:open="handleResetPasswordModalOpenChange">
@@ -489,7 +495,7 @@ onMounted(async () => {
                     </button>
                     <button
                         type="button"
-                        class="rounded-lg bg-primary dark:bg-primary px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        class="rounded-lg bg-primary dark:bg-primary px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                         :disabled="!!resettingUserId"
                         @click="resetUserPassword"
                     >

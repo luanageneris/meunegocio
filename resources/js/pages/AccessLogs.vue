@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar.vue';
 import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import AccessLineChart from '@/components/AccessLineChart.vue';
+import Footer from '@/components/Footer.vue';
 
 interface AccessLog {
     id: number;
@@ -315,6 +316,7 @@ onMounted(async () => {
                     </div>
                 </div>
             </main>
+            <Footer />
         </div>
     </div>
 </template>
