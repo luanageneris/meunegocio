@@ -3,7 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, onBeforeUnmount, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
-import { Eye, EyeOff, Moon, Sun } from 'lucide-vue-next';
+import { Eye, EyeOff, Moon, Sun, Info } from 'lucide-vue-next';
 import logoUrl from '../../../img/icon-logo.svg';
 import Footer from '@/components/Footer.vue';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
@@ -13,6 +13,7 @@ const auth = useAuth();
 const isLoading = ref(false);
 const showCookieBanner = ref(false);
 const inlineErrorMessage = ref('');
+const showPrivacyTooltip = ref(false);
 const email = ref('');
 const password = ref('');
 const showPassword = ref(false);
@@ -268,7 +269,7 @@ onBeforeUnmount(() => {
                     <div class="mt-4 space-y-4">
                         <button
                             @click="togglePrivacy"
-                            class="w-full flex items-center justify-between gap-3 bg-gray-50 dark:bg-input border border-gray-200 dark:border-border rounded-xl py-3 px-4 text-gray-700 dark:text-foreground hover:bg-gray-100 dark:hover:bg-accent hover:border-orange-300 transition-all duration-200"
+                            class="w-full flex items-center justify-between gap-3 bg-gray-50 dark:bg-input border border-gray-200 dark:border-border rounded-xl py-3 px-4 text-gray-700 dark:text-foreground hover:bg-gray-100 dark:hover:bg-accent hover:border-orange-300 transition-all duration-200 cursor-pointer"
                         >
                             <div class="flex items-center gap-3">
                                 <EyeOff v-if="isPrivacyMode" class="w-5 h-5 text-orange-500" />
@@ -297,9 +298,29 @@ onBeforeUnmount(() => {
                                 </span>
                             </div>
                         </button>
-                        <p class="text-xs text-gray-500 dark:text-muted-foreground text-center">
-                            Ative para ocultar valores financeiros totais após o login
-                        </p>
+                        <div class="flex items-center justify-center gap-2">
+                            <p class="text-xs text-gray-500 dark:text-muted-foreground text-center">
+                                Ative para ocultar valores financeiros totais após o login
+                            </p>
+                            <div class="relative">
+                                <button
+                                    type="button"
+                                    @mouseenter="showPrivacyTooltip = true"
+                                    @mouseleave="showPrivacyTooltip = false"
+                                    class="text-gray-400 dark:text-muted-foreground hover:text-orange-500 dark:hover:text-orange-400 transition-colors cursor-pointer flex-shrink-0"
+                                    aria-label="Informações sobre Modo Privacidade"
+                                >
+                                    <Info class="w-4 h-4" />
+                                </button>
+                                <div
+                                    v-if="showPrivacyTooltip"
+                                    class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-800 text-white text-xs rounded-lg whitespace-nowrap pointer-events-none"
+                                >
+                                    Ative para ocultar valores financeiros totais após o login
+                                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-800"></div>
+                                </div>
+                            </div>
+                        </div>
 
                     </div>
                 </div>

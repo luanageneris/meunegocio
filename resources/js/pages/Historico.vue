@@ -834,25 +834,25 @@ onMounted(() => {
               @click="toggleDetails(log.id)"
             >
               <!-- Log Row -->
-              <div class="px-6 py-4 flex items-center justify-between">
+              <div class="px-6 py-4 flex items-center justify-between hover:bg-orange-50 dark:hover:bg-slate-800/50 transition">
                 <div class="flex items-center gap-4 flex-1">
                   <div class="flex-1">
                     <div class="flex items-center gap-3 mb-1 flex-wrap">
                       <span :class="['px-3 py-1 rounded-full text-xs font-bold', getActionBadgeClass(log.action)]">
                         {{ log.action_label || getActionLabel(log.action) }}
                       </span>
-                      <span class="font-semibold text-gray-900">{{ getDisplayModelLabel(log) }}</span>
-                      <span v-if="(log.changed_fields_count || 0) > 0" class="px-2 py-1 text-xs rounded-full bg-slate-100 text-slate-700 font-semibold">
+                      <span class="font-semibold text-gray-900 dark:text-foreground">{{ getDisplayModelLabel(log) }}</span>
+                      <span v-if="(log.changed_fields_count || 0) > 0" class="px-2 py-1 text-xs rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold">
                         {{ log.changed_fields_count }} campo(s)
                       </span>
                     </div>
-                    <div class="text-sm text-gray-600">
-                      Por <span class="font-semibold">{{ log.user?.name || 'Sistema' }}</span>
+                    <div class="text-sm text-gray-600 dark:text-muted-foreground">
+                      Por <span class="font-semibold text-gray-800 dark:text-foreground">{{ log.user?.name || 'Sistema' }}</span>
                       • {{ formatDate(log.created_at) }}
                     </div>
                   </div>
                 </div>
-                <div class="text-gray-400">
+                <div class="text-gray-400 dark:text-muted-foreground">
                   {{ isExpanded(log.id) ? '▲' : '▼' }}
                 </div>
               </div>
@@ -866,11 +866,11 @@ onMounted(() => {
                 leave-from-class="opacity-100 max-h-96"
                 leave-to-class="opacity-0 max-h-0"
               >
-                <div v-if="isExpanded(log.id)" class="bg-orange-50 px-6 py-4 border-t border-orange-100">
+                <div v-if="isExpanded(log.id)" class="bg-orange-50 dark:bg-slate-800/30 px-6 py-4 border-t border-orange-100 dark:border-slate-700">
                   <div class="space-y-4">
                     <!-- Change Details -->
-                    <div v-if="getVisibleDetails(log).length > 0" class="bg-white rounded-lg p-4 border border-orange-100">
-                      <h4 class="font-bold text-gray-900 mb-3">Alterações</h4>
+                    <div v-if="getVisibleDetails(log).length > 0" class="bg-white dark:bg-input rounded-lg p-4 border border-orange-100 dark:border-slate-600">
+                      <h4 class="font-bold text-gray-900 dark:text-foreground mb-3">Alterações</h4>
                       <div class="space-y-3">
                         <div
                           v-for="detail in getVisibleDetails(log)"
@@ -880,11 +880,11 @@ onMounted(() => {
                             getDetailDisplayMode(log) === 'both' ? 'md:grid-cols-3' : 'md:grid-cols-2',
                           ]"
                         >
-                          <span class="font-semibold text-gray-700">{{ getFieldLabel(log.model, detail.field) }}</span>
+                          <span class="font-semibold text-gray-700 dark:text-gray-300">{{ getFieldLabel(log.model, detail.field) }}</span>
                           <div
                             v-if="getDetailDisplayMode(log) !== 'new-only'"
                             :class="[
-                              'text-red-700 bg-red-50 px-2 py-1 rounded border border-red-100',
+                              'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded border border-red-100 dark:border-red-800',
                               isComplexValue(detail.old, detail.field) ? 'whitespace-pre-wrap break-words font-mono text-xs leading-5' : '',
                             ]"
                           >
@@ -893,7 +893,7 @@ onMounted(() => {
                           <div
                             v-if="getDetailDisplayMode(log) !== 'old-only'"
                             :class="[
-                              'text-green-700 bg-green-50 px-2 py-1 rounded border border-green-100',
+                              'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded border border-green-100 dark:border-green-800',
                               isComplexValue(detail.new, detail.field) ? 'whitespace-pre-wrap break-words font-mono text-xs leading-5' : '',
                             ]"
                           >
@@ -903,7 +903,7 @@ onMounted(() => {
                       </div>
                     </div>
 
-                    <div v-if="!hasMeaningfulDetails(log)" class="bg-white rounded-lg p-4 border border-orange-100 text-sm text-gray-600">
+                    <div v-if="!hasMeaningfulDetails(log)" class="bg-white dark:bg-input rounded-lg p-4 border border-orange-100 dark:border-slate-600 text-sm text-gray-600 dark:text-muted-foreground">
                       Este evento foi registrado sem mudanças detalhadas de campos.
                     </div>
                   </div>

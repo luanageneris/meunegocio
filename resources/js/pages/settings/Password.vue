@@ -5,12 +5,14 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { edit } from '@/routes/user-password';
 import { Form, Head } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
 
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { type BreadcrumbItem } from '@/types';
+import { useDoubleClickPrevention } from '@/composables/useDoubleClickPrevention';
 
 const breadcrumbItems: BreadcrumbItem[] = [
     {
@@ -18,6 +20,20 @@ const breadcrumbItems: BreadcrumbItem[] = [
         href: edit().url,
     },
 ];
+
+const currentPassword = ref('');
+const newPassword = ref('');
+const passwordConfirmation = ref('');
+const { isClicking } = useDoubleClickPrevention();
+
+const isFormValid = computed(() => {
+    return (
+        currentPassword.value.trim().length > 0 &&
+        newPassword.value.trim().length > 0 &&
+        passwordConfirmation.value.trim().length > 0 &&
+        newPassword.value === passwordConfirmation.value
+    );
+});
 </script>
 
 <template>
@@ -49,6 +65,7 @@ const breadcrumbItems: BreadcrumbItem[] = [
                         <Label for="current_password">Current password</Label>
                         <Input
                             id="current_password"
+                            v-model="currentPassword"
                             name="current_password"
                             type="password"
                             class="mt-1 block w-full"
@@ -62,6 +79,7 @@ const breadcrumbItems: BreadcrumbItem[] = [
                         <Label for="password">New password</Label>
                         <Input
                             id="password"
+                            v-model="newPassword"
                             name="password"
                             type="password"
                             class="mt-1 block w-full"
@@ -77,6 +95,7 @@ const breadcrumbItems: BreadcrumbItem[] = [
                         >
                         <Input
                             id="password_confirmation"
+                            v-model="passwordConfirmation"
                             name="password_confirmation"
                             type="password"
                             class="mt-1 block w-full"
@@ -88,8 +107,9 @@ const breadcrumbItems: BreadcrumbItem[] = [
 
                     <div class="flex items-center gap-4">
                         <Button
-                            :disabled="processing"
+                            :disabled="!isFormValid || processing || isClicking"
                             data-test="update-password-button"
+                            class="cursor-pointer"
                             >Save password</Button
                         >
 
