@@ -260,10 +260,10 @@ const toggleMobileNav = () => {
                 <div v-if="!isRootUser" class="px-4 pb-2 border-t border-gray-200 pt-4">
                     <button
                         @click="togglePrivacy"
-                        class="flex items-center justify-between w-full px-4 py-3 text-gray-700 hover:bg-orange-50 rounded-lg transition-all duration-200"
+                        class="flex items-center justify-between w-full px-4 py-3 text-gray-700 hover:bg-orange-50 rounded-lg transition-all duration-200 cursor-pointer"
                     >
-                        <div class="flex items-center gap-3">
-                            <component :is="isPrivacyMode ? EyeOff : Eye" class="w-5 h-5 text-orange-500" />
+                        <div class="flex items-center gap-3 cursor-pointer">
+                            <component :is="isPrivacyMode ? EyeOff : Eye" class="w-5 h-5 text-orange-500 cursor-pointer" />
                             <span class="text-sm font-medium">Modo Privacidade</span>
                         </div>
                         <span class="text-xs text-gray-500">

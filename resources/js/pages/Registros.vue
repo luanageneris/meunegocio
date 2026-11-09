@@ -23,6 +23,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const page = usePage();
 const auth = useAuth();
@@ -76,6 +77,7 @@ const showNewEntryInline = ref(false);
 const showNewExitInline = ref(false);
 const editingRegistroId = ref<number | null>(null);
 const editingRegistroType = ref<'entrada' | 'saida' | null>(null);
+const originalRegistroType = ref<'entrada' | 'saida' | null>(null);
 const selectedRecordId = ref<number | null>(null);
 const deletingRecordId = ref<number | null>(null);
 const isDeleteLoading = ref(false);
@@ -105,6 +107,7 @@ const isImportLoading = ref(false);
 const importSummary = ref<any | null>(null);
 const showEntryCalculationTooltip = ref(false);
 const showExitCalculationTooltip = ref(false);
+const showInversionTooltip = ref(false);
 const importDefaults = ref({
     default_entry_type_id: null as number | null,
     default_exit_type_id: null as number | null,
@@ -1507,7 +1510,7 @@ const handleRestore = async (id: number) => {
 };
 
 const fetchOptions = async (includeDefaults = false) => {
-    if (optionsLoaded.value && !includeDefaults) return;
+    if (optionsLoaded.value && !includeDefaults) return true;
     try {
         const headers: HeadersInit = {
             'Authorization': `Bearer ${auth.token.value}`,
@@ -1520,6 +1523,9 @@ const fetchOptions = async (includeDefaults = false) => {
             fetch(`/api/personalizar/collaborators${query}`, { headers }),
             fetch('/api/personalizar/service-types', { headers }),
         ]);
+        if (![entryRes, exitRes, collabRes, serviceRes].every((response) => response.ok)) {
+            throw new Error('Não foi possível carregar as opções do formulário.');
+        }
         const [entryData, exitData, collabData, serviceData] = await Promise.all([
             entryRes.json(),
             exitRes.json(),
@@ -1533,8 +1539,10 @@ const fetchOptions = async (includeDefaults = false) => {
         if (!includeDefaults) {
             optionsLoaded.value = true;
         }
+        return true;
     } catch (e) {
         console.error('Erro ao carregar opções:', e);
+        return false;
     }
 };
 
@@ -1826,8 +1834,10 @@ const closeAllForms = (options?: { clearCreateDrafts?: boolean }) => {
     showNewExitInline.value = false;
     editingRegistroId.value = null;
     editingRegistroType.value = null;
+    originalRegistroType.value = null;
     showEntryCalculationTooltip.value = false;
     showExitCalculationTooltip.value = false;
+    showInversionTooltip.value = false;
     entryForm.value = createEmptyEntryForm();
     exitForm.value = createEmptyExitForm();
     entryFormErrors.value = {};
@@ -1963,10 +1973,11 @@ const openEditRecord = async (id: number) => {
     const raw = registros.value.find((r: any) => r.id === id);
     if (!raw) return;
     closeAllForms();
-    await fetchOptions();
+    const optionsAvailable = await fetchOptions(true);
     editingRegistroId.value = id;
     const isEntry = raw.type === 'entry';
     editingRegistroType.value = isEntry ? 'entrada' : 'saida';
+    originalRegistroType.value = editingRegistroType.value;
     if (isEntry) {
         const [datePart] = (raw.date || '').split('T');
         entryForm.value = {
@@ -1991,6 +2002,62 @@ const openEditRecord = async (id: number) => {
             description: raw.description || '',
         };
     }
+    if (!optionsAvailable) {
+        const errors = { _: ['Não foi possível carregar as opções. Feche o formulário e tente novamente.'] };
+        if (isEntry) {
+            entryFormErrors.value = errors;
+        } else {
+            exitFormErrors.value = errors;
+        }
+    }
+};
+
+const invertEditingRecord = () => {
+    if (isEntryLoading.value || isExitLoading.value || editingRegistroId.value === null) return;
+
+    if (editingRegistroType.value === 'entrada') {
+        const categoryId = originalRegistroType.value === 'saida'
+            ? exitForm.value.exit_type_id
+            : findDefaultOptionId(tiposSaida.value);
+        if (categoryId === null && originalRegistroType.value !== 'saida') {
+            entryFormErrors.value = { _: ['Não foi encontrado o tipo de saída padrão "Não definido".'] };
+            return;
+        }
+        exitForm.value = {
+            ...exitForm.value,
+            exit_type_id: categoryId,
+            collaborator_id: entryForm.value.collaborator_id,
+            date: entryForm.value.date,
+            amount: entryForm.value.amount,
+            quantity: entryForm.value.quantity,
+            discount: entryForm.value.discount,
+            description: entryForm.value.description,
+        };
+        exitFormErrors.value = {};
+        showInversionTooltip.value = false;
+        editingRegistroType.value = 'saida';
+    } else {
+        const categoryId = originalRegistroType.value === 'entrada'
+            ? entryForm.value.entry_type_id
+            : findDefaultOptionId(tiposEntrada.value);
+        if (categoryId === null && originalRegistroType.value !== 'entrada') {
+            exitFormErrors.value = { _: ['Não foi encontrado o tipo de entrada padrão "Não definido".'] };
+            return;
+        }
+        entryForm.value = {
+            ...entryForm.value,
+            entry_type_id: categoryId,
+            collaborator_id: exitForm.value.collaborator_id,
+            date: exitForm.value.date,
+            amount: exitForm.value.amount,
+            quantity: exitForm.value.quantity,
+            discount: exitForm.value.discount,
+            description: exitForm.value.description,
+        };
+        entryFormErrors.value = {};
+        showInversionTooltip.value = false;
+        editingRegistroType.value = 'entrada';
+    }
 };
 
 const saveEntry = async () => {
@@ -2009,8 +2076,9 @@ const saveEntry = async () => {
         collaborator_id: entryForm.value.collaborator_id,
     };
     const isEdit = editingRegistroId.value !== null;
+    const isInverting = isEdit && originalRegistroType.value !== 'entrada';
     const url = isEdit
-        ? `/api/registros/financial-records/${editingRegistroId.value}`
+        ? `/api/registros/financial-records/${editingRegistroId.value}${isInverting ? '/invert' : ''}`
         : '/api/registros/financial-records';
     const method = isEdit ? 'PUT' : 'POST';
     isEntryLoading.value = true;
@@ -2041,6 +2109,7 @@ const saveEntry = async () => {
         await restoreScrollPosition(scrollPosition);
     } catch (error) {
         console.error(error);
+        entryFormErrors.value = { _: ['Não foi possível salvar a entrada. Verifique sua conexão e tente novamente.'] };
     } finally {
         isEntryLoading.value = false;
     }
@@ -2061,8 +2130,9 @@ const saveExit = async () => {
         collaborator_id: exitForm.value.collaborator_id,
     };
     const isEdit = editingRegistroId.value !== null;
+    const isInverting = isEdit && originalRegistroType.value !== 'saida';
     const url = isEdit
-        ? `/api/registros/financial-records/${editingRegistroId.value}`
+        ? `/api/registros/financial-records/${editingRegistroId.value}${isInverting ? '/invert' : ''}`
         : '/api/registros/financial-records';
     const method = isEdit ? 'PUT' : 'POST';
     isExitLoading.value = true;
@@ -2093,6 +2163,7 @@ const saveExit = async () => {
         await restoreScrollPosition(scrollPosition);
     } catch (error) {
         console.error(error);
+        exitFormErrors.value = { _: ['Não foi possível salvar a saída. Verifique sua conexão e tente novamente.'] };
     } finally {
         isExitLoading.value = false;
     }
@@ -2252,7 +2323,7 @@ onBeforeUnmount(() => {
                     <button
                         @click="changeTab('hoje')"
                         :class="[
-                            'px-6 py-2 rounded-full font-medium transition-all',
+                            'px-6 py-2 rounded-full font-medium transition-all duration-150 cursor-pointer motion-safe:hover:scale-[1.03]',
                             activeTab === 'hoje' 
                                 ? 'bg-orange-500 text-white shadow-lg' 
                                 : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
@@ -2263,7 +2334,7 @@ onBeforeUnmount(() => {
                     <button
                         @click="changeTab('ultimos7dias')"
                         :class="[
-                            'px-6 py-2 rounded-full font-medium transition-all',
+                            'px-6 py-2 rounded-full font-medium transition-all duration-150 cursor-pointer motion-safe:hover:scale-[1.03]',
                             activeTab === 'ultimos7dias' 
                                 ? 'bg-orange-500 text-white shadow-lg' 
                                 : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
@@ -2274,7 +2345,7 @@ onBeforeUnmount(() => {
                     <button
                         @click="changeTab('mensal')"
                         :class="[
-                            'px-6 py-2 rounded-full font-medium transition-all',
+                            'px-6 py-2 rounded-full font-medium transition-all duration-150 cursor-pointer motion-safe:hover:scale-[1.03]',
                             activeTab === 'mensal' 
                                 ? 'bg-orange-500 text-white shadow-lg' 
                                 : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
@@ -2285,7 +2356,7 @@ onBeforeUnmount(() => {
                     <button
                         @click="changeTab('anual')"
                         :class="[
-                            'px-6 py-2 rounded-full font-medium transition-all',
+                            'px-6 py-2 rounded-full font-medium transition-all duration-150 cursor-pointer motion-safe:hover:scale-[1.03]',
                             activeTab === 'anual'
                                 ? 'bg-orange-500 text-white shadow-lg'
                                 : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
@@ -2297,7 +2368,7 @@ onBeforeUnmount(() => {
                         v-if="!isChartsView"
                         @click="changeTab('todos')"
                         :class="[
-                            'px-6 py-2 rounded-full font-medium transition-all',
+                            'px-6 py-2 rounded-full font-medium transition-all duration-150 cursor-pointer motion-safe:hover:scale-[1.03]',
                             activeTab === 'todos'
                                 ? 'bg-orange-500 text-white shadow-lg'
                                 : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
@@ -2395,7 +2466,7 @@ onBeforeUnmount(() => {
                                 <DropdownMenuTrigger :as-child="true">
                                     <button
                                         type="button"
-                                        class="w-full sm:w-auto px-4 py-2 h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors text-sm"
+                                        class="w-full sm:w-auto px-4 py-2 h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-all duration-150 text-sm cursor-pointer motion-safe:hover:scale-[1.03]"
                                         aria-label="Abrir configurações"
                                     >
                                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -2410,7 +2481,7 @@ onBeforeUnmount(() => {
                                     <DropdownMenuItem :as-child="true">
                                         <button
                                             type="button"
-                                            class="w-full text-left inline-flex items-center justify-between gap-2"
+                                            class="w-full text-left inline-flex items-center justify-between gap-2 cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03]"
                                             @click="togglePrivacy"
                                         >
                                             <span>{{ privacyOptionLabel }}</span>
@@ -2421,7 +2492,7 @@ onBeforeUnmount(() => {
                                     <DropdownMenuItem :as-child="true">
                                         <button
                                             type="button"
-                                            class="w-full text-left"
+                                            class="w-full text-left cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03]"
                                             @click="openImportPicker"
                                         >
                                             Importar Entradas e Saídas
@@ -2430,7 +2501,7 @@ onBeforeUnmount(() => {
                                     <DropdownMenuItem :as-child="true">
                                         <button
                                             type="button"
-                                            class="w-full text-left"
+                                            class="w-full text-left cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03]"
                                             @click="handleVerRemovidos"
                                         >
                                             Ver removidos
@@ -2439,7 +2510,7 @@ onBeforeUnmount(() => {
                                     <DropdownMenuItem v-if="activeTab !== 'todos'" :as-child="true">
                                         <button
                                             type="button"
-                                            class="w-full text-left"
+                                            class="w-full text-left cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03]"
                                             @click="toggleChartsView"
                                         >
                                             Visualizar gráficos
@@ -2808,7 +2879,7 @@ onBeforeUnmount(() => {
                             <button
                                 type="button"
                                 @click="clearFinancialTypeFilter"
-                                class="inline-flex h-5 w-5 items-center justify-center rounded-full text-orange-700 hover:bg-orange-100"
+                                class="inline-flex h-5 w-5 items-center justify-center rounded-full text-orange-700 hover:bg-orange-100 cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03]"
                                 aria-label="Remover filtro financeiro"
                                 title="Remover filtro"
                             >
@@ -2826,7 +2897,7 @@ onBeforeUnmount(() => {
                                 <label class="text-xs text-gray-600 whitespace-nowrap">Ordenar</label>
                                 <select
                                     v-model="sortKey"
-                                    class="px-2 py-1 border border-orange-300 rounded-lg bg-white dark:bg-input dark:text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                                    class="px-2 py-1 border border-orange-300 rounded-lg bg-white dark:bg-input dark:text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03]"
                                 >
                                     <option value="registradoEm">Registrado</option>
                                     <option value="dataOperacao">Data</option>
@@ -2839,7 +2910,7 @@ onBeforeUnmount(() => {
                             </div>
                             <select
                                 v-model="sortDir"
-                                class="px-2 py-1 border border-orange-300 rounded-lg bg-white dark:bg-input dark:text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                                class="px-2 py-1 border border-orange-300 rounded-lg bg-white dark:bg-input dark:text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03]"
                             >
                                 <option value="asc">A-Z</option>
                                 <option value="desc">Z-A</option>
@@ -3063,7 +3134,7 @@ onBeforeUnmount(() => {
                             v-for="registro in paginatedRegistros"
                             :key="registro.id"
                             @click="selectRecord(registro.id)"
-                            class="border border-gray-200 rounded-lg transition-shadow"
+                            class="group border border-gray-200 rounded-lg transition-shadow"
                             :class="[
                                 editingRegistroId === registro.id
                                     ? 'ring-2 ring-yellow-300 shadow-md'
@@ -3074,7 +3145,27 @@ onBeforeUnmount(() => {
                         >
                             <!-- Inline edit form for Entry -->
                             <div v-if="editingRegistroId === registro.id && editingRegistroType === 'entrada'" class="rounded-lg border border-yellow-300/70 bg-yellow-50/50 p-4 dark:border-amber-600/50 dark:bg-slate-900/80">
-                                <h3 class="mb-4 text-sm font-semibold text-yellow-700 dark:text-amber-300">Editar Entrada</h3>
+                                <div class="mb-4 flex items-center gap-2">
+                                    <h3 class="text-sm font-semibold text-yellow-700 dark:text-amber-300">Editar Entrada</h3>
+                                    <TooltipProvider v-if="originalRegistroType === 'saida'" :delay-duration="0">
+                                        <Tooltip v-model:open="showInversionTooltip">
+                                            <TooltipTrigger as-child>
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex cursor-pointer items-center justify-center rounded-full text-yellow-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-500 dark:text-amber-300"
+                                                    aria-label="Informações sobre a inversão para entrada"
+                                                    @click.stop="showInversionTooltip = !showInversionTooltip"
+                                                    @keydown.enter.stop
+                                                >
+                                                    <Info class="h-4 w-4" />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent class="max-w-64">
+                                                A inversão para entrada será aplicada ao salvar.
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
                                 <div v-if="Object.keys(entryFormErrors).length" class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/40">
                                     <p v-for="(errs, field) in entryFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
                                 </div>
@@ -3148,6 +3239,7 @@ onBeforeUnmount(() => {
                                     </div>
                                 </div>
                                 <div class="flex justify-end gap-2 mt-4">
+                                    <button type="button" @click="invertEditingRecord" @keydown.enter.stop :disabled="isEntryLoading" class="mr-auto px-4 py-2 text-sm text-orange-700 hover:bg-orange-100 rounded-lg cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50 dark:text-orange-300 dark:hover:bg-slate-800">Inverter para saída</button>
                                     <button @click="() => closeAllForms()" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800">Cancelar</button>
                                     <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
                                         {{ isEntryLoading ? 'Salvando...' : 'Salvar' }}
@@ -3157,7 +3249,27 @@ onBeforeUnmount(() => {
 
                             <!-- Inline edit form for Exit -->
                             <div v-else-if="editingRegistroId === registro.id && editingRegistroType === 'saida'" class="rounded-lg border border-orange-300/70 bg-orange-50/50 p-4 dark:border-orange-500/50 dark:bg-slate-900/80">
-                                <h3 class="mb-4 text-sm font-semibold text-orange-700 dark:text-orange-300">Editar Saída</h3>
+                                <div class="mb-4 flex items-center gap-2">
+                                    <h3 class="text-sm font-semibold text-orange-700 dark:text-orange-300">Editar Saída</h3>
+                                    <TooltipProvider v-if="originalRegistroType === 'entrada'" :delay-duration="0">
+                                        <Tooltip v-model:open="showInversionTooltip">
+                                            <TooltipTrigger as-child>
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex cursor-pointer items-center justify-center rounded-full text-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 dark:text-orange-300"
+                                                    aria-label="Informações sobre a inversão para saída"
+                                                    @click.stop="showInversionTooltip = !showInversionTooltip"
+                                                    @keydown.enter.stop
+                                                >
+                                                    <Info class="h-4 w-4" />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent class="max-w-64">
+                                                A inversão para saída será aplicada ao salvar. As comissões vinculadas a esta entrada serão removidas.
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
                                 <div v-if="Object.keys(exitFormErrors).length" class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/40">
                                     <p v-for="(errs, field) in exitFormErrors" :key="field" class="text-sm text-red-600">{{ Array.isArray(errs) ? errs.join(', ') : errs }}</p>
                                 </div>
@@ -3224,6 +3336,7 @@ onBeforeUnmount(() => {
                                     </div>
                                 </div>
                                 <div class="flex justify-end gap-2 mt-4">
+                                    <button type="button" @click="invertEditingRecord" @keydown.enter.stop :disabled="isExitLoading" class="mr-auto px-4 py-2 text-sm text-orange-700 hover:bg-orange-100 rounded-lg cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50 dark:text-orange-300 dark:hover:bg-slate-800">Inverter para entrada</button>
                                     <button @click="() => closeAllForms()" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800">Cancelar</button>
                                     <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
                                         {{ isExitLoading ? 'Salvando...' : 'Salvar' }}
@@ -3259,12 +3372,12 @@ onBeforeUnmount(() => {
                                                 </button>
                                             </template>
                                             <template v-else>
-                                                <button @click="handleDelete(registro.id)" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Remover">
+                                                <button @click="handleDelete(registro.id)" class="p-2 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03] lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100 lg:group-focus-within:pointer-events-auto lg:group-focus-within:opacity-100" title="Remover">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                     </svg>
                                                 </button>
-                                                <button @click="openEditRecord(registro.id)" class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors" title="Editar">
+                                                <button @click="openEditRecord(registro.id)" class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03] lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100 lg:group-focus-within:pointer-events-auto lg:group-focus-within:opacity-100" title="Editar">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                     </svg>
@@ -3331,12 +3444,12 @@ onBeforeUnmount(() => {
                                             </button>
                                         </template>
                                         <template v-else>
-                                            <button @click="handleDelete(registro.id)" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Remover">
+                                            <button @click="handleDelete(registro.id)" class="p-2 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03] lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100 lg:group-focus-within:pointer-events-auto lg:group-focus-within:opacity-100" title="Remover">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                 </svg>
                                             </button>
-                                            <button @click="openEditRecord(registro.id)" class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors" title="Editar">
+                                            <button @click="openEditRecord(registro.id)" class="p-2 text-orange-500 hover:bg-orange-50 rounded-lg cursor-pointer transition-all duration-150 motion-safe:hover:scale-[1.03] lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100 lg:group-focus-within:pointer-events-auto lg:group-focus-within:opacity-100" title="Editar">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                 </svg>

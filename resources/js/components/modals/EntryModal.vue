@@ -3,6 +3,7 @@ import { ref, watch, nextTick, onMounted, computed } from 'vue';
 import axios from 'axios';
 import ModalShell from './ModalShell.vue';
 import UnsavedChangesModal from './UnsavedChangesModal.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 interface ServiceType {
     id: number;
@@ -10,6 +11,12 @@ interface ServiceType {
     unit: string;
     service_value: string;
     commission_percentage: string;
+}
+
+interface SelectOption {
+    id: number | string;
+    name: string;
+    cpf?: string;
 }
 
 interface Entry {
@@ -59,9 +66,13 @@ const form = ref<Entry>({
 const initialForm = ref<Entry>({ ...form.value });
 
 // Dynamic options from API
-const tiposEntrada = ref<any[]>([]);
+const tiposEntradaOptions = ref<SelectOption[]>([]);
 const tiposServico = ref<ServiceType[]>([]);
-const colaboradores = ref<any[]>([]);
+const colaboradoresOptions = ref<SelectOption[]>([]);
+
+// Selected options for SearchableSelect
+const selectedEntryType = ref<SelectOption | null>(null);
+const selectedCollaborator = ref<SelectOption | null>(null);
 
 const selectedService = computed(() => {
     return tiposServico.value.find(s => s.name === form.value.tipoServico);
@@ -84,19 +95,66 @@ const fetchData = async () => {
             requests.splice(1, 0, axios.get('/api/personalizar/service-types'));
         }
         const responses = await Promise.all(requests);
-        // Map responses by whether service types included
-        // If useServiceTypes true: [entry, service, collaborators]
-        // If false: [entry, collaborators]
+        
         const entryTypesRes = responses[0];
         const serviceTypesRes = (props.useServiceTypes !== false) ? responses[1] : null;
         const collaboratorsRes = (props.useServiceTypes !== false) ? responses[2] : responses[1];
         
-        // API pode retornar { data: [...] } ou array direto
-        tiposEntrada.value = entryTypesRes.data?.data ?? entryTypesRes.data ?? [];
+        // Map to SelectOption format
+        tiposEntradaOptions.value = (entryTypesRes.data?.data ?? entryTypesRes.data ?? []).map((type: any) => ({
+            id: type.id,
+            name: type.name,
+        }));
+        
         tiposServico.value = serviceTypesRes ? (serviceTypesRes.data?.data ?? serviceTypesRes.data ?? []) : [];
-        colaboradores.value = collaboratorsRes.data?.data ?? collaboratorsRes.data ?? [];
+        
+        colaboradoresOptions.value = (collaboratorsRes.data?.data ?? collaboratorsRes.data ?? []).map((collab: any) => ({
+            id: collab.id,
+            name: collab.name,
+            cpf: collab.cpf,
+        }));
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
+    }
+};
+
+const handleCreateEntryType = async (data: { name: string }) => {
+    try {
+        const response = await axios.post('/api/entry-types', { name: data.name });
+        const newType = response.data.data;
+        
+        tiposEntradaOptions.value.push({
+            id: newType.id,
+            name: newType.name,
+        });
+        
+        selectedEntryType.value = {
+            id: newType.id,
+            name: newType.name,
+        };
+    } catch (error) {
+        console.error('Erro ao criar tipo de entrada:', error);
+    }
+};
+
+const handleCreateCollaborator = async (data: { name: string; cpf: string }) => {
+    try {
+        const response = await axios.post('/api/collaborators', data);
+        const newCollab = response.data.data;
+        
+        colaboradoresOptions.value.push({
+            id: newCollab.id,
+            name: newCollab.name,
+            cpf: newCollab.cpf,
+        });
+        
+        selectedCollaborator.value = {
+            id: newCollab.id,
+            name: newCollab.name,
+            cpf: newCollab.cpf,
+        };
+    } catch (error) {
+        console.error('Erro ao criar colaborador:', error);
     }
 };
 
@@ -107,14 +165,42 @@ watch(() => props.show, async (newVal) => {
         if (props.entry && props.mode === 'edit') {
             form.value = { ...props.entry };
             initialForm.value = { ...form.value };
+            
+            // Pre-select options for edit mode
+            if (props.entry.entry_type_id) {
+                selectedEntryType.value = tiposEntradaOptions.value.find(
+                    t => t.id === props.entry!.entry_type_id
+                ) || null;
+            }
+            if (props.entry.collaborator_id) {
+                selectedCollaborator.value = colaboradoresOptions.value.find(
+                    c => c.id === props.entry!.collaborator_id
+                ) || null;
+            }
         } else {
             resetForm();
             initialForm.value = { ...form.value };
+            selectedEntryType.value = null;
+            selectedCollaborator.value = null;
         }
         
         nextTick(() => {
             // Focus no primeiro campo
         });
+    }
+});
+
+// Sync selectedEntryType to form
+watch(selectedEntryType, (newVal) => {
+    if (newVal) {
+        form.value.entry_type_id = newVal.id as number;
+    }
+});
+
+// Sync selectedCollaborator to form
+watch(selectedCollaborator, (newVal) => {
+    if (newVal) {
+        form.value.collaborator_id = newVal.id as number;
     }
 });
 
@@ -127,7 +213,7 @@ watch(() => form.value.tipoServico, () => {
 const resetForm = () => {
     form.value = {
         tipo: 'entrada',
-        tipoEntrada: tiposEntrada.value[0]?.name || '',
+        tipoEntrada: '',
         tipoServico: '',
         responsavel: '',
         descricao: '',
@@ -140,17 +226,11 @@ const resetForm = () => {
 };
 
 const handleSave = () => {
-    // Adicionar IDs correspondentes
-    const entryType = tiposEntrada.value.find(t => t.name === form.value.tipoEntrada);
-    const serviceType = props.useServiceTypes !== false ? tiposServico.value.find(s => s.name === form.value.tipoServico) : undefined;
-    const collaborator = colaboradores.value.find(c => c.name === form.value.responsavel);
-
     const payload = {
         ...form.value,
         type: 'entry',
-        entry_type_id: entryType?.id,
-        service_type_id: serviceType?.id,
-        collaborator_id: collaborator?.id
+        entry_type_id: selectedEntryType.value?.id,
+        collaborator_id: selectedCollaborator.value?.id,
     };
     if (props.useServiceTypes === false) {
         (payload as any).quantity = 1;
@@ -162,16 +242,11 @@ const handleSave = () => {
 };
 
 const handleSaveAndReference = () => {
-    const entryType = tiposEntrada.value.find(t => t.name === form.value.tipoEntrada);
-    const serviceType = props.useServiceTypes !== false ? tiposServico.value.find(s => s.name === form.value.tipoServico) : undefined;
-    const collaborator = colaboradores.value.find(c => c.name === form.value.responsavel);
-
     const payload = {
         ...form.value,
         type: 'entry',
-        entry_type_id: entryType?.id,
-        service_type_id: serviceType?.id,
-        collaborator_id: collaborator?.id
+        entry_type_id: selectedEntryType.value?.id,
+        collaborator_id: selectedCollaborator.value?.id,
     };
     if (props.useServiceTypes === false) {
         (payload as any).quantity = 1;
@@ -233,33 +308,26 @@ onMounted(() => {
             <template v-if="useServiceTypes === false">
                 <!-- Linha: Tipo de entrada, Responsável, Data -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de entrada</label>
-                        <select
-                            v-model="form.tipoEntrada"
-                            @keydown.enter="handleSave"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-yellow-50"
-                        >
-                            <option value="">Selecione</option>
-                            <option v-for="tipo in tiposEntrada" :key="tipo.id" :value="tipo.name">
-                                {{ tipo.name }}
-                            </option>
-                        </select>
-                    </div>
+                    <SearchableSelect
+                        label="Tipo de entrada"
+                        :modelValue="selectedEntryType"
+                        @update:modelValue="selectedEntryType = $event"
+                        :options="tiposEntradaOptions"
+                        entityType="entry_type"
+                        placeholder="Pesquise ou crie..."
+                        required
+                        @create="handleCreateEntryType"
+                    />
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Responsável</label>
-                        <select
-                            v-model="form.responsavel"
-                            @keydown.enter="handleSave"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                        >
-                            <option value="">Selecione</option>
-                            <option v-for="colab in colaboradores" :key="colab.id" :value="colab.name">
-                                {{ colab.name }}
-                            </option>
-                        </select>
-                    </div>
+                    <SearchableSelect
+                        label="Responsável"
+                        :modelValue="selectedCollaborator"
+                        @update:modelValue="selectedCollaborator = $event"
+                        :options="colaboradoresOptions"
+                        entityType="collaborator"
+                        placeholder="Pesquise pelo nome..."
+                        @create="handleCreateCollaborator"
+                    />
 
                     <div>
                         <UnsavedChangesModal
@@ -312,19 +380,16 @@ onMounted(() => {
             <template v-else>
                 <!-- Tipo de entrada e Tipo de Serviço -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de entrada</label>
-                        <select
-                            v-model="form.tipoEntrada"
-                            @keydown.enter="handleSave"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent bg-yellow-50"
-                        >
-                            <option value="">Selecione</option>
-                            <option v-for="tipo in tiposEntrada" :key="tipo.id" :value="tipo.name">
-                                {{ tipo.name }}
-                            </option>
-                        </select>
-                    </div>
+                    <SearchableSelect
+                        label="Tipo de entrada"
+                        :modelValue="selectedEntryType"
+                        @update:modelValue="selectedEntryType = $event"
+                        :options="tiposEntradaOptions"
+                        entityType="entry_type"
+                        placeholder="Pesquise ou crie..."
+                        required
+                        @create="handleCreateEntryType"
+                    />
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Serviço</label>
@@ -343,19 +408,15 @@ onMounted(() => {
 
                 <!-- Responsável e Data -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Responsável</label>
-                        <select
-                            v-model="form.responsavel"
-                            @keydown.enter="handleSave"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                        >
-                            <option value="">Selecione</option>
-                            <option v-for="colab in colaboradores" :key="colab.id" :value="colab.name">
-                                {{ colab.name }}
-                            </option>
-                        </select>
-                    </div>
+                    <SearchableSelect
+                        label="Responsável"
+                        :modelValue="selectedCollaborator"
+                        @update:modelValue="selectedCollaborator = $event"
+                        :options="colaboradoresOptions"
+                        entityType="collaborator"
+                        placeholder="Pesquise pelo nome..."
+                        @create="handleCreateCollaborator"
+                    />
 
                     <div>
                         <UnsavedChangesModal

@@ -118,6 +118,13 @@
 - [ ] Testes Feature
 - [ ] Permissões
 
+#### Inversão de registro financeiro
+- `PUT /api/registros/financial-records/{id}/invert`, autenticado e restrito ao root ou proprietário da empresa. Em empresas antigas sem proprietário vinculado, permite-se o único usuário com perfil `owner`; casos ambíguos são negados.
+- Enviar os mesmos campos da edição (`type`, `date`, `amount`, `quantity`, `discount`, `description`, `collaborator_id`) e a categoria do tipo de destino (`entry_type_id` ou `exit_type_id`). Para entrada, também é possível enviar `service_type_id`.
+- O tipo enviado deve ser diferente do tipo atual. A categoria anterior é removida; ao converter entrada em saída, o serviço é removido e todas as comissões ativas vinculadas são removidas por soft delete na mesma transação.
+- A edição normal não altera o tipo; a interface só efetiva a inversão ao salvar e oferece a categoria padrão “Não definido”.
+- A resposta de sucesso contém o registro atualizado em `data`.
+
 ### 3.2 Turnos de Trabalho
 - [ ] GET /api/work-shifts
 - [ ] POST /api/work-shifts (registrar turno)

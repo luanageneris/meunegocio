@@ -4,6 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Collaborator;
+use App\Models\EntryType;
+use App\Models\ExitType;
+use App\Models\FinancialRecord;
+use App\Models\ServiceType;
 use Illuminate\Http\Request;
 
 class HistoryController extends Controller
@@ -243,11 +248,11 @@ class HistoryController extends Controller
             return [
                 'type' => 'field_changes',
                 'fields' => collect($changes)
-                    ->map(function ($change, $field) {
+                    ->map(function ($change, $field) use ($log) {
                         return [
                             'field' => $field,
-                            'old' => $change['old'] ?? null,
-                            'new' => $change['new'] ?? null,
+                            'old' => $this->formatFinancialRecordRelation($log, $field, $change['old'] ?? null, $log->old_values),
+                            'new' => $this->formatFinancialRecordRelation($log, $field, $change['new'] ?? null, $log->new_values),
                         ];
                     })
                     ->values()
@@ -280,6 +285,34 @@ class HistoryController extends Controller
             'type' => 'none',
             'fields' => [],
         ];
+    }
+
+    private function formatFinancialRecordRelation(AuditLog $log, string $field, mixed $value, ?array $snapshot): mixed
+    {
+        if ($log->model !== FinancialRecord::class || $value === null) {
+            return $value;
+        }
+
+        $relations = [
+            'entry_type_id' => EntryType::class,
+            'exit_type_id' => ExitType::class,
+            'collaborator_id' => Collaborator::class,
+            'service_type_id' => ServiceType::class,
+        ];
+        if (!isset($relations[$field])) {
+            return $value;
+        }
+
+        $nameField = substr($field, 0, -3) . '_name';
+        $name = $snapshot[$nameField] ?? null;
+        if ($name === null) {
+            $name = $relations[$field]::withTrashed()
+                ->where('company_id', $log->company_id)
+                ->whereKey($value)
+                ->value('name');
+        }
+
+        return $name ?: 'Nome indisponível';
     }
 
     private function toFieldList(array $values, string $valueSide = 'new'): array

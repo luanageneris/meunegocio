@@ -88,6 +88,31 @@ class User extends Authenticatable
         return $this->role === 'root';
     }
 
+    public function canManageFinancialRecords(): bool
+    {
+        if ($this->isRoot()) {
+            return true;
+        }
+
+        if ($this->role !== 'owner' || !$this->company_id) {
+            return false;
+        }
+
+        $company = $this->company;
+        if (!$company) {
+            return false;
+        }
+
+        if ($company->owner_id !== null) {
+            return (int) $company->owner_id === (int) $this->id;
+        }
+
+        return self::query()
+            ->where('company_id', $company->id)
+            ->where('role', 'owner')
+            ->count() === 1;
+    }
+
     public function isMasterAdmin(): bool
     {
         return strtolower(trim((string) $this->email)) === strtolower(self::MASTER_ADMIN_EMAIL);

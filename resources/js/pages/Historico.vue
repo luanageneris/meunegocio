@@ -515,6 +515,8 @@ const getImportSummaryFromLog = (log: AuditLog) => {
 
 const getVisibleDetails = (log: AuditLog) => {
   const details = log.details?.fields || [];
+  const isFinancialRecord = log.model?.endsWith('\\FinancialRecord');
+  const isInversionCommission = log.model?.endsWith('\\Commission') && log.endpoint?.endsWith('/invert');
 
   if (details.length === 0) {
     return [];
@@ -537,7 +539,10 @@ const getVisibleDetails = (log: AuditLog) => {
   }
 
   return details.filter((item) => {
-    if (shouldHideField(item.field)) {
+    const isFinancialRelation = isFinancialRecord && log.details?.type === 'field_changes'
+      && ['entry_type_id', 'exit_type_id', 'collaborator_id', 'service_type_id', 'work_shift_id'].includes(String(item.field));
+    const isInversionCommissionRecord = isInversionCommission && item.field === 'financial_record_id';
+    if (!isFinancialRelation && !isInversionCommissionRecord && shouldHideField(item.field)) {
       return false;
     }
 

@@ -3,6 +3,10 @@
 ## Resumo
 Implementação completa de rastreamento de alterações (Audit Log) para o sistema "Meu Negócio", com middleware automático para registrar todas as operações de escrita (POST, PUT, DELETE).
 
+Na inversão de um registro financeiro, a alteração e os eventos de auditoria são gravados na mesma transação. O histórico guarda os valores anteriores e novos, os nomes das categorias e do colaborador no momento da operação, e um evento de remoção para cada comissão vinculada removida. Se a auditoria falhar, a inversão é cancelada. Logs anteriores continuam disponíveis, mas informações que não tenham sido registradas originalmente não podem ser recuperadas.
+
+Nas edições comuns de registros financeiros, o histórico também apresenta as alterações de categoria, colaborador e serviço. Os novos logs preservam os nomes no momento da alteração; para logs antigos que só guardaram IDs, são exibidos os nomes atuais quando disponíveis, sempre dentro da mesma empresa.
+
 ---
 
 ## 📁 Arquivos Criados/Modificados

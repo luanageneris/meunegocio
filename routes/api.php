@@ -177,6 +177,7 @@ Route::middleware(['auth:sanctum', 'company.isolation', 'track.changes'])->group
         Route::post('financial-records/daily-totals', [FinancialRecordController::class, 'dailyTotals']);
         Route::post('financial-records/{id}/restore', [FinancialRecordController::class, 'restore']);
         Route::post('financial-records', [FinancialRecordController::class, 'store']);
+        Route::put('financial-records/{financialRecord}/invert', [FinancialRecordController::class, 'invert'])->name('financial-records.invert');
         Route::put('financial-records/{financialRecord}', [FinancialRecordController::class, 'update']);
         Route::delete('financial-records/{financialRecord}', [FinancialRecordController::class, 'destroy']);
         

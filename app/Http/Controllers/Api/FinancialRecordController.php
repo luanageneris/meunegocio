@@ -6,6 +6,8 @@ use App\Models\Commission;
 use App\Models\FinancialRecord;
 use App\Http\Requests\StoreFinancialRecordRequest;
 use App\Http\Requests\UpdateFinancialRecordRequest;
+use App\Http\Requests\InvertFinancialRecordRequest;
+use App\Services\FinancialRecordInversionAuditService;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -76,9 +78,50 @@ class FinancialRecordController
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        if ($financialRecord->type !== $request->validated('type')) {
+            return response()->json(['message' => 'Use a opção de inverter para alterar o tipo do registro.'], 422);
+        }
+
         $financialRecord->update($request->validated());
 
         return response()->json(['data' => $financialRecord->load('collaborator', 'entryType', 'exitType', 'serviceType')]);
+    }
+
+    public function invert(InvertFinancialRecordRequest $request, FinancialRecord $financialRecord, FinancialRecordInversionAuditService $audit)
+    {
+        $data = $request->validated();
+
+        return DB::transaction(function () use ($request, $financialRecord, $data, $audit) {
+            $record = FinancialRecord::forCompany($request->user()->company_id)
+                ->lockForUpdate()
+                ->findOrFail($financialRecord->id);
+
+            if ($record->type === $data['type']) {
+                return response()->json(['message' => 'O registro já possui o tipo selecionado. Atualize a página e tente novamente.'], 422);
+            }
+
+            $oldValues = $audit->snapshot($record);
+
+            if ($data['type'] === 'exit') {
+                $commissions = Commission::forCompany($record->company_id)
+                    ->where('financial_record_id', $record->id)
+                    ->lockForUpdate()
+                    ->get();
+                foreach ($commissions as $commission) {
+                    $audit->recordCommissionDeletion($request, $commission);
+                }
+                $data['entry_type_id'] = null;
+                $data['service_type_id'] = null;
+            } else {
+                $data['exit_type_id'] = null;
+                $data['service_type_id'] = $data['service_type_id'] ?? null;
+            }
+
+            $record->update($data);
+            $audit->recordUpdate($request, $record, $oldValues);
+
+            return response()->json(['data' => $record->load('collaborator', 'entryType', 'exitType', 'serviceType')]);
+        });
     }
 
     /**

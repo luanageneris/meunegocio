@@ -6,6 +6,8 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Models\AuditLog;
+use App\Models\FinancialRecord;
+use App\Services\FinancialRecordAuditSnapshot;
 
 class TrackChanges
 {
@@ -47,6 +49,10 @@ class TrackChanges
 
     public function handle(Request $request, Closure $next): Response
     {
+        if ($request->routeIs('financial-records.invert')) {
+            return $next($request);
+        }
+
         $preState = $this->capturePreState($request);
 
         $response = $next($request);
@@ -115,7 +121,7 @@ class TrackChanges
             if (($modelId === 0 || $modelId === null) && is_array($newValues)) {
                 $modelId = $newValues['id'] ?? ($newValues['data']['id'] ?? $modelId);
             }
-            $changes = $this->calculateChanges($oldValues, $newValues);
+            $changes = $this->calculateChanges($oldValues, $newValues, $modelClass === FinancialRecord::class);
 
             [$oldValues, $newValues, $changes] = $this->normalizeAuditPayload(
                 $request,
@@ -267,7 +273,9 @@ class TrackChanges
                 return [
                     'class' => $modelClass,
                     'id' => $modelId,
-                    'data' => $model->toArray(),
+                    'data' => $model instanceof FinancialRecord
+                        ? app(FinancialRecordAuditSnapshot::class)->capture($model)
+                        : $model->toArray(),
                 ];
             }
         } catch (\Exception $e) {
@@ -290,7 +298,9 @@ class TrackChanges
         try {
             $model = $modelClass::withTrashed()->find($modelId);
             if ($model) {
-                return $model->toArray();
+                return $model instanceof FinancialRecord
+                    ? app(FinancialRecordAuditSnapshot::class)->capture($model)
+                    : $model->toArray();
             }
         } catch (\Exception $e) {
             \Log::error('Erro ao obter valores antigos: ' . $e->getMessage());
@@ -326,7 +336,9 @@ class TrackChanges
             // Para PUT/PATCH, tenta recuperar o modelo após atualização
             $model = $modelClass::withTrashed()->find($modelId);
             if ($model) {
-                return $model->toArray();
+                return $model instanceof FinancialRecord
+                    ? app(FinancialRecordAuditSnapshot::class)->capture($model)
+                    : $model->toArray();
             }
 
             return $this->sanitizeRequestData($request->all());
@@ -335,7 +347,7 @@ class TrackChanges
         }
     }
 
-    private function calculateChanges(?array $oldValues, ?array $newValues): ?array
+    private function calculateChanges(?array $oldValues, ?array $newValues, bool $isFinancialRecord = false): ?array
     {
         if (!$oldValues || !$newValues) {
             return null;
@@ -345,7 +357,9 @@ class TrackChanges
         $fieldsToIgnore = ['updated_at', 'deleted_at', 'created_at', 'id', 'company_id'];
 
         foreach ($newValues as $key => $newValue) {
-            if (in_array($key, $fieldsToIgnore)) {
+            if (in_array($key, $fieldsToIgnore) || ($isFinancialRecord && in_array($key, [
+                'entry_type_name', 'exit_type_name', 'collaborator_name', 'service_type_name',
+            ], true))) {
                 continue;
             }
 
