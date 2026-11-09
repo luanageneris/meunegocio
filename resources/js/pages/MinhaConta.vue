@@ -108,7 +108,7 @@ const weekdays = [
     { value: 3, label: 'Qua' },
     { value: 4, label: 'Qui' },
     { value: 5, label: 'Sex' },
-    { value: 6, label: 'S?b' },
+    { value: 6, label: 'Sáb' },
 ];
 
 const getCsrfToken = (): string => {
