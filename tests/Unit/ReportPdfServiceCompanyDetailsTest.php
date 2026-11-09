@@ -16,8 +16,6 @@ it('includes company cnpj and address details when available', function () {
     ]);
 
     $method = new ReflectionMethod(ReportPdfService::class, 'buildCompanyDetailsHtml');
-    $method->setAccessible(true);
-
     $html = $method->invoke($service, $company);
 
     expect($html)->toContain('CNPJ:');
@@ -38,8 +36,6 @@ it('supports cnpj alias when document is not set', function () {
     $company->cnpj = '98.765.432/0001-10';
 
     $method = new ReflectionMethod(ReportPdfService::class, 'buildCompanyDetailsHtml');
-    $method->setAccessible(true);
-
     $html = $method->invoke($service, $company);
 
     expect($html)->toContain('CNPJ:');
@@ -52,8 +48,6 @@ it('builds footer html with app link and generated timestamp', function () {
     $service = new ReportPdfService();
 
     $method = new ReflectionMethod(ReportPdfService::class, 'buildFooterHtml');
-    $method->setAccessible(true);
-
     $html = $method->invoke(
         $service,
         'Meu Negócio',

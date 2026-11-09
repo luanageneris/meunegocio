@@ -9,8 +9,8 @@ services:
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         ports:
-            - '${APP_PORT:-8000}:80'
-            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+            - '127.0.0.1:${APP_PORT:-8000}:80'
+            - '127.0.0.1:${VITE_PORT:-5173}:${VITE_PORT:-5173}'
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
@@ -26,14 +26,13 @@ services:
     mysql:
         image: 'mysql:8.4'
         ports:
-            - '${DB_PORT:-3306}:3306'
+            - '127.0.0.1:${DB_PORT:-3306}:3306'
         environment:
-            MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
-            MYSQL_ROOT_HOST: '%'
+            MYSQL_ROOT_PASSWORD: '${DB_ROOT_PASSWORD:?Defina DB_ROOT_PASSWORD no arquivo .env}'
+            MYSQL_ROOT_HOST: 'localhost'
             MYSQL_DATABASE: '${DB_DATABASE}'
             MYSQL_USER: '${DB_USERNAME}'
-            MYSQL_PASSWORD: '${DB_PASSWORD}'
-            MYSQL_ALLOW_EMPTY_PASSWORD: 1
+            MYSQL_PASSWORD: '${DB_PASSWORD:?Defina DB_PASSWORD no arquivo .env}'
             MYSQL_EXTRA_OPTIONS: '${MYSQL_EXTRA_OPTIONS:-}'
         volumes:
             - 'sail-mysql:/var/lib/mysql'
@@ -42,10 +41,8 @@ services:
             - sail
         healthcheck:
             test:
-                - CMD
-                - mysqladmin
-                - ping
-                - '-p${DB_PASSWORD}'
+                - CMD-SHELL
+                - 'mysqladmin ping -h localhost -u root --password="$$MYSQL_ROOT_PASSWORD"'
             retries: 3
             timeout: 5s
 networks:

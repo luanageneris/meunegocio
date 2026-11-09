@@ -262,10 +262,9 @@ onMounted(async () => {
                         <div class="grid gap-6 lg:grid-cols-[420px,1fr] overflow-hidden">
                             <section class="bg-orange-50 dark:bg-slate-800/70 border border-orange-100 dark:border-slate-700 rounded-xl p-6 shadow-sm overflow-hidden">
                                 <div>
-                                    <p class="text-xs uppercase tracking-wide text-orange-500 dark:text-amber-300 font-semibold">Controle de acesso</p>
-                                    <h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Criar novo acesso</h2>
+                                    <p class="text-xs uppercase tracking-wide text-orange-500 dark:text-amber-300 font-semibold">NOVO CADASTRO</p>
+                                    <h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Formulário de criação de acesso</h2>
                                 </div>
-                                <p class="mt-2 text-sm text-gray-600 dark:text-slate-300">Cadastre um novo usuário com e-mail e senha.</p>
 
                                 <div class="mt-5 space-y-4">
                                     <div>
@@ -327,7 +326,7 @@ onMounted(async () => {
                                         </button>
                                         <button
                                             type="button"
-                                            class="rounded-lg border border-transparent px-3 py-1.5 text-xs font-semibold text-emerald-800 underline underline-offset-2 transition hover:text-emerald-950 dark:text-emerald-200 dark:hover:text-emerald-100"
+                                            class="rounded-lg border border-transparent cursor-pointer px-3 py-1.5 text-xs font-semibold text-emerald-800 underline underline-offset-2 transition hover:text-emerald-950 dark:text-emerald-200 dark:hover:text-emerald-100"
                                             @click="generatedPassword = null; copyPasswordFeedback = ''"
                                         >
                                             Ocultar
@@ -420,7 +419,7 @@ onMounted(async () => {
                     </button>
                     <button
                         type="button"
-                        class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        class="rounded-lg bg-primary dark:bg-primary px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                         :disabled="!!resettingUserId"
                         @click="resetUserPassword"
                     >

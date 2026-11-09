@@ -30,16 +30,19 @@ RUN composer install \
 FROM php:8.4-cli-alpine AS frontend_build
 WORKDIR /app
 
+RUN apk add --no-cache libstdc++
+
 COPY --from=node:22-alpine /usr/local/bin/node /usr/local/bin/node
-COPY --from=node:22-alpine /usr/local/bin/npm /usr/local/bin/npm
-COPY --from=node:22-alpine /usr/local/bin/npx /usr/local/bin/npx
 COPY --from=node:22-alpine /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
 COPY . .
 COPY --from=composer_deps /app/vendor ./vendor
 
 COPY package.json package-lock.json ./
 RUN npm ci
+RUN mkdir -p storage/framework/views storage/framework/cache/data storage/framework/sessions storage/logs
 RUN npm run build
 
 FROM php:8.4-fpm-alpine AS app

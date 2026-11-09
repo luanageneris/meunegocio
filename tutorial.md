@@ -1,3 +1,25 @@
+# Desenvolvimento com Docker
+
+Antes de iniciar o Sail, configure no `.env`:
+
+- `DB_HOST=mysql`, `DB_USERNAME` diferente de `root` e uma `DB_PASSWORD` forte.
+- `DB_ROOT_PASSWORD` forte e diferente da senha do usuario da aplicacao.
+- `DB_DATABASE` com o nome do banco desejado.
+
+O Laravel, o Vite e o MySQL sao publicados somente em `127.0.0.1`. As senhas
+sao obrigatorias e o usuario root nao e criado para acesso remoto em bancos
+novos.
+
+Se o volume `sail-mysql` ja existia, alterar o `.env` nao altera os usuarios
+ou senhas ja gravados no MySQL. Faca backup e migre as credenciais no proprio
+banco antes de recriar o servico: entre interativamente com
+`docker exec -it my_business-mysql-1 mysql -u root -p`, defina uma senha forte
+para `root`@`localhost`, configure um usuario de aplicacao nao-root com acesso
+ao banco e ao banco de testes, e remova `root`@`%` depois de confirmar que nao
+e necessario. Atualize as senhas correspondentes no `.env`. A remocao pode ser
+feita com `DROP USER IF EXISTS 'root'@'%';`. Nao remova o volume: ele contem
+os dados existentes.
+
 # Start docker
 ```
 sail up -d
@@ -59,5 +81,3 @@ sail npm run build
 
 # enviar notificação diaria 
 sail artisan notifications:send-reminders --channel=daily --force --ignore-history --user_email=luanacarvalhomesquita@gmail.com
-
-
