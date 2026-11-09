@@ -141,14 +141,14 @@ onBeforeUnmount(() => {
                         <button
                             type="button"
                             @click="closeLogoutModal"
-                            class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                            class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition cursor-pointer"
                         >
                             Cancelar
                         </button>
                         <button
                             type="button"
                             @click="confirmLogout"
-                            class="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition"
+                            class="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition cursor-pointer"
                         >
                             Sair
                         </button>

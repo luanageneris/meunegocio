@@ -433,7 +433,7 @@ onMounted(async () => {
                         <div class="flex flex-wrap items-end gap-3">
                             <button
                                 type="button"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-200 rounded-lg font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all"
+                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-200 rounded-lg font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all cursor-pointer"
                                 @click="previousMonth"
                             >
                                 <ChevronLeft class="h-4 w-4" />
@@ -442,7 +442,7 @@ onMounted(async () => {
 
                             <button
                                 type="button"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-200 rounded-lg font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all"
+                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-200 rounded-lg font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all cursor-pointer"
                                 @click="nextMonth"
                             >
                                 Próximo mês
@@ -451,7 +451,7 @@ onMounted(async () => {
 
                             <button
                                 type="button"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 rounded-lg font-medium text-sm hover:bg-orange-50 dark:hover:bg-orange-950/40 transition-all"
+                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 rounded-lg font-medium text-sm hover:bg-orange-50 dark:hover:bg-orange-950/40 transition-all cursor-pointer"
                                 @click="goToCurrentMonth"
                             >
                                 Mês atual
@@ -481,7 +481,7 @@ onMounted(async () => {
 
                             <button
                                 type="button"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium text-sm hover:shadow-lg transition-all disabled:opacity-50"
+                                class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium text-sm hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer"
                                 :disabled="isLoading || isRefreshing"
                                 @click="loadDashboard(true)"
                             >

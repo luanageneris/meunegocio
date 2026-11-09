@@ -44,14 +44,14 @@ const handleClose = () => emit('close');
             <button
                 @click="handleClose"
                 :disabled="isLoading"
-                class="flex-1 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+                class="flex-1 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
                 {{ cancelText || 'Cancelar' }}
             </button>
             <button
                 @click="handleConfirm"
                 :disabled="isLoading"
-                class="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
+                class="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
                 {{ confirmText || 'Sair sem salvar' }}
             </button>

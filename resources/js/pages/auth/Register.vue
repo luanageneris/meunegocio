@@ -388,7 +388,7 @@ const handleSubmit = async () => {
                                 type="button"
                                 :disabled="isSubmitting"
                                 @click="handleGoogleConnect"
-                                class="w-full flex items-center justify-center gap-2 border-2 border-emerald-400 text-emerald-700 rounded-lg py-2 px-4 font-medium hover:bg-emerald-50 transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                                class="w-full flex items-center justify-center gap-2 border-2 border-emerald-400 text-emerald-700 rounded-lg py-2 px-4 font-medium hover:bg-emerald-50 transition-all disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                             >
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m14.836 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-14.837-2m14.837 2H15" />
@@ -428,7 +428,7 @@ const handleSubmit = async () => {
                             <button
                                 type="submit"
                                 :disabled="isSubmitting"
-                                class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg py-3 px-4 font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 disabled:hover:scale-100"
+                                class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg py-3 px-4 font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 disabled:hover:scale-100 cursor-pointer disabled:cursor-not-allowed"
                             >
                                 <svg v-if="!isSubmitting && hasGoogleData" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />

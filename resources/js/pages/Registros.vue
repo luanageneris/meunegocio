@@ -2490,7 +2490,7 @@ onBeforeUnmount(() => {
                             type="button"
                             @click="exportPeriodToExcel"
                             :disabled="isExportLoading"
-                            class="inline-flex items-center gap-2 px-3 py-2 border border-orange-300 rounded-lg bg-white text-orange-700 text-sm font-medium hover:bg-orange-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                            class="inline-flex items-center gap-2 px-3 py-2 border border-orange-300 rounded-lg bg-white text-orange-700 text-sm font-medium hover:bg-orange-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                         >
                             <svg v-if="!isExportLoading" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16V4m0 12l-4-4m4 4l4-4M4 20h16" />
@@ -2535,7 +2535,7 @@ onBeforeUnmount(() => {
                             <button
                                 v-if="isChartsView"
                                 @click="toggleChartsView"
-                                class="w-full sm:w-auto px-4 py-2 h-10 inline-flex items-center justify-center rounded-lg border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors"
+                                class="w-full sm:w-auto px-4 py-2 h-10 inline-flex items-center justify-center rounded-lg border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors cursor-pointer"
                                 title="Voltar para listagem"
                                 aria-label="Voltar para listagem"
                             >
@@ -2606,7 +2606,7 @@ onBeforeUnmount(() => {
                             <!-- Simplified button for removed mode -->
                             <button v-else
                                 @click="handleVerRemovidos"
-                                class="w-full sm:w-auto px-4 py-2 h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-red-400 text-red-600 hover:bg-red-50 transition-colors text-sm"
+                                class="w-full sm:w-auto px-4 py-2 h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-red-400 text-red-600 hover:bg-red-50 transition-colors text-sm cursor-pointer"
                                 title="Voltar para itens ativos"
                                 aria-label="Voltar para itens ativos"
                             >
@@ -2630,7 +2630,7 @@ onBeforeUnmount(() => {
                             <button
                                 type="button"
                                 @click="openImportHelpModal"
-                                class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-orange-300 bg-white text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-500/50 dark:bg-slate-950/80 dark:text-orange-300 dark:hover:bg-slate-800"
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-orange-300 bg-white text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-500/50 dark:bg-slate-950/80 dark:text-orange-300 dark:hover:bg-slate-800 cursor-pointer"
                                 aria-label="Abrir instruções de importação"
                                 title="Ver instruções"
                             >
@@ -2648,7 +2648,7 @@ onBeforeUnmount(() => {
                                     <p class="text-xs text-gray-500 dark:text-slate-400">{{ formatFileSize(selectedImportFile.size) }}</p>
                                 </div>
                             </div>
-                            <button @click="clearImportFile" class="px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">
+                            <button @click="clearImportFile" class="px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 cursor-pointer">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
@@ -2657,7 +2657,7 @@ onBeforeUnmount(() => {
 
                         <div v-else class="mb-3 p-3 sm:p-4 bg-white dark:bg-card border-2 border-dashed border-orange-300 dark:border-border rounded-lg text-center">
                             <p class="text-xs sm:text-sm text-gray-600 dark:text-slate-300">Nenhum arquivo selecionado</p>
-                            <button @click="openImportPicker" class="mt-1 text-xs text-orange-600 hover:text-orange-700 font-medium underline dark:text-orange-300 dark:hover:text-orange-200">
+                            <button @click="openImportPicker" class="mt-1 text-xs text-orange-600 hover:text-orange-700 font-medium underline dark:text-orange-300 dark:hover:text-orange-200 cursor-pointer">
                                 Escolher Excel
                             </button>
                         </div>
@@ -2744,10 +2744,10 @@ onBeforeUnmount(() => {
                         </div>
 
                         <div v-if="!importSuccess || importError" class="flex flex-col sm:flex-row justify-end gap-2 mt-3 sm:mt-4">
-                            <button @click="cancelImport" :disabled="isImportLoading" class="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-800">
+                            <button @click="cancelImport" :disabled="isImportLoading" class="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed">
                                 Cancelar
                             </button>
-                            <button @click="confirmImport" :disabled="isImportLoading || !selectedImportFile" class="px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                            <button @click="confirmImport" :disabled="isImportLoading || !selectedImportFile" class="px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed">
                                 <svg v-if="!isImportLoading" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                                 </svg>
@@ -2762,7 +2762,7 @@ onBeforeUnmount(() => {
                             </button>
                         </div>
                         <div v-if="importSuccess && !importError" class="flex justify-end mt-3 sm:mt-4">
-                            <button @click="cancelImport" class="px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all flex items-center justify-center gap-2">
+                            <button @click="cancelImport" class="px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer">
                                 <span>Fechar importação</span>
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
@@ -2783,7 +2783,7 @@ onBeforeUnmount(() => {
                                     <button
                                         type="button"
                                         @click="downloadImportTemplate"
-                                        class="inline-flex items-center gap-2 rounded-lg border border-orange-300 bg-white px-3 py-2 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-50 dark:border-orange-500/50 dark:bg-slate-950/80 dark:text-orange-300 dark:hover:bg-slate-800"
+                                        class="inline-flex items-center gap-2 rounded-lg border border-orange-300 bg-white px-3 py-2 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-50 dark:border-orange-500/50 dark:bg-slate-950/80 dark:text-orange-300 dark:hover:bg-slate-800 cursor-pointer"
                                     >
                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4m-7 8h6" />
@@ -2830,14 +2830,14 @@ onBeforeUnmount(() => {
                                 <button
                                     type="button"
                                     @click="cancelUnsavedCreateChanges"
-                                    class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800"
+                                    class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="button"
                                     @click="confirmUnsavedCreateChanges"
-                                    class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all"
+                                    class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg hover:shadow-md transition-all cursor-pointer"
                                 >
                                     Continuar e descartar
                                 </button>
@@ -2947,7 +2947,7 @@ onBeforeUnmount(() => {
                                 v-if="searchQuery"
                                 type="button"
                                 @click="clearSearchQuery"
-                                class="absolute inset-y-0 right-2 my-auto h-7 w-7 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                                class="absolute inset-y-0 right-2 my-auto h-7 w-7 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
                                 aria-label="Limpar busca"
                                 title="Limpar busca"
                             >
@@ -3058,8 +3058,8 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-4">
-                            <button @click="cancelCreateForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800">Cancelar</button>
-                            <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
+                            <button @click="cancelCreateForms" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer">Cancelar</button>
+                            <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed">
                                 {{ isEntryLoading ? 'Salvando...' : 'Salvar' }}
                             </button>
                         </div>
@@ -3111,8 +3111,8 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-4">
-                            <button @click="cancelCreateForms" class="px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800">Cancelar</button>
-                            <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
+                            <button @click="cancelCreateForms" class="px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer">Cancelar</button>
+                            <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed">
                                 {{ isExitLoading ? 'Salvando...' : 'Salvar' }}
                             </button>
                         </div>
@@ -3122,7 +3122,7 @@ onBeforeUnmount(() => {
                     <div class="space-y-3 min-h-[320px] w-full">
                         <div v-if="listError" role="alert" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
                             {{ listError }}
-                            <button type="button" class="ml-2 underline" @click="fetchRegistros(currentPage)">Tentar novamente</button>
+                            <button type="button" class="ml-2 underline cursor-pointer" @click="fetchRegistros(currentPage)">Tentar novamente</button>
                         </div>
                         <template v-if="isLoading || isListLoading">
                             <div
@@ -3260,8 +3260,8 @@ onBeforeUnmount(() => {
                                 </div>
                                 <div class="flex justify-end gap-2 mt-4">
                                     <button type="button" @click="invertEditingRecord" @keydown.enter.stop :disabled="isEntryLoading" class="mr-auto px-4 py-2 text-sm text-orange-700 hover:bg-orange-100 rounded-lg cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50 dark:text-orange-300 dark:hover:bg-slate-800">Inverter para saída</button>
-                                    <button @click="() => closeAllForms()" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800">Cancelar</button>
-                                    <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
+                                    <button @click="() => closeAllForms()" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer">Cancelar</button>
+                                    <button @click="saveEntry" :disabled="isEntryLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed">
                                         {{ isEntryLoading ? 'Salvando...' : 'Salvar' }}
                                     </button>
                                 </div>
@@ -3334,8 +3334,8 @@ onBeforeUnmount(() => {
                                 </div>
                                 <div class="flex justify-end gap-2 mt-4">
                                     <button type="button" @click="invertEditingRecord" @keydown.enter.stop :disabled="isExitLoading" class="mr-auto px-4 py-2 text-sm text-orange-700 hover:bg-orange-100 rounded-lg cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50 dark:text-orange-300 dark:hover:bg-slate-800">Inverter para entrada</button>
-                                    <button @click="() => closeAllForms()" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800">Cancelar</button>
-                                    <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50">
+                                    <button @click="() => closeAllForms()" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer">Cancelar</button>
+                                    <button @click="saveExit" :disabled="isExitLoading" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg hover:shadow-md transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed">
                                         {{ isExitLoading ? 'Salvando...' : 'Salvar' }}
                                     </button>
                                 </div>
@@ -3358,7 +3358,7 @@ onBeforeUnmount(() => {
                                         </div>
                                         <div class="flex gap-1 flex-shrink-0">
                                             <template v-if="showRemoved">
-                                                <button
+                                                <button class="cursor-pointer disabled:cursor-not-allowed"
                                                     @click="handleRestore(registro.id)"
                                                     :disabled="isRestoreLoading"
                                                     :class="['p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed', restoringRecordId === registro.id && isRestoreLoading ? 'text-green-600 bg-green-50' : 'text-green-500 hover:bg-green-50']"
@@ -3442,7 +3442,7 @@ onBeforeUnmount(() => {
                                     <!-- Actions -->
                                     <div class="flex gap-2 flex-shrink-0 ml-auto w-24 justify-end">
                                         <template v-if="showRemoved">
-                                            <button
+                                            <button class="cursor-pointer disabled:cursor-not-allowed"
                                                 @click="handleRestore(registro.id)"
                                                 :disabled="isRestoreLoading"
                                                 :class="['p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed', restoringRecordId === registro.id && isRestoreLoading ? 'text-green-600 bg-green-50' : 'text-green-500 hover:bg-green-50']"
@@ -3518,12 +3518,12 @@ onBeforeUnmount(() => {
                         <button
                             @click="goToPage(currentPage - 1)"
                             :disabled="currentPage === 1"
-                            class="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                         >
                             Anterior
                         </button>
 
-                        <button
+                        <button class="cursor-pointer"
                             v-for="page in totalPages"
                             :key="page"
                             @click="goToPage(page)"
@@ -3540,7 +3540,7 @@ onBeforeUnmount(() => {
                         <button
                             @click="goToPage(currentPage + 1)"
                             :disabled="currentPage === totalPages"
-                            class="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                         >
                             Próxima
                         </button>

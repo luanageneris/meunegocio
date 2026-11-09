@@ -263,7 +263,7 @@ onMounted(async () => {
                 <div v-else>
                     <!-- Tabs -->
                     <div class="flex justify-center gap-2 mb-8">
-                        <button @click="activeTab = 'hoje'" :class="[
+                        <button class="cursor-pointer" @click="activeTab = 'hoje'" :class="[
                             'px-6 py-2 rounded-full font-medium transition-all',
                             activeTab === 'hoje'
                                 ? 'bg-orange-500 text-white shadow-lg'
@@ -271,7 +271,7 @@ onMounted(async () => {
                         ]">
                             Hoje
                         </button>
-                        <button @click="activeTab = 'ultimos7dias'" :class="[
+                        <button class="cursor-pointer" @click="activeTab = 'ultimos7dias'" :class="[
                             'px-6 py-2 rounded-full font-medium transition-all',
                             activeTab === 'ultimos7dias'
                                 ? 'bg-orange-500 text-white shadow-lg'
@@ -279,7 +279,7 @@ onMounted(async () => {
                         ]">
                             Últimos 7 dias
                         </button>
-                        <button @click="activeTab = 'mensal'" :class="[
+                        <button class="cursor-pointer" @click="activeTab = 'mensal'" :class="[
                             'px-6 py-2 rounded-full font-medium transition-all',
                             activeTab === 'mensal'
                                 ? 'bg-orange-500 text-white shadow-lg'

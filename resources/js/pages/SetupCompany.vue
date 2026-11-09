@@ -198,7 +198,7 @@ onMounted(() => {
                     <button
                         type="submit"
                         :disabled="isLoading || success"
-                        class="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 dark:disabled:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition-colors mt-6"
+                        class="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 dark:disabled:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition-colors mt-6 cursor-pointer disabled:cursor-not-allowed"
                     >
                         <span v-if="isLoading" class="flex items-center justify-center">
                             <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

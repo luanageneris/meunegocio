@@ -1012,11 +1012,11 @@ onMounted(fetchData);
                             <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-4">
                                 <button
                                     @click="handleNewEntryType"
-                                    class="w-full sm:w-auto px-5 py-2 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg font-medium text-sm sm:text-base hover:shadow-lg transition-all"
+                                    class="w-full sm:w-auto px-5 py-2 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg font-medium text-sm sm:text-base hover:shadow-lg transition-all cursor-pointer"
                                 >
                                     + Novo Tipo
                                 </button>
-                                <button
+                                <button class="cursor-pointer"
                                     @click="toggleEntryTypeRemoved"
                                     :class="[
                                         'w-full sm:w-auto px-5 py-2 border-2 rounded-lg font-medium text-sm sm:text-base transition-all',
@@ -1059,7 +1059,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="saveNewEntryType"
                                                 :disabled="isEntryTypeModalLoading"
-                                                class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50 dark:text-green-300 dark:hover:bg-slate-800"
+                                                class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50 dark:text-green-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                                 title="Salvar"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1069,7 +1069,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="cancelNewEntryType"
                                                 :disabled="isEntryTypeModalLoading"
-                                                class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                                                class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                                 title="Cancelar"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1112,7 +1112,7 @@ onMounted(fetchData);
                                                 <button
                                                     @click="saveEditEntryType"
                                                     :disabled="isEntryTypeModalLoading"
-                                                    class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 dark:text-blue-300 dark:hover:bg-slate-800"
+                                                    class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 dark:text-blue-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                                     title="Salvar"
                                                 >
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1122,7 +1122,7 @@ onMounted(fetchData);
                                                 <button
                                                     @click="cancelEditEntryType"
                                                     :disabled="isEntryTypeModalLoading"
-                                                    class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                                                    class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                                     title="Cancelar"
                                                 >
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1197,7 +1197,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="cancelDeleteEntryType"
                                                 :disabled="isEntryTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                             >
                                                 Cancelar
                                             </button>
@@ -1205,7 +1205,7 @@ onMounted(fetchData);
                                                 ref="entryTypeDeleteConfirmButtonRef"
                                                 @click="confirmDeleteEntryType"
                                                 :disabled="isEntryTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                             >
                                                 {{ isEntryTypeDeleteLoading ? 'Removendo...' : 'Remover' }}
                                             </button>
@@ -1231,7 +1231,7 @@ onMounted(fetchData);
                                     <button
                                         @click="saveEntryTypeFromSearch"
                                         :disabled="isEntryTypeModalLoading"
-                                        class="inline-flex w-full sm:w-auto max-w-full items-center justify-center rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600 disabled:opacity-50"
+                                        class="inline-flex w-full sm:w-auto max-w-full items-center justify-center rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                     >
                                         <span class="block max-w-full truncate">{{ isEntryTypeModalLoading ? 'Criando...' : `Criar "${entryTypeSearch.trim()}"` }}</span>
                                     </button>
@@ -1255,11 +1255,11 @@ onMounted(fetchData);
                             <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-4">
                                 <button
                                     @click="handleNewExitType"
-                                    class="w-full sm:w-auto px-5 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-lg font-medium text-sm sm:text-base hover:shadow-lg transition-all"
+                                    class="w-full sm:w-auto px-5 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-lg font-medium text-sm sm:text-base hover:shadow-lg transition-all cursor-pointer"
                                 >
                                     + Novo Tipo
                                 </button>
-                                <button
+                                <button class="cursor-pointer"
                                     @click="toggleExitTypeRemoved"
                                     :class="[
                                         'w-full sm:w-auto px-5 py-2 border-2 rounded-lg font-medium text-sm sm:text-base transition-all',
@@ -1302,7 +1302,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="saveNewExitType"
                                                 :disabled="isExitTypeModalLoading"
-                                                class="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 dark:text-red-300 dark:hover:bg-slate-800"
+                                                class="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 dark:text-red-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                                 title="Salvar"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1312,7 +1312,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="cancelNewExitType"
                                                 :disabled="isExitTypeModalLoading"
-                                                class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                                                class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                                 title="Cancelar"
                                             >
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1354,7 +1354,7 @@ onMounted(fetchData);
                                                 <button
                                                     @click="saveEditExitType"
                                                     :disabled="isExitTypeModalLoading"
-                                                    class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 dark:text-blue-300 dark:hover:bg-slate-800"
+                                                    class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 dark:text-blue-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                                     title="Salvar"
                                                 >
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1364,7 +1364,7 @@ onMounted(fetchData);
                                                 <button
                                                     @click="cancelEditExitType"
                                                     :disabled="isExitTypeModalLoading"
-                                                    class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                                                    class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                                     title="Cancelar"
                                                 >
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1439,7 +1439,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="cancelDeleteExitType"
                                                 :disabled="isExitTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                             >
                                                 Cancelar
                                             </button>
@@ -1447,7 +1447,7 @@ onMounted(fetchData);
                                                 ref="exitTypeDeleteConfirmButtonRef"
                                                 @click="confirmDeleteExitType"
                                                 :disabled="isExitTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                             >
                                                 {{ isExitTypeDeleteLoading ? 'Removendo...' : 'Remover' }}
                                             </button>
@@ -1473,7 +1473,7 @@ onMounted(fetchData);
                                     <button
                                         @click="saveExitTypeFromSearch"
                                         :disabled="isExitTypeModalLoading"
-                                        class="inline-flex w-full sm:w-auto max-w-full items-center justify-center rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                                        class="inline-flex w-full sm:w-auto max-w-full items-center justify-center rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                     >
                                         <span class="block max-w-full truncate">{{ isExitTypeModalLoading ? 'Criando...' : `Criar "${exitTypeSearch.trim()}"` }}</span>
                                     </button>
@@ -1494,7 +1494,7 @@ onMounted(fetchData);
                                         <button
                                             type="button"
                                             @click="showServiceModeInfo = !showServiceModeInfo"
-                                            class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100"
+                                            class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100 cursor-pointer"
                                             aria-label="Informações sobre o Modo Tipo de Serviço"
                                             :aria-expanded="showServiceModeInfo"
                                         >
@@ -1514,7 +1514,7 @@ onMounted(fetchData);
                                             </p>
                                         </div>
                                     </div>
-                                    <button
+                                    <button class="cursor-pointer disabled:cursor-not-allowed"
                                         @click="toggleServiceMode"
                                         :disabled="savingSettings"
                                         :class="[
@@ -1554,7 +1554,7 @@ onMounted(fetchData);
                             </div>
 
                             <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-4">
-                                <button
+                                <button class="cursor-pointer disabled:cursor-not-allowed"
                                     @click="handleNewServiceType()"
                                     :disabled="!serviceModeOn"
                                     :class="[
@@ -1566,7 +1566,7 @@ onMounted(fetchData);
                                 >
                                     + Novo Tipo
                                 </button>
-                                <button
+                                <button class="cursor-pointer disabled:cursor-not-allowed"
                                     @click="toggleServiceTypeRemoved"
                                     :disabled="!serviceModeOn"
                                     :class="[
@@ -1686,12 +1686,12 @@ onMounted(fetchData);
                                             <button
                                                 @click="cancelNewServiceType"
                                                 :disabled="isServiceTypeModalLoading"
-                                                class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                                                class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                             >Cancelar</button>
                                             <button
                                                 @click="saveNewServiceType"
                                                 :disabled="isServiceTypeModalLoading"
-                                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                             >Salvar</button>
                                         </div>
                                     </div>
@@ -1796,12 +1796,12 @@ onMounted(fetchData);
                                             <button
                                                 @click="cancelEditServiceType"
                                                 :disabled="isServiceTypeModalLoading"
-                                                class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                                                class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                             >Cancelar</button>
                                             <button
                                                 @click="saveEditServiceType"
                                                 :disabled="isServiceTypeModalLoading"
-                                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                             >Salvar</button>
                                         </div>
                                     </div>
@@ -1883,7 +1883,7 @@ onMounted(fetchData);
                                             <button
                                                 @click="cancelDeleteServiceType"
                                                 :disabled="isServiceTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                             >
                                                 Cancelar
                                             </button>
@@ -1891,7 +1891,7 @@ onMounted(fetchData);
                                                 ref="serviceTypeDeleteConfirmButtonRef"
                                                 @click="confirmDeleteServiceType"
                                                 :disabled="isServiceTypeDeleteLoading"
-                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                                class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                             >
                                                 {{ isServiceTypeDeleteLoading ? 'Removendo...' : 'Remover' }}
                                             </button>
@@ -1917,7 +1917,7 @@ onMounted(fetchData);
                                     <button
                                         @click="handleNewServiceType(serviceTypeSearch, true)"
                                         :disabled="isServiceTypeModalLoading"
-                                        class="inline-flex w-full sm:w-auto max-w-full items-center justify-center rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+                                        class="inline-flex w-full sm:w-auto max-w-full items-center justify-center rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                     >
                                         <span class="block max-w-full truncate">Criar "{{ serviceTypeSearch.trim() }}"</span>
                                     </button>

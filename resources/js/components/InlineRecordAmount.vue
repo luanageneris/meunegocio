@@ -59,24 +59,24 @@ async function submit() {
             <TooltipProvider :delay-duration="0">
                 <Tooltip>
                     <TooltipTrigger as-child>
-                        <button type="button" class="rounded p-1 text-gray-500 hover:text-orange-500" aria-label="Ajuda sobre cálculos">
+                        <button type="button" class="rounded p-1 text-gray-500 hover:text-orange-500 cursor-pointer" aria-label="Ajuda sobre cálculos">
                             <Info class="h-4 w-4" />
                         </button>
                     </TooltipTrigger>
                     <TooltipContent>Use +, −, * ou / para calcular.</TooltipContent>
                 </Tooltip>
             </TooltipProvider>
-            <button type="submit" :disabled="saving" class="rounded p-1 text-orange-600 hover:bg-orange-100 disabled:opacity-50" aria-label="Salvar valor" title="Salvar valor">
+            <button type="submit" :disabled="saving" class="rounded p-1 text-orange-600 hover:bg-orange-100 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed" aria-label="Salvar valor" title="Salvar valor">
                 <Check class="h-4 w-4" />
             </button>
-            <button type="button" :disabled="saving" class="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-50" aria-label="Cancelar edição do valor" title="Cancelar" @click="editing = false">
+            <button type="button" :disabled="saving" class="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed" aria-label="Cancelar edição do valor" title="Cancelar" @click="editing = false">
                 <X class="h-4 w-4" />
             </button>
         </form>
         <p v-if="saving" class="mt-1 text-xs text-gray-500">Salvando...</p>
         <p v-if="error" role="alert" class="mt-1 text-xs text-red-600">{{ error }}</p>
     </div>
-    <button v-else type="button" :class="['font-bold underline-offset-4 decoration-dotted hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-orange-500', type === 'entrada' ? 'text-yellow-500 decoration-orange-500' : 'text-orange-500 decoration-orange-500']" title="Editar valor" aria-label="Editar valor" @click.stop="startEditing">
+    <button class="cursor-pointer" v-else type="button" :class="['font-bold underline-offset-4 decoration-dotted hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-orange-500', type === 'entrada' ? 'text-yellow-500 decoration-orange-500' : 'text-orange-500 decoration-orange-500']" title="Editar valor" aria-label="Editar valor" @click.stop="startEditing">
         {{ type === 'entrada' ? '+' : '−' }} {{ amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}
     </button>
 </template>

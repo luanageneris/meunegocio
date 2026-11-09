@@ -88,6 +88,26 @@ class EntryTypeApiTest extends TestCase
         ]);
     }
 
+    public function test_company_owner_can_create_entry_type(): void
+    {
+        $owner = User::factory()->create([
+            'company_id' => $this->company->id,
+            'role' => 'owner',
+        ]);
+
+        $response = $this->actingAs($owner, 'sanctum')
+            ->postJson('/api/personalizar/entry-types', [
+                'name' => 'Venda de produtos',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonFragment(['name' => 'Venda de produtos']);
+        $this->assertDatabaseHas('entry_types', [
+            'name' => 'Venda de produtos',
+            'company_id' => $this->company->id,
+        ]);
+    }
+
     public function test_can_update_entry_type()
     {
         $entryType = EntryType::create([

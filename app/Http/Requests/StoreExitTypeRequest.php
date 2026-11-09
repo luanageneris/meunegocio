@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -9,7 +10,12 @@ class StoreExitTypeRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->isRoot();
+        return $this->user()->canManageFinancialRecords();
+    }
+
+    protected function failedAuthorization(): void
+    {
+        throw new AuthorizationException('Apenas o proprietário da empresa pode criar tipos de saída.');
     }
 
     public function rules(): array

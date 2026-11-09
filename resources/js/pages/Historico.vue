@@ -670,19 +670,19 @@ onMounted(() => {
       <main class="w-full min-w-0 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
         <!-- Stats Cards -->
         <div v-if="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-          <button type="button" :class="quickFilterCardClass('all')" @click="applyQuickFilter('all')">
+          <button class="cursor-pointer" type="button" :class="quickFilterCardClass('all')" @click="applyQuickFilter('all')">
             <p class="text-gray-600 text-xs font-semibold text-center">Últimos 30 dias</p>
             <p class="text-3xl font-black text-orange-600 text-center mt-2">{{ stats.total }}</p>
           </button>
-          <button type="button" :class="quickFilterCardClass('create')" @click="applyQuickFilter('create')">
+          <button class="cursor-pointer" type="button" :class="quickFilterCardClass('create')" @click="applyQuickFilter('create')">
             <p class="text-gray-600 text-xs font-semibold text-center">Novos registros</p>
             <p class="text-3xl font-black text-green-600 text-center mt-2">{{ stats.by_action.create }}</p>
           </button>
-          <button type="button" :class="quickFilterCardClass('update')" @click="applyQuickFilter('update')">
+          <button class="cursor-pointer" type="button" :class="quickFilterCardClass('update')" @click="applyQuickFilter('update')">
             <p class="text-gray-600 text-xs font-semibold text-center">Registros modificados</p>
             <p class="text-3xl font-black text-blue-600 text-center mt-2">{{ stats.by_action.update }}</p>
           </button>
-          <button type="button" :class="quickFilterCardClass('delete')" @click="applyQuickFilter('delete')">
+          <button class="cursor-pointer" type="button" :class="quickFilterCardClass('delete')" @click="applyQuickFilter('delete')">
             <p class="text-gray-600 text-xs font-semibold text-center">Registros removidos</p>
             <p class="text-3xl font-black text-red-600 text-center mt-2">{{ stats.by_action.delete }}</p>
           </button>
@@ -698,7 +698,7 @@ onMounted(() => {
               Filtros
             </h2>
 
-            <button
+            <button class="cursor-pointer disabled:cursor-not-allowed"
               type="button"
               :disabled="!hasActiveFilters()"
               :class="[
@@ -719,7 +719,7 @@ onMounted(() => {
             <button
               v-if="selectedFilter !== 'all'"
               type="button"
-              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold border border-orange-200 hover:bg-orange-200 transition"
+              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold border border-orange-200 hover:bg-orange-200 transition cursor-pointer"
               @click="removeActionFilter"
             >
               Ação: {{ getActionLabel(selectedFilter) }}
@@ -729,7 +729,7 @@ onMounted(() => {
             <button
               v-if="selectedModel"
               type="button"
-              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold border border-orange-200 hover:bg-orange-200 transition"
+              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold border border-orange-200 hover:bg-orange-200 transition cursor-pointer"
               @click="removeModelFilter"
             >
               Tipo: {{ getModelLabel(selectedModel) }}
@@ -739,7 +739,7 @@ onMounted(() => {
             <button
               v-if="dateFrom"
               type="button"
-              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold border border-orange-200 hover:bg-orange-200 transition"
+              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold border border-orange-200 hover:bg-orange-200 transition cursor-pointer"
               @click="removeDateFromFilter"
             >
               De: {{ formatInputDate(dateFrom) }}
@@ -749,7 +749,7 @@ onMounted(() => {
             <button
               v-if="dateTo"
               type="button"
-              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold border border-orange-200 hover:bg-orange-200 transition"
+              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold border border-orange-200 hover:bg-orange-200 transition cursor-pointer"
               @click="removeDateToFilter"
             >
               Até: {{ formatInputDate(dateTo) }}
@@ -926,7 +926,7 @@ onMounted(() => {
               <button
                 v-if="currentPage > 1"
                 @click="fetchLogs(currentPage - 1)"
-                class="px-4 py-2 rounded-lg border-2 border-orange-200 text-orange-700 hover:bg-orange-100 transition font-semibold"
+                class="px-4 py-2 rounded-lg border-2 border-orange-200 text-orange-700 hover:bg-orange-100 transition font-semibold cursor-pointer"
               >
                 ← Anterior
               </button>
@@ -934,7 +934,7 @@ onMounted(() => {
               <button
                 v-if="currentPage < totalPages"
                 @click="fetchLogs(currentPage + 1)"
-                class="px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition font-semibold"
+                class="px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition font-semibold cursor-pointer"
               >
                 Próxima →
               </button>

@@ -124,7 +124,7 @@ const handleSave = () => {
                 @click="handleClose"
                 type="button"
                 :disabled="props.isLoading"
-                class="px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                class="px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
                 Cancelar
             </button>
@@ -132,7 +132,7 @@ const handleSave = () => {
                 @click="handleSave"
                 type="button"
                 :disabled="props.isLoading"
-                class="px-6 py-2 text-sm font-medium bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors disabled:opacity-50"
+                class="px-6 py-2 text-sm font-medium bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
                 {{ props.isLoading ? 'Salvando...' : 'Salvar' }}
             </button>

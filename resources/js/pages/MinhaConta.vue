@@ -754,7 +754,7 @@ onMounted(async () => {
                                         v-if="canEdit && userProfileHasChanges"
                                         @click="saveUserProfile"
                                         :disabled="userProfileSaving"
-                                        class="w-full mt-4 px-4 py-2.5 bg-blue-500 dark:bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        class="w-full mt-4 px-4 py-2.5 bg-blue-500 dark:bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer disabled:cursor-not-allowed"
                                     >
                                         {{ userProfileSaving ? 'Salvando...' : 'Salvar Perfil' }}
                                     </button>
@@ -892,7 +892,7 @@ onMounted(async () => {
                                     type="button"
                                     :disabled="isSaving || !canEdit || !hasChanges"
                                     @click="save"
-                                    class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                                 >
                                     {{ isSaving ? 'Salvando...' : 'Salvar alterações' }}
                                 </button>
@@ -939,7 +939,7 @@ onMounted(async () => {
                                             <div class="space-y-2">
                                                 <label class="block text-sm font-medium text-gray-700">Dias da semana</label>
                                                 <div class="flex flex-wrap gap-2">
-                                                    <button
+                                                    <button class="cursor-pointer disabled:cursor-not-allowed"
                                                         v-for="weekday in weekdays"
                                                         :key="weekday.value"
                                                         type="button"
@@ -1004,7 +1004,7 @@ onMounted(async () => {
                                             type="button"
                                             :disabled="reminderSettingsSaving || !canEdit || !hasReminderChanges"
                                             @click="saveReminderSettings"
-                                            class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                            class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                                         >
                                             {{ reminderSettingsSaving ? 'Salvando lembretes...' : 'Salvar lembretes' }}
                                         </button>
@@ -1058,7 +1058,7 @@ onMounted(async () => {
                                             type="button"
                                             :disabled="passwordFormSaving"
                                             @click="submitPasswordChange"
-                                            class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                            class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                                         >
                                             {{ passwordFormSaving ? 'Atualizando...' : 'Atualizar senha' }}
                                         </button>
@@ -1081,7 +1081,7 @@ onMounted(async () => {
                                     <button
                                         type="button"
                                         disabled
-                                        class="w-full sm:w-auto px-4 py-3 border border-amber-200 text-orange-600 rounded-lg font-medium bg-orange-50 cursor-not-allowed"
+                                        class="w-full sm:w-auto px-4 py-3 border border-amber-200 text-orange-600 rounded-lg font-medium bg-orange-50 cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                                     >
                                         Upload dispon?vel em breve
                                     </button>
@@ -1098,7 +1098,7 @@ onMounted(async () => {
                                         type="button"
                                         :disabled="!canEdit || isClearingRecords"
                                         @click="openClearRecordsModal"
-                                        class="w-full sm:w-auto px-5 py-3 bg-orange-50 text-orange-600 border border-orange-300 rounded-lg font-medium hover:bg-orange-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                        class="w-full sm:w-auto px-5 py-3 bg-orange-50 text-orange-600 border border-orange-300 rounded-lg font-medium hover:bg-orange-100 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                                     >
                                         Limpar registros
                                     </button>
@@ -1106,7 +1106,7 @@ onMounted(async () => {
                                         type="button"
                                         :disabled="!canEdit || isDeleting"
                                         @click="openDeleteModal"
-                                        class="w-full sm:w-auto px-5 py-3 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium hover:bg-red-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                        class="w-full sm:w-auto px-5 py-3 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium hover:bg-red-100 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                                     >
                                         Apagar conta
                                     </button>
@@ -1159,7 +1159,7 @@ onMounted(async () => {
                         <div class="flex flex-col sm:flex-row gap-3 sm:justify-end">
                             <button
                                 type="button"
-                                class="w-full sm:w-auto px-5 py-3 rounded-lg font-semibold border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 transition"
+                                class="w-full sm:w-auto px-5 py-3 rounded-lg font-semibold border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 transition cursor-pointer disabled:cursor-not-allowed"
                                 @click="closeDeleteModal"
                                 :disabled="isDeleting"
                             >
@@ -1167,7 +1167,7 @@ onMounted(async () => {
                             </button>
                             <button
                                 type="button"
-                                class="w-full sm:w-auto px-5 py-3 rounded-lg font-semibold border border-red-300 text-white bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                class="w-full sm:w-auto px-5 py-3 rounded-lg font-semibold border border-red-300 text-white bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                                 @click="handleDeleteConfirm"
                                 :disabled="isDeleting"
                             >
@@ -1218,7 +1218,7 @@ onMounted(async () => {
                         <div class="flex flex-col sm:flex-row gap-3 sm:justify-end">
                             <button
                                 type="button"
-                                class="w-full sm:w-auto px-5 py-3 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition"
+                                class="w-full sm:w-auto px-5 py-3 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition cursor-pointer disabled:cursor-not-allowed"
                                 @click="closeClearRecordsModal"
                                 :disabled="isClearingRecords"
                             >
@@ -1226,7 +1226,7 @@ onMounted(async () => {
                             </button>
                             <button
                                 type="button"
-                                class="w-full sm:w-auto px-5 py-3 rounded-lg font-semibold border border-orange-300 text-white bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                class="w-full sm:w-auto px-5 py-3 rounded-lg font-semibold border border-orange-300 text-white bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                                 @click="handleClearRecordsConfirm"
                                 :disabled="isClearingRecords"
                             >

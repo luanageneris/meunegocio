@@ -166,7 +166,7 @@ const cancelDiscard = () => {
             <button
                 @click="handleClose"
                 type="button"
-                class="px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                class="px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
             >
                 Cancelar
             </button>
@@ -174,7 +174,7 @@ const cancelDiscard = () => {
                 @click="handleSave"
                 :disabled="isLoading || !form.name.trim()"
                 type="button"
-                class="px-6 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-6 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
             >
                 {{ isLoading ? 'Salvando...' : 'Salvar' }}
             </button>

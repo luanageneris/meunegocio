@@ -158,7 +158,7 @@ watch(
                 @click="toggleDropdown"
                 type="button"
                 :disabled="disabled"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-left flex justify-between items-center hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-left flex justify-between items-center hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                 :class="{ 'ring-2 ring-red-400': error }"
             >
                 <span :class="{ 'text-gray-500': !modelValue }">
@@ -199,7 +199,7 @@ watch(
                         :key="option.id"
                         @click="selectOption(option)"
                         type="button"
-                        class="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 transition-colors flex justify-between items-center"
+                        class="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 transition-colors flex justify-between items-center cursor-pointer"
                         :class="{
                             'bg-blue-100 text-blue-900': modelValue?.id === option.id,
                         }"
@@ -222,7 +222,7 @@ watch(
                     <button
                         @click="openCreateModal"
                         type="button"
-                        class="w-full px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded-lg transition-colors font-medium flex items-center gap-2"
+                        class="w-full px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded-lg transition-colors font-medium flex items-center gap-2 cursor-pointer"
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -299,7 +299,7 @@ watch(
                         @click="closeCreateModal"
                         type="button"
                         :disabled="isLoadingCreate"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                     >
                         Cancelar
                     </button>
@@ -307,7 +307,7 @@ watch(
                         @click="handleCreateConfirm"
                         type="button"
                         :disabled="isLoadingCreate || !createFormData.name.trim() || (entityType === 'collaborator' && createFormData.cpf.replace(/\D/g, '').length !== 11)"
-                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                     >
                         {{ isLoadingCreate ? 'Criando...' : 'Criar' }}
                     </button>

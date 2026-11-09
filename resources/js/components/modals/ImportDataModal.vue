@@ -175,7 +175,7 @@ watch(
                         <button
                             @click="openFileDialog"
                             type="button"
-                            class="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+                            class="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 cursor-pointer"
                         >
                             Selecionar arquivo
                         </button>
@@ -191,7 +191,7 @@ watch(
                                 @click="removeFile"
                                 type="button"
                                 :disabled="isImporting"
-                                class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 disabled:opacity-50"
+                                class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                             >
                                 Remover
                             </button>
@@ -254,7 +254,7 @@ watch(
                     @click="handleClose"
                     type="button"
                     :disabled="isImporting"
-                    class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                 >
                     Cancelar
                 </button>
@@ -262,7 +262,7 @@ watch(
                     @click="handleImport"
                     type="button"
                     :disabled="!isFormValid || isImporting"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                 >
                     <svg v-if="!isImporting" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />

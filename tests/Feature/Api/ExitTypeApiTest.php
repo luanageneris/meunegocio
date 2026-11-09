@@ -88,6 +88,26 @@ class ExitTypeApiTest extends TestCase
         ]);
     }
 
+    public function test_company_owner_can_create_exit_type(): void
+    {
+        $owner = User::factory()->create([
+            'company_id' => $this->company->id,
+            'role' => 'owner',
+        ]);
+
+        $response = $this->actingAs($owner, 'sanctum')
+            ->postJson('/api/personalizar/exit-types', [
+                'name' => 'Aluguel',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonFragment(['name' => 'Aluguel']);
+        $this->assertDatabaseHas('exit_types', [
+            'name' => 'Aluguel',
+            'company_id' => $this->company->id,
+        ]);
+    }
+
     public function test_can_update_exit_type()
     {
         $exitType = ExitType::create([

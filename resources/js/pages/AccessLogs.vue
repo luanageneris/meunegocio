@@ -180,7 +180,7 @@ onMounted(async () => {
                     <LoadingSpinner v-if="isStatisticsLoading" class="mt-6" message="Carregando gráficos de acesso..." />
                     <div v-else-if="statisticsError" class="mt-6 text-sm text-red-700 dark:text-red-300" role="alert">
                         {{ statisticsError }}
-                        <button type="button" class="ml-2 underline" @click="fetchStatistics">Tentar novamente</button>
+                        <button type="button" class="ml-2 underline cursor-pointer" @click="fetchStatistics">Tentar novamente</button>
                     </div>
                     <div v-else-if="statistics" class="mt-6 space-y-8">
                         <div>
@@ -214,7 +214,7 @@ onMounted(async () => {
                         <LoadingSpinner v-if="isLoading" message="Carregando logs de acesso..." />
                         <div v-else-if="logsError" class="text-sm text-red-700 dark:text-red-300" role="alert">
                             {{ logsError }}
-                            <button type="button" class="ml-2 underline" @click="fetchLogs(currentPage)">Tentar novamente</button>
+                            <button type="button" class="ml-2 underline cursor-pointer" @click="fetchLogs(currentPage)">Tentar novamente</button>
                         </div>
 
                         <div v-else class="space-y-4">
@@ -285,12 +285,12 @@ onMounted(async () => {
                                 <button
                                     @click="goToPage(currentPage - 1)"
                                     :disabled="currentPage === 1"
-                                    class="rounded-lg border border-amber-200 px-3 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+                                    class="rounded-lg border border-amber-200 px-3 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                 >
                                     Anterior
                                 </button>
                                 <div class="flex gap-1">
-                                    <button
+                                    <button class="cursor-pointer"
                                         v-for="page in totalPages"
                                         :key="page"
                                         @click="goToPage(page)"
@@ -307,7 +307,7 @@ onMounted(async () => {
                                 <button
                                     @click="goToPage(currentPage + 1)"
                                     :disabled="currentPage === totalPages"
-                                    class="rounded-lg border border-amber-200 px-3 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+                                    class="rounded-lg border border-amber-200 px-3 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                 >
                                     Próxima
                                 </button>

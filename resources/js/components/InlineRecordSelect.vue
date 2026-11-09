@@ -85,7 +85,7 @@ async function submit() {
         </select>
         <span v-if="loading" class="sr-only" role="status">Carregando opções...</span>
     </InlineRecordEditor>
-    <button v-else type="button" class="max-w-full truncate text-left text-gray-700 decoration-orange-500 underline-offset-4 decoration-dotted hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-orange-500 dark:text-slate-200" :aria-label="`Editar ${label}`" :title="`Editar ${label}`" @click.stop="startEditing">
+    <button v-else type="button" class="max-w-full truncate text-left text-gray-700 decoration-orange-500 underline-offset-4 decoration-dotted hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-orange-500 dark:text-slate-200 cursor-pointer" :aria-label="`Editar ${label}`" :title="`Editar ${label}`" @click.stop="startEditing">
         {{ text || '-' }}
     </button>
 </template>

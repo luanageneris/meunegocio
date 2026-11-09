@@ -139,7 +139,7 @@ onBeforeUnmount(() => {
         <button
             @click="toggleTheme"
             :aria-label="appearance === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'"
-            class="fixed top-4 right-4 z-50 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/80 dark:bg-card/80 backdrop-blur border border-gray-200 dark:border-border text-gray-600 dark:text-muted-foreground hover:text-orange-500 dark:hover:text-orange-400 shadow-sm transition-colors"
+            class="fixed top-4 right-4 z-50 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/80 dark:bg-card/80 backdrop-blur border border-gray-200 dark:border-border text-gray-600 dark:text-muted-foreground hover:text-orange-500 dark:hover:text-orange-400 shadow-sm transition-colors cursor-pointer"
         >
             <Sun v-if="appearance === 'dark'" class="h-4 w-4" />
             <Moon v-else class="h-4 w-4" />
@@ -165,7 +165,7 @@ onBeforeUnmount(() => {
                     </p>
                     <button
                         @click="closeCookieBanner"
-                        class="text-gray-600 dark:text-muted-foreground hover:text-gray-800 dark:hover:text-foreground transition-colors p-1 md:ml-2 flex-shrink-0"
+                        class="text-gray-600 dark:text-muted-foreground hover:text-gray-800 dark:hover:text-foreground transition-colors p-1 md:ml-2 flex-shrink-0 cursor-pointer"
                         aria-label="Fechar banner de cookies"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -248,7 +248,7 @@ onBeforeUnmount(() => {
                                 <button
                                     type="button"
                                     @click="showPassword = !showPassword"
-                                    class="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 dark:text-muted-foreground dark:hover:text-foreground"
+                                    class="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 dark:text-muted-foreground dark:hover:text-foreground cursor-pointer"
                                     aria-label="Mostrar ou ocultar senha"
                                 >
                                     <EyeOff v-if="showPassword" class="h-5 w-5" />
@@ -260,7 +260,7 @@ onBeforeUnmount(() => {
                         <button
                             type="submit"
                             :disabled="isLoading"
-                            class="w-full rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-3 font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                            class="w-full rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-3 font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
                         >
                             {{ isLoading ? 'Entrando...' : 'Entrar' }}
                         </button>

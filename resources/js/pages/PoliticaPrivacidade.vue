@@ -39,7 +39,7 @@ const handleBack = () => {
             <div class="flex items-center gap-3 self-start sm:self-auto">
                 <button
                     type="button"
-                    class="px-4 py-2 rounded-full border border-orange-200 text-orange-700 font-semibold hover:border-orange-400 hover:text-orange-800 transition dark:border-orange-500/40 dark:text-orange-300 dark:hover:border-orange-400 dark:hover:text-orange-200"
+                    class="px-4 py-2 rounded-full border border-orange-200 text-orange-700 font-semibold hover:border-orange-400 hover:text-orange-800 transition dark:border-orange-500/40 dark:text-orange-300 dark:hover:border-orange-400 dark:hover:text-orange-200 cursor-pointer"
                     @click="handleBack"
                 >
                     Voltar

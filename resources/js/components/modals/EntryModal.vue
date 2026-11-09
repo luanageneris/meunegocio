@@ -500,21 +500,21 @@ onMounted(() => {
                 v-if="mode === 'create'"
                 @click="handleSaveAndReference"
                 type="button"
-                class="px-4 py-2 text-sm font-medium text-yellow-700 hover:text-yellow-800 transition-colors"
+                class="px-4 py-2 text-sm font-medium text-yellow-700 hover:text-yellow-800 transition-colors cursor-pointer"
             >
                 Salvar e criar um novo
             </button>
             <button
                 @click="handleClose"
                 type="button"
-                class="px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                class="px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
             >
                 Cancelar
             </button>
             <button
                 @click="handleSave"
                 type="button"
-                class="px-6 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                class="px-6 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-white rounded-lg font-medium hover:shadow-lg transition-all cursor-pointer"
             >
                 Salvar
             </button>

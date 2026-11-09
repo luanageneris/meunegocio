@@ -437,7 +437,7 @@ onMounted(() => fetchCollaborators(true));
                     <div class="flex flex-wrap items-center gap-3 mb-4">
                         <button
                             @click="handleNew"
-                            class="px-5 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                            class="px-5 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all cursor-pointer"
                         >
                             Novo
                         </button>
@@ -509,7 +509,7 @@ onMounted(() => fetchCollaborators(true));
                                         <button
                                             @click="saveNew"
                                             :disabled="isFormLoading"
-                                            class="p-2 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors disabled:opacity-50"
+                                            class="p-2 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                             title="Salvar"
                                         >
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -519,7 +519,7 @@ onMounted(() => fetchCollaborators(true));
                                         <button
                                             @click="cancelNew"
                                             :disabled="isFormLoading"
-                                            class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                                            class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                             title="Cancelar"
                                         >
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -574,7 +574,7 @@ onMounted(() => fetchCollaborators(true));
                                         <button
                                             @click="saveEdit"
                                             :disabled="isFormLoading"
-                                            class="p-2 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors disabled:opacity-50"
+                                            class="p-2 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                             title="Salvar"
                                         >
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -584,7 +584,7 @@ onMounted(() => fetchCollaborators(true));
                                         <button
                                             @click="cancelEdit"
                                             :disabled="isFormLoading"
-                                            class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                                            class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                             title="Cancelar"
                                         >
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -624,7 +624,7 @@ onMounted(() => fetchCollaborators(true));
                                 <div class="flex gap-2" v-if="!collab.deleted_at">
                                     <button
                                         @click="openSummaryModal(collab)"
-                                        class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                        class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                                         title="Resumo"
                                     >
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -633,7 +633,7 @@ onMounted(() => fetchCollaborators(true));
                                     </button>
                                     <button
                                         @click="handleEdit(collab)"
-                                        class="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+                                        class="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
                                         title="Editar"
                                     >
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -642,7 +642,7 @@ onMounted(() => fetchCollaborators(true));
                                     </button>
                                     <button
                                         @click="handleDelete(collab)"
-                                        class="p-2 text-red-500 hover:bg-amber-50 rounded-lg transition-colors"
+                                        class="p-2 text-red-500 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
                                         title="Remover"
                                     >
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -651,7 +651,7 @@ onMounted(() => fetchCollaborators(true));
                                     </button>
                                 </div>
                                 <div v-else class="flex gap-2">
-                                    <button
+                                    <button class="cursor-pointer disabled:cursor-not-allowed"
                                         @click="handleRestore(collab)"
                                         :disabled="isRestoreLoading"
                                         :class="[
@@ -680,7 +680,7 @@ onMounted(() => fetchCollaborators(true));
                                     <button
                                         @click="cancelDelete"
                                         :disabled="isDeleteLoading"
-                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800"
+                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                                     >
                                         Cancelar
                                     </button>
@@ -688,7 +688,7 @@ onMounted(() => fetchCollaborators(true));
                                         ref="deleteConfirmButtonRef"
                                         @click="confirmDelete"
                                         :disabled="isDeleteLoading"
-                                        class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                                        class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                     >
                                         {{ isDeleteLoading ? 'Removendo...' : 'Remover' }}
                                     </button>
@@ -712,7 +712,7 @@ onMounted(() => fetchCollaborators(true));
                             </div>
                             <button
                                 @click="openNewFromSearch"
-                                class="inline-flex items-center justify-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
+                                class="inline-flex items-center justify-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 cursor-pointer"
                             >
                                 Criar "{{ search.trim() }}"
                             </button>
@@ -727,12 +727,12 @@ onMounted(() => fetchCollaborators(true));
                         <button
                             @click="goToPage(currentPage - 1)"
                             :disabled="currentPage === 1"
-                            class="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                         >
                             Anterior
                         </button>
 
-                        <button
+                        <button class="cursor-pointer"
                             v-for="page in totalPages"
                             :key="page"
                             @click="goToPage(page)"
@@ -749,7 +749,7 @@ onMounted(() => fetchCollaborators(true));
                         <button
                             @click="goToPage(currentPage + 1)"
                             :disabled="currentPage === totalPages"
-                            class="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                         >
                             Próxima
                         </button>
@@ -770,7 +770,7 @@ onMounted(() => fetchCollaborators(true));
 
                     <div class="px-6 py-5 space-y-5">
                         <div class="flex flex-wrap gap-2">
-                            <button
+                            <button class="cursor-pointer"
                                 type="button"
                                 @click="changeSummaryPeriod('ultimos7dias')"
                                 :class="[
@@ -780,7 +780,7 @@ onMounted(() => fetchCollaborators(true));
                             >
                                 Últimos 7 dias
                             </button>
-                            <button
+                            <button class="cursor-pointer"
                                 type="button"
                                 @click="changeSummaryPeriod('mensal')"
                                 :class="[
@@ -790,7 +790,7 @@ onMounted(() => fetchCollaborators(true));
                             >
                                 Mensal
                             </button>
-                            <button
+                            <button class="cursor-pointer"
                                 type="button"
                                 @click="changeSummaryPeriod('anual')"
                                 :class="[
@@ -800,7 +800,7 @@ onMounted(() => fetchCollaborators(true));
                             >
                                 Anual
                             </button>
-                            <button
+                            <button class="cursor-pointer"
                                 type="button"
                                 @click="changeSummaryPeriod('todos')"
                                 :class="[
@@ -836,7 +836,7 @@ onMounted(() => fetchCollaborators(true));
                         <div class="flex justify-end">
                             <button
                                 type="button"
-                                class="px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition"
+                                class="px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition cursor-pointer"
                                 @click="closeSummaryModal"
                             >
                                 Fechar

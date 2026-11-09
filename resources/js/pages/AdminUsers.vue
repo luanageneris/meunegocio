@@ -295,7 +295,7 @@ onMounted(async () => {
                                             <button
                                                 type="button"
                                                 @click="showPassword = !showPassword"
-                                                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition"
+                                                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition cursor-pointer"
                                                 :aria-label="showPassword ? 'Ocultar senha' : 'Mostrar senha'"
                                             >
                                                 <svg v-if="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -320,7 +320,7 @@ onMounted(async () => {
                                         <button
                                             :disabled="isSubmitting || !isFormValid"
                                             @click="createUser"
-                                            class="w-full rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2.5 font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+                                            class="w-full rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2.5 font-semibold text-white transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
                                         >
                                             {{ isSubmitting ? 'Criando...' : 'Criar' }}
                                         </button>
@@ -396,7 +396,7 @@ onMounted(async () => {
                                                         <div class="inline-flex items-center gap-2">
                                                             <button
                                                                 type="button"
-                                                                class="rounded-lg border border-blue-200 dark:border-blue-400/40 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-200 transition hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                class="rounded-lg border border-blue-200 dark:border-blue-400/40 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-200 transition hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
                                                                 :disabled="user.role === 'root' || resettingUserId === user.id"
                                                                 :title="user.role === 'root' ? 'Não é permitido redefinir a senha de um usuário root.' : undefined"
                                                                 @click="openResetPasswordModal(user)"
@@ -405,7 +405,7 @@ onMounted(async () => {
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                class="rounded-lg border border-amber-200 dark:border-amber-500/50 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-200 transition hover:bg-amber-100 dark:hover:bg-amber-500/10"
+                                                                class="rounded-lg border border-amber-200 dark:border-amber-500/50 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-200 transition hover:bg-amber-100 dark:hover:bg-amber-500/10 cursor-pointer"
                                                                 @click="unlockLoginAttempts(user.email)"
                                                             >
                                                                 Desbloquear login
@@ -446,7 +446,7 @@ onMounted(async () => {
                                             <div class="flex gap-2">
                                                 <button
                                                     type="button"
-                                                    class="flex-1 rounded-lg border border-blue-200 dark:border-blue-400/40 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-200 transition hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    class="flex-1 rounded-lg border border-blue-200 dark:border-blue-400/40 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-200 transition hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
                                                     :disabled="user.role === 'root' || resettingUserId === user.id"
                                                     :title="user.role === 'root' ? 'Não é permitido redefinir a senha de um usuário root.' : undefined"
                                                     @click="openResetPasswordModal(user)"
@@ -455,7 +455,7 @@ onMounted(async () => {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    class="flex-1 rounded-lg border border-amber-200 dark:border-amber-500/50 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-200 transition hover:bg-amber-100 dark:hover:bg-amber-500/10"
+                                                    class="flex-1 rounded-lg border border-amber-200 dark:border-amber-500/50 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-200 transition hover:bg-amber-100 dark:hover:bg-amber-500/10 cursor-pointer"
                                                     @click="unlockLoginAttempts(user.email)"
                                                 >
                                                     Desbloquear
@@ -487,7 +487,7 @@ onMounted(async () => {
                 <DialogFooter class="gap-2 sm:justify-end">
                     <button
                         type="button"
-                        class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                        class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
                         :disabled="!!resettingUserId"
                         @click="closeResetPasswordModal"
                     >
@@ -495,7 +495,7 @@ onMounted(async () => {
                     </button>
                     <button
                         type="button"
-                        class="rounded-lg bg-primary dark:bg-primary px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                        class="rounded-lg bg-primary dark:bg-primary px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
                         :disabled="!!resettingUserId"
                         @click="resetUserPassword"
                     >
