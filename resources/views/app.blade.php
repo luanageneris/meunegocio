@@ -40,6 +40,13 @@
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <meta name="description" content="Plataforma SaaS de controle financeiro e comissões para pequenas empresas">
+        <meta property="og:type" content="website">
+        <meta property="og:title" content="Meu Negócio - Gestão Financeira">
+        <meta property="og:description" content="Sistema de controle de entradas, saídas e comissões para seu negócio">
+        <meta property="og:url" content="https://meunegocio.cloud">
+        <meta name="robots" content="index,follow">
+        <meta name="googlebot" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
 
         @vite(['resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
         @inertiaHead

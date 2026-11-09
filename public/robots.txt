@@ -1,2 +1,8 @@
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /admin/
+Disallow: /api/private/
+Disallow: /.env
+Disallow: /storage/
+
+Sitemap: https://meunegocio.cloud/sitemap.xml
