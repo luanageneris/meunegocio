@@ -84,5 +84,6 @@ sail artisan notifications:send-reminders --channel=daily --force --ignore-histo
 
 # gerar nova senha paar user:
 docker compose exec laravel.test php artisan tinker --execute='$user = \App\Models\User::where("email", "admin@meunegocio.cloud")->firstOrFail(); $password = \Illuminate\Support\Str::random(24); $user->forceFill(["password" => \Illuminate\Support\Facades\Hash::make($password)])->save(); echo "Nova senha: {$password}\n";'
+docker compose exec laravel.test php artisan tinker --execute='$user = \App\Models\User::where("email", "luanacarvalhomesquita@gmail.com")->firstOrFail(); $password = \Illuminate\Support\Str::random(24); $user->forceFill(["password" => \Illuminate\Support\Facades\Hash::make($password)])->save(); echo "Nova senha: {$password}\n";'
 
 

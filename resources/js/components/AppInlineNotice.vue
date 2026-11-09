@@ -87,7 +87,7 @@ const defaultTitle = computed(() => {
             <button
                 v-if="dismissible"
                 type="button"
-                :class="['rounded p-1 transition-colors', variantClasses.close]"
+                :class="['rounded p-1 transition-colors cursor-pointer', variantClasses.close]"
                 aria-label="Fechar mensagem"
                 @click="emit('dismiss')"
             >
