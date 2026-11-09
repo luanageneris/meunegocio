@@ -766,7 +766,7 @@ onMounted(async () => {
                                 <section class="bg-orange-50 border border-orange-100 rounded-xl p-6 shadow-sm overflow-hidden">
                                     <div class="flex items-center justify-between mb-4">
                                         <div>
-                                            <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Informa??es da Conta</p>
+                                            <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Informações da Conta</p>
                                             <h3 class="text-lg font-bold text-gray-800">Dados da empresa</h3>
                                         </div>
                                         <span v-if="!canEdit" class="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded-full">Somente leitura</span>
@@ -1075,7 +1075,7 @@ onMounted(async () => {
                                         </div>
                                         <div class="space-y-1">
                                             <h3 class="text-lg font-bold text-gray-800">Logomarca ou foto</h3>
-                                            <p class="text-sm text-gray-600">Envio de logo estar? dispon?vel em breve.</p>
+                                            <p class="text-sm text-gray-600">Envio de logo estará disponível em breve.</p>
                                         </div>
                                     </div>
                                     <button
@@ -1083,7 +1083,7 @@ onMounted(async () => {
                                         disabled
                                         class="w-full sm:w-auto px-4 py-3 border border-amber-200 text-orange-600 rounded-lg font-medium bg-orange-50 cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
                                     >
-                                        Upload dispon?vel em breve
+                                        Upload disponível em breve
                                     </button>
                                 </section>
                             </div>

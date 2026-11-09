@@ -90,6 +90,20 @@ Exemplo (quando permitido):
 chmod -R ug+rwx storage bootstrap/cache
 ```
 
+## 6.1) Agendador (lembretes e relatorios por e-mail)
+
+No hPanel, em Avancado > Cron Jobs, crie um cron do tipo Custom executando a cada minuto (`* * * * *`):
+
+```bash
+cd /home/SEU_USUARIO/apps/my_business && /usr/bin/php artisan schedule:run >> /dev/null 2>&1
+```
+
+Ajuste o caminho do PHP (ex.: `/usr/bin/php8.4`) conforme o servidor. O cron da Hostinger usa UTC, mas o envio respeita `APP_TIMEZONE=America/Sao_Paulo` do `.env`.
+
+Variaveis de e-mail necessarias no `.env`: `MAIL_MAILER=smtp`, `MAIL_SCHEME=smtps`, `MAIL_HOST=smtp.hostinger.com`, `MAIL_PORT=465`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `APP_TIMEZONE`.
+
+Teste: `php artisan schedule:list` e `php artisan notifications:send-reminders --channel=daily --force --ignore-history --user_email=SEU_EMAIL`.
+
 ## 7) Atualizacao de versao
 
 A cada nova release:

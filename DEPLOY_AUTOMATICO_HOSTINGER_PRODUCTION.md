@@ -296,6 +296,8 @@ jobs:
             bash ${{ secrets.PROD_APP_DIR }}/deploy-production.sh
 ```
 
+Nota: o workflow real em `.github/workflows/deploy-production.yml` tambem garante, a cada deploy, a entrada de cron `* * * * * cd APP_DIR && php artisan schedule:run` (idempotente, via `crontab`), necessaria para lembretes diarios e relatorios por e-mail. O `.env` do servidor nao e alterado pelo deploy: mantenha nele `MAIL_*` (SMTP Hostinger) e `APP_TIMEZONE=America/Sao_Paulo`.
+
 ---
 
 ## 8) Protecoes recomendadas na branch production

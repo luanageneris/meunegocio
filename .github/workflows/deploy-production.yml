@@ -110,7 +110,21 @@ jobs:
             php artisan route:cache
             php artisan view:cache
 
-            echo "[6/6] Deploy concluido com sucesso"
+            echo "[6/6] Garantindo cron do agendador do Laravel..."
+            PHP_BIN="$(command -v php)"
+            CRON_LINE="* * * * * cd $APP_DIR && $PHP_BIN artisan schedule:run >> /dev/null 2>&1"
+            if command -v crontab >/dev/null 2>&1; then
+              CURRENT_CRON="$(crontab -l 2>/dev/null || true)"
+              # Remove entradas antigas deste app e adiciona a atual (idempotente)
+              { echo "$CURRENT_CRON" | grep -v "$APP_DIR.*artisan schedule:run" | grep -v '^$' || true; echo "$CRON_LINE"; } | crontab -
+              crontab -l | grep "artisan schedule:run"
+            else
+              echo "AVISO: crontab indisponivel; configure o cron manualmente no hPanel."
+            fi
+
+            php artisan schedule:list || true
+
+            echo "Deploy concluido com sucesso"
 
       - name: Restore fallback build if deploy cleaned assets
         if: ${{ always() }}
