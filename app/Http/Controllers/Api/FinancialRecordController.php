@@ -6,6 +6,8 @@ use App\Models\Commission;
 use App\Models\FinancialRecord;
 use App\Http\Requests\StoreFinancialRecordRequest;
 use App\Http\Requests\UpdateFinancialRecordRequest;
+use App\Http\Requests\UpdateFinancialRecordTotalRequest;
+use App\Http\Requests\UpdateFinancialRecordFieldRequest;
 use App\Http\Requests\InvertFinancialRecordRequest;
 use App\Services\FinancialRecordInversionAuditService;
 use Illuminate\Http\Request;
@@ -24,9 +26,12 @@ class FinancialRecordController
         $baseQuery = FinancialRecord::forCompany();
         $this->applyTrashFilter($baseQuery, $request);
 
-        $records = (clone $baseQuery)
+        $listQuery = clone $baseQuery;
+        $this->applyListFilters($listQuery, $request);
+        $records = $listQuery
             ->with('collaborator', 'entryType', 'exitType', 'serviceType')
             ->orderBy('date', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate(15);
 
         $totals = $this->calculateFinancialTotals(clone $baseQuery);
@@ -85,6 +90,74 @@ class FinancialRecordController
         $financialRecord->update($request->validated());
 
         return response()->json(['data' => $financialRecord->load('collaborator', 'entryType', 'exitType', 'serviceType')]);
+    }
+
+    public function updateTotal(UpdateFinancialRecordTotalRequest $request, FinancialRecord $financialRecord)
+    {
+        if ($financialRecord->company_id !== $request->user()->company_id) {
+            return response()->json(['message' => 'Não é possível alterar um registro de outra empresa.'], 403);
+        }
+
+        return DB::transaction(function () use ($request, $financialRecord) {
+            $record = FinancialRecord::forCompany($request->user()->company_id)
+                ->lockForUpdate()
+                ->findOrFail($financialRecord->id);
+
+            $quantity = max(1, (int) ($record->quantity ?? 1));
+            $amountCents = (int) round((float) $record->amount * 100);
+            $discountCents = (int) round((float) ($record->discount ?? 0) * 100);
+            $currentTotal = max(0, $amountCents * $quantity - $discountCents);
+
+            if ($currentTotal !== (int) $request->validated('expected_total_cents')) {
+                return response()->json(['message' => 'O valor foi alterado por outra operação. Atualize a página e tente novamente.'], 409);
+            }
+
+            $grossCents = (int) $request->validated('total_cents') + $discountCents;
+            if ($grossCents % $quantity !== 0 || intdiv($grossCents, $quantity) < 1 || intdiv($grossCents, $quantity) > 9999999999) {
+                return response()->json(['message' => 'Não é possível obter esse total em centavos mantendo a quantidade e o desconto atuais.'], 422);
+            }
+
+            $record->update(['amount' => number_format(intdiv($grossCents, $quantity) / 100, 2, '.', '')]);
+
+            return response()->json(['data' => $record->load('collaborator', 'entryType', 'exitType', 'serviceType')]);
+        });
+    }
+
+    public function updateField(UpdateFinancialRecordFieldRequest $request, FinancialRecord $financialRecord)
+    {
+        if ($financialRecord->company_id !== $request->user()->company_id) {
+            return response()->json(['message' => 'Não é possível alterar um registro de outra empresa.'], 403);
+        }
+
+        return DB::transaction(function () use ($request, $financialRecord) {
+            $record = FinancialRecord::forCompany($request->user()->company_id)
+                ->lockForUpdate()
+                ->findOrFail($financialRecord->id);
+            $data = $request->validated();
+            $field = $data['field'];
+            if ($field === 'date') {
+                $expectedValue = $data['expected_value'];
+                $currentValue = $record->date?->format('Y-m-d');
+            } elseif ($field === 'description') {
+                $expectedValue = $data['expected_value'];
+                $currentValue = $record->description === null ? null : trim($record->description);
+                $currentValue = $currentValue === '' ? null : $currentValue;
+            } else {
+                $expectedValue = $data['expected_value'] === null ? null : (int) $data['expected_value'];
+                $currentValue = $record->{$field} === null ? null : (int) $record->{$field};
+            }
+
+            if ($record->type !== $data['expected_type'] || $currentValue !== $expectedValue) {
+                return response()->json(['message' => 'O registro foi alterado por outra operação. Atualize a página e tente novamente.'], 409);
+            }
+            if (($field === 'entry_type_id' && $record->type !== 'entry') || ($field === 'exit_type_id' && $record->type !== 'exit')) {
+                return response()->json(['message' => 'A categoria não corresponde ao tipo do registro.'], 422);
+            }
+
+            $record->update([$field => $data['value']]);
+
+            return response()->json(['data' => $record->load('collaborator', 'entryType', 'exitType', 'serviceType')]);
+        });
     }
 
     public function invert(InvertFinancialRecordRequest $request, FinancialRecord $financialRecord, FinancialRecordInversionAuditService $audit)
@@ -193,9 +266,12 @@ class FinancialRecordController
             ->whereBetween('date', [$request->start_date, $request->end_date]);
         $this->applyTrashFilter($baseQuery, $request);
 
-        $records = (clone $baseQuery)
+        $listQuery = clone $baseQuery;
+        $this->applyListFilters($listQuery, $request);
+        $records = $listQuery
             ->with('collaborator', 'entryType', 'exitType', 'serviceType')
             ->orderBy('date', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate(50);
 
         $totals = $this->calculateFinancialTotals(clone $baseQuery);
@@ -358,6 +434,75 @@ class FinancialRecordController
         }, $fileName, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    private function applyListFilters(Builder $query, Request $request): void
+    {
+        $data = $request->validate([
+            'search' => 'nullable|string|max:500',
+            'financial_type' => 'nullable|in:entrada,saida,comissao',
+            'search_amount' => 'nullable|boolean',
+        ]);
+
+        $type = $data['financial_type'] ?? null;
+        if ($type === 'entrada') {
+            $query->where('type', 'entry');
+        } elseif ($type === 'saida') {
+            $query->where('type', 'exit');
+        } elseif ($type === 'comissao') {
+            $query->where('type', 'exit')->where(function (Builder $query) {
+                $query->whereRaw("LOWER(description) LIKE ? ESCAPE '!'", ['%comissao%'])
+                    ->orWhereHas('exitType', fn (Builder $typeQuery) => $typeQuery->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", ['%comissao%']));
+            });
+        }
+
+        $search = trim($data['search'] ?? '');
+        if ($search === '') {
+            return;
+        }
+
+        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($search)).'%';
+        $normalized = mb_strtolower(\Illuminate\Support\Str::ascii($search));
+        $driver = DB::connection()->getDriverName();
+        $dateExpression = $driver === 'sqlite'
+            ? "strftime('%d/%m/%Y', financial_records.date)"
+            : "DATE_FORMAT(financial_records.date, '%d/%m/%Y')";
+        $registeredExpression = $driver === 'sqlite'
+            ? "strftime('%d/%m/%Y %H:%M', financial_records.created_at)"
+            : "DATE_FORMAT(financial_records.created_at, '%d/%m/%Y %H:%i')";
+
+        $query->where(function (Builder $query) use ($pattern, $normalized, $dateExpression, $registeredExpression, $request, $driver) {
+            $query->whereRaw("LOWER(financial_records.description) LIKE ? ESCAPE '!'", [$pattern])
+                ->orWhereHas('collaborator', fn (Builder $related) => $related->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", [$pattern]))
+                ->orWhereHas('entryType', fn (Builder $related) => $related->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", [$pattern]))
+                ->orWhereHas('exitType', fn (Builder $related) => $related->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", [$pattern]))
+                ->orWhereHas('serviceType', fn (Builder $related) => $related->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", [$pattern]))
+                ->orWhereRaw("financial_records.date LIKE ? ESCAPE '!'", [$pattern])
+                ->orWhereRaw("$dateExpression LIKE ? ESCAPE '!'", [$pattern])
+                ->orWhereRaw("financial_records.created_at LIKE ? ESCAPE '!'", [$pattern])
+                ->orWhereRaw("$registeredExpression LIKE ? ESCAPE '!'", [$pattern])
+                ->orWhereRaw("CAST(financial_records.quantity AS CHAR) LIKE ? ESCAPE '!'", [$pattern]);
+
+            if ($normalized !== '' && str_contains('entrada', $normalized)) {
+                $query->orWhere('type', 'entry');
+            }
+            if ($normalized !== '' && str_contains('saida', $normalized)) {
+                $query->orWhere('type', 'exit');
+            }
+            if ($request->boolean('search_amount', true)) {
+                $total = FinancialRecord::FINAL_AMOUNT_SQL;
+                $formatted = $driver === 'sqlite'
+                    ? "REPLACE(printf('%.2f', $total), '.', ',')"
+                    : "FORMAT($total, 2, 'de_DE')";
+                $formattedCurrency = $driver === 'sqlite' ? "'R$ ' || $formatted" : "CONCAT('R$ ', $formatted)";
+                $query->orWhereRaw("CAST($total AS CHAR) LIKE ? ESCAPE '!'", [$pattern])
+                    ->orWhereRaw("$formatted LIKE ? ESCAPE '!'", [$pattern])
+                    ->orWhereRaw("$formattedCurrency LIKE ? ESCAPE '!'", [$pattern])
+                    ->orWhereRaw("REPLACE($formatted, '.', '') LIKE ? ESCAPE '!'", [$pattern])
+                    ->orWhereRaw("CAST(financial_records.amount AS CHAR) LIKE ? ESCAPE '!'", [$pattern])
+                    ->orWhereRaw("CAST(financial_records.discount AS CHAR) LIKE ? ESCAPE '!'", [$pattern]);
+            }
+        });
     }
 
     private function applyTrashFilter(Builder $query, Request $request): void

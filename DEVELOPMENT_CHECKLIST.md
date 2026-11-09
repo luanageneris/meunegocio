@@ -88,6 +88,14 @@
 - [ ] Testes Feature
 - [ ] Permissões
 
+#### Edição rápida do total
+- Na lista de registros, com os valores visíveis, clique no valor de uma entrada ou saída para editá-lo. É possível informar um novo total ou usar `+`, `-`, `*` e `/` (por exemplo, `+ 10` ou `100,00 / 2`). Enter salva; Esc ou um clique fora cancela a edição.
+- O total é arredondado para centavos. Quantidade e desconto permanecem inalterados; se não for possível representar exatamente o total com um valor unitário em centavos, a alteração é recusada.
+- `PATCH /api/registros/financial-records/{id}/total` recebe `total_cents` e `expected_total_cents` como inteiros. A atualização exige permissão e empresa corretas e recusa um valor original desatualizado.
+- Categoria, colaborador, data do movimento e descrição também podem ser editados na lista, inclusive com valores ocultos; Enter salva e Esc ou clique fora cancela. Categorias e colaboradores podem ser removidos da seleção e os itens disponíveis pertencem à empresa.
+- `PATCH /api/registros/financial-records/{id}/field` recebe `field`, `value`, `expected_value` e `expected_type`, valida a empresa e recusa alterações concorrentes.
+- A pesquisa da lista é aplicada no servidor antes da paginação, dentro do período e dos filtros selecionados. Abrange responsável, categorias, serviço, descrição, data do movimento, data de registro, tipo, quantidade e valores; a pesquisa por valores é desativada no modo de privacidade. Os totais exibidos continuam referentes ao período completo.
+
 ### 2.4 CRUD Tipos de Saída
 - [ ] GET /api/exit-types
 - [ ] POST /api/exit-types

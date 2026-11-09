@@ -10,6 +10,12 @@ import Sidebar from '@/components/Sidebar.vue';
 import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import Footer from '@/components/Footer.vue';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
+import InlineRecordAmount from '@/components/InlineRecordAmount.vue';
+import InlineRecordSelect from '@/components/InlineRecordSelect.vue';
+import InlineRecordDate from '@/components/InlineRecordDate.vue';
+import InlineRecordDescription from '@/components/InlineRecordDescription.vue';
+import RecordDateTooltip from '@/components/RecordDateTooltip.vue';
+import RecordTotalSummary from '@/components/RecordTotalSummary.vue';
 import {
     Dialog,
     DialogContent,
@@ -37,6 +43,11 @@ const company = ref<any>(null);
 const isLoading = ref(false);
 const isListLoading = ref(false);
 const isLoadingMore = ref(false);
+const listError = ref('');
+let listRequestId = 0;
+let listRequestController: AbortController | null = null;
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+let listInitialized = false;
 const activeTab = ref<'hoje' | 'ultimos7dias' | 'mensal' | 'anual' | 'todos'>('hoje');
 const isChartsView = ref(false);
 const selectedYear = ref<number>(new Date().getFullYear());
@@ -105,8 +116,6 @@ const importError = ref('');
 const importSuccess = ref('');
 const isImportLoading = ref(false);
 const importSummary = ref<any | null>(null);
-const showEntryCalculationTooltip = ref(false);
-const showExitCalculationTooltip = ref(false);
 const showInversionTooltip = ref(false);
 const importDefaults = ref({
     default_entry_type_id: null as number | null,
@@ -483,12 +492,9 @@ const formatDateTime = (dateString: string) => {
 };
 
 const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    });
+    const date = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (date) return `${date[3]}/${date[2]}/${date[1]}`;
+    return new Date(dateString).toLocaleDateString('pt-BR');
 };
 
 const formatFileSize = (size: number) => {
@@ -597,58 +603,26 @@ const activeFinancialFilterLabel = computed(() => {
     return '';
 });
 
-const normalizeFilterText = (value: string) => value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
-
-const isCommissionRecord = (record: { tipo: string; categoria?: string; descricao?: string }) => {
-    if (record.tipo !== 'saida') {
-        return false;
-    }
-
-    const category = normalizeFilterText(record.categoria || '');
-    const description = normalizeFilterText(record.descricao || '');
-
-    return category.includes('comissao') || description.includes('comissao');
-};
-
 const viewRegistros = computed(() => registros.value.map((r: any) => ({
     id: r.id,
     // Determina tipo com base no campo type do banco de dados
-    tipo: r.type === 'entry' ? 'entrada' : 'saida',
+    tipo: r.type === 'entry' ? 'entrada' as const : 'saida' as const,
     valor: calculateRecordTotal(r.amount, r.quantity, r.discount),
     categoria: r.entry_type?.name ?? r.exit_type?.name ?? '-',
+    categoriaId: (r.type === 'entry' ? r.entry_type_id : r.exit_type_id) ?? null,
     descricao: r.description ?? '',
+    descricaoOriginal: r.description ?? null,
     colaborador: r.collaborator?.name ?? '',
+    colaboradorId: r.collaborator_id ?? null,
     // Data do movimento (informada pelo usuário) e momento do registro
     dataOperacao: r.date ?? r.created_at ?? r.updated_at,
+    dataOperacaoInput: (r.date ?? '').split('T')[0],
     registradoEm: r.created_at ?? r.updated_at,
     deleted: Boolean(r.deleted_at),
 })));
 
 const filteredRegistros = computed(() => {
-    // Backend já filtra por deleted status, então não precisamos filtrar novamente aqui
-    // Apenas aplicamos o filtro de busca se houver
-    let filtered = viewRegistros.value;
-
-    if (financialTypeFilter.value === 'entrada') {
-        filtered = filtered.filter((r) => r.tipo === 'entrada');
-    } else if (financialTypeFilter.value === 'saida') {
-        filtered = filtered.filter((r) => r.tipo === 'saida');
-    } else if (financialTypeFilter.value === 'comissao') {
-        filtered = filtered.filter((r) => isCommissionRecord(r));
-    }
-
-    if (searchQuery.value && !showRemoved.value) {
-        const query = searchQuery.value.toLowerCase();
-        filtered = filtered.filter(r =>
-            (r.categoria || '').toLowerCase().includes(query) ||
-            (r.descricao || '').toLowerCase().includes(query) ||
-            formatCurrency(r.valor).includes(query)
-        );
-    }
+    const filtered = viewRegistros.value;
 
     // Sorting logic by selected key and direction
     const key = sortKey.value;
@@ -674,7 +648,6 @@ const filteredRegistros = computed(() => {
     return filtered.slice().sort(compare);
 });
 
-// Já vem paginado do backend; usamos filtragem apenas no que está carregado
 const paginatedRegistros = computed(() => filteredRegistros.value);
 
 const totalPages = computed(() => {
@@ -1176,11 +1149,24 @@ const toggleChartsView = async () => {
     }
 };
 
-const fetchRegistros = async (page = 1, showPageLoading = false, append = false) => {
+const fetchRegistros = async (page = 1, showPageLoading = false, append = false, preserveLoaded = false, refreshCharts = true) => {
+    if (searchTimer !== null) {
+        clearTimeout(searchTimer);
+        searchTimer = null;
+    }
     if (append && (isLoading.value || isListLoading.value || isLoadingMore.value)) {
         return;
     }
 
+    if (preserveLoaded && (searchQuery.value.trim() || financialTypeFilter.value)) page = 1;
+    listRequestController?.abort();
+    const controller = new AbortController();
+    listRequestController = controller;
+    const requestId = ++listRequestId;
+    isLoading.value = false;
+    isListLoading.value = false;
+    isLoadingMore.value = false;
+    listError.value = '';
     if (showPageLoading) {
         isLoading.value = true;
     } else if (append) {
@@ -1189,7 +1175,13 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
         isListLoading.value = true;
     }
     try {
-        // Decide endpoint based on activeTab
+        const params = new URLSearchParams({ page: String(page), only_deleted: showRemoved.value ? '1' : '0' });
+        if (!showRemoved.value) {
+            const search = normalizeNullableString(searchQuery.value).trim();
+            if (search) params.set('search', search);
+            if (financialTypeFilter.value) params.set('financial_type', financialTypeFilter.value);
+            params.set('search_amount', isPrivacyMode.value ? '0' : '1');
+        }
         const today = new Date();
         let response: Response;
 
@@ -1219,8 +1211,9 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
                 end = formatDateForApi(last);
             }
 
-            response = await fetch(`/api/registros/financial-records/between-dates?page=${page}&only_deleted=${showRemoved.value ? 1 : 0}` , {
+            response = await fetch(`/api/registros/financial-records/between-dates?${params}` , {
                 method: 'POST',
+                signal: controller.signal,
                 headers: {
                     'Authorization': `Bearer ${auth.token.value}`,
                     'Accept': 'application/json',
@@ -1230,7 +1223,8 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
                 body: JSON.stringify({ start_date: start, end_date: end }),
             });
         } else {
-            response = await fetch(`/api/registros/financial-records?page=${page}&only_deleted=${showRemoved.value ? 1 : 0}`, {
+            response = await fetch(`/api/registros/financial-records?${params}`, {
+                signal: controller.signal,
                 headers: {
                     'Authorization': `Bearer ${auth.token.value}`,
                     'Accept': 'application/json',
@@ -1243,9 +1237,21 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
         }
 
         const json = await response.json();
+        if (requestId !== listRequestId) return;
         const incomingData = (json?.data) ?? [];
         console.log('Registros recebidos:', { showRemoved: showRemoved.value, activeTab: activeTab.value, incomingData, total: json.pagination?.total });
-        registros.value = append ? [...registros.value, ...incomingData] : incomingData;
+        if (preserveLoaded && !searchQuery.value.trim() && !financialTypeFilter.value) {
+            const refreshed = new Map<number, any>(incomingData.map((record: any) => [record.id, record]));
+            const retained = registros.value.filter((record: any) => refreshed.has(record.id) || !record._page || record._page !== page);
+            const retainedIds = new Set<number>(retained.map((record: any) => record.id));
+            registros.value = [
+                ...retained.map((record: any) => refreshed.has(record.id) ? { ...refreshed.get(record.id), _page: page } : record),
+                ...incomingData.filter((record: any) => !retainedIds.has(record.id)).map((record: any) => ({ ...record, _page: page })),
+            ];
+        } else {
+            const taggedData = incomingData.map((record: any) => ({ ...record, _page: page }));
+            registros.value = append ? [...registros.value, ...taggedData] : taggedData;
+        }
         pagination.value = json.pagination || {
             total: json.data?.length ?? 0,
             per_page: json.data?.length || 1,
@@ -1260,18 +1266,22 @@ const fetchRegistros = async (page = 1, showPageLoading = false, append = false)
         };
         currentPage.value = pagination.value.current_page || page;
 
-        if (activeTab.value !== 'todos') {
+        if (refreshCharts && activeTab.value !== 'todos') {
             await fetchRangeData(activeTab.value as RangeKey);
         }
     } catch (error) {
+        if (controller.signal.aborted || requestId !== listRequestId) return;
         console.error('Erro ao carregar registros:', error);
+        listError.value = 'Não foi possível carregar os registros. Verifique sua conexão e tente novamente.';
     } finally {
-        if (showPageLoading) {
-            isLoading.value = false;
-        } else if (append) {
-            isLoadingMore.value = false;
-        } else {
-            isListLoading.value = false;
+        if (requestId === listRequestId) {
+            if (showPageLoading) {
+                isLoading.value = false;
+            } else if (append) {
+                isLoadingMore.value = false;
+            } else {
+                isListLoading.value = false;
+            }
         }
     }
 };
@@ -1835,8 +1845,6 @@ const closeAllForms = (options?: { clearCreateDrafts?: boolean }) => {
     editingRegistroId.value = null;
     editingRegistroType.value = null;
     originalRegistroType.value = null;
-    showEntryCalculationTooltip.value = false;
-    showExitCalculationTooltip.value = false;
     showInversionTooltip.value = false;
     entryForm.value = createEmptyEntryForm();
     exitForm.value = createEmptyExitForm();
@@ -2009,6 +2017,62 @@ const openEditRecord = async (id: number) => {
         } else {
             exitFormErrors.value = errors;
         }
+    }
+};
+
+const saveRecordTotal = async (id: number, totalCents: number, expectedTotalCents: number) => {
+    try {
+        const response = await axios.patch(`/api/registros/financial-records/${id}/total`, {
+            total_cents: totalCents,
+            expected_total_cents: expectedTotalCents,
+        }, {
+            headers: { 'X-CSRF-TOKEN': getCsrfToken() },
+        });
+        const index = registros.value.findIndex((record: any) => record.id === id);
+        if (index !== -1) registros.value[index] = { ...response.data.data, _page: registros.value[index]._page };
+        await fetchRegistros(currentPage.value, false, false, activeTab.value === 'todos');
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            const message = error.response?.data?.message;
+            throw new Error(typeof message === 'string' ? message : 'Não foi possível salvar o valor. Verifique sua conexão e tente novamente.');
+        }
+        throw error;
+    }
+};
+
+type InlineField = 'entry_type_id' | 'exit_type_id' | 'collaborator_id';
+type InlineOption = { id: number; name: string };
+
+const loadInlineOptions = async (field: InlineField): Promise<InlineOption[]> => {
+    const endpoint = field === 'entry_type_id' ? 'entry-types' : field === 'exit_type_id' ? 'exit-types' : 'collaborators';
+    try {
+        const response = await axios.get(`/api/personalizar/${endpoint}?include_defaults=1`);
+        const options = response.data.data ?? response.data;
+        if (!Array.isArray(options)) throw new Error('Resposta de opções inválida.');
+        return options;
+    } catch (error) {
+        console.error('Erro ao carregar opções:', error);
+        throw new Error('Não foi possível carregar as opções. Cancele e tente novamente.');
+    }
+};
+
+const saveRecordField = async (id: number, type: 'entrada' | 'saida', field: InlineField | 'date' | 'description', value: number | string | null, expectedValue: number | string | null) => {
+    try {
+        const response = await axios.patch(`/api/registros/financial-records/${id}/field`, {
+            field,
+            value,
+            expected_value: expectedValue,
+            expected_type: type === 'entrada' ? 'entry' : 'exit',
+        }, { headers: { 'X-CSRF-TOKEN': getCsrfToken() } });
+        const index = registros.value.findIndex((record: any) => record.id === id);
+        if (index !== -1) registros.value[index] = { ...response.data.data, _page: registros.value[index]._page };
+        await fetchRegistros(currentPage.value, false, false, activeTab.value === 'todos' && field !== 'date');
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            const message = error.response?.data?.message;
+            throw new Error(typeof message === 'string' ? message : 'Não foi possível salvar a alteração. Verifique sua conexão e tente novamente.');
+        }
+        throw error;
     }
 };
 
@@ -2196,6 +2260,22 @@ watch(infiniteScrollTrigger, (newEl, oldEl) => {
     }
 });
 
+watch([searchQuery, financialTypeFilter, isPrivacyMode], () => {
+    if (!listInitialized || showRemoved.value) return;
+    if (searchTimer !== null) clearTimeout(searchTimer);
+    listRequestController?.abort();
+    listRequestId++;
+    isLoading.value = false;
+    isLoadingMore.value = false;
+    isListLoading.value = true;
+    currentPage.value = 1;
+    selectedRecordId.value = null;
+    searchTimer = setTimeout(() => {
+        searchTimer = null;
+        fetchRegistros(1, false, false, false, false);
+    }, 250);
+});
+
 watch(
     [activeTab, selectedMonth, selectedYear, searchQuery, financialTypeFilter, sortKey, sortDir, showRemoved, currentPage, isChartsView],
     () => {
@@ -2266,6 +2346,8 @@ onMounted(async () => {
 
     applyFiltersFromQueryString();
 
+    await nextTick();
+    listInitialized = true;
     await fetchRegistros(currentPage.value, true);
 
     syncFiltersToQueryString();
@@ -2277,6 +2359,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    if (searchTimer !== null) clearTimeout(searchTimer);
+    listRequestController?.abort();
     if (typeof window !== 'undefined') {
         window.removeEventListener('keydown', handleGlobalSaveShortcut);
         window.removeEventListener('keydown', handleGlobalEnterToSave);
@@ -2855,7 +2939,8 @@ onBeforeUnmount(() => {
                                 ref="searchInputRef"
                                 v-model="normalizedSearchQuery"
                                 type="text"
-                                placeholder="Pesquisar"
+                                maxlength="500"
+                                placeholder="Pesquisar responsável, categoria, descrição, data ou valor"
                                 class="w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 text-sm border-2 border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                             />
                             <button
@@ -2969,30 +3054,7 @@ onBeforeUnmount(() => {
                                 <input type="text" v-model="entryForm.description" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="Opcional" />
                             </div>
                             <div class="sm:col-span-2">
-                                <div class="rounded-lg border border-orange-300 bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-center shadow-sm">
-                                    <p class="text-xs font-medium uppercase tracking-wide text-orange-100">Valor total</p>
-                                    <p class="mt-1 text-2xl font-bold text-white">{{ formatCurrency(entryCalculatedTotal) }}</p>
-                                    <div v-if="useServiceTypes" class="mt-1 flex items-center justify-center gap-2">
-                                        <span class="text-xs text-orange-50">Fórmula</span>
-                                        <div class="relative inline-flex">
-                                            <button
-                                                type="button"
-                                                @click="showEntryCalculationTooltip = !showEntryCalculationTooltip"
-                                                class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-orange-200/60 bg-white/20 text-orange-50 transition-colors hover:bg-white/30"
-                                                aria-label="Mostrar fórmula do cálculo"
-                                                title="Mostrar fórmula"
-                                            >
-                                                <Info class="h-3.5 w-3.5" />
-                                            </button>
-                                            <div
-                                                v-if="showEntryCalculationTooltip"
-                                                class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg dark:border-orange-500/40 dark:bg-slate-900 dark:text-orange-100"
-                                            >
-                                                Cálculo: valor x quantidade - desconto
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <RecordTotalSummary :total="formatCurrency(entryCalculatedTotal)" :show-formula="useServiceTypes" />
                             </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-4">
@@ -3045,30 +3107,7 @@ onBeforeUnmount(() => {
                                 <input type="text" v-model="exitForm.description" class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500 sm:px-3 sm:py-2 sm:text-sm" placeholder="Opcional" />
                             </div>
                             <div class="sm:col-span-2">
-                                <div class="rounded-lg border border-orange-300 bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-center shadow-sm">
-                                    <p class="text-xs font-medium uppercase tracking-wide text-orange-100">Valor total</p>
-                                    <p class="mt-1 text-2xl font-bold text-white">{{ formatCurrency(exitCalculatedTotal) }}</p>
-                                    <div class="mt-1 flex items-center justify-center gap-2">
-                                        <span class="text-xs text-orange-50">Fórmula</span>
-                                        <div class="relative inline-flex">
-                                            <button
-                                                type="button"
-                                                @click="showExitCalculationTooltip = !showExitCalculationTooltip"
-                                                class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-orange-200/60 bg-white/20 text-orange-50 transition-colors hover:bg-white/30"
-                                                aria-label="Mostrar fórmula do cálculo"
-                                                title="Mostrar fórmula"
-                                            >
-                                                <Info class="h-3.5 w-3.5" />
-                                            </button>
-                                            <div
-                                                v-if="showExitCalculationTooltip"
-                                                class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg dark:border-orange-500/40 dark:bg-slate-900 dark:text-orange-100"
-                                            >
-                                                Cálculo: valor x quantidade - desconto
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <RecordTotalSummary :total="formatCurrency(exitCalculatedTotal)" :show-formula="true" />
                             </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-4">
@@ -3081,6 +3120,10 @@ onBeforeUnmount(() => {
 
                     <!-- Records List -->
                     <div class="space-y-3 min-h-[320px] w-full">
+                        <div v-if="listError" role="alert" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+                            {{ listError }}
+                            <button type="button" class="ml-2 underline" @click="fetchRegistros(currentPage)">Tentar novamente</button>
+                        </div>
                         <template v-if="isLoading || isListLoading">
                             <div
                                 v-for="n in 5"
@@ -3115,7 +3158,7 @@ onBeforeUnmount(() => {
                         </template>
 
                         <div
-                            v-else-if="paginatedRegistros.length === 0"
+                            v-else-if="!listError && paginatedRegistros.length === 0"
                             class="border border-gray-200 rounded-lg p-4 text-sm text-gray-500 text-center"
                         >
                             <template v-if="showRemoved">
@@ -3130,7 +3173,7 @@ onBeforeUnmount(() => {
                         </div>
 
                         <div
-                            v-else
+                            v-else-if="!listError"
                             v-for="registro in paginatedRegistros"
                             :key="registro.id"
                             @click="selectRecord(registro.id)"
@@ -3212,30 +3255,7 @@ onBeforeUnmount(() => {
                                         <input type="text" v-model="entryForm.description" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="Opcional" />
                                     </div>
                                     <div class="sm:col-span-2">
-                                        <div class="rounded-lg border border-orange-300 bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-center shadow-sm">
-                                            <p class="text-xs font-medium uppercase tracking-wide text-orange-100">Valor total</p>
-                                            <p class="mt-1 text-2xl font-bold text-white">{{ formatCurrency(entryCalculatedTotal) }}</p>
-                                            <div v-if="useServiceTypes" class="mt-1 flex items-center justify-center gap-2">
-                                                <span class="text-xs text-orange-50">Fórmula</span>
-                                                <div class="relative inline-flex">
-                                                    <button
-                                                        type="button"
-                                                        @click="showEntryCalculationTooltip = !showEntryCalculationTooltip"
-                                                        class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-orange-200/60 bg-white/20 text-orange-50 transition-colors hover:bg-white/30"
-                                                        aria-label="Mostrar fórmula do cálculo"
-                                                        title="Mostrar fórmula"
-                                                    >
-                                                        <Info class="h-3.5 w-3.5" />
-                                                    </button>
-                                                    <div
-                                                        v-if="showEntryCalculationTooltip"
-                                                        class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg dark:border-orange-500/40 dark:bg-slate-900 dark:text-orange-100"
-                                                    >
-                                                        Cálculo: valor x quantidade - desconto
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <RecordTotalSummary :total="formatCurrency(entryCalculatedTotal)" :show-formula="useServiceTypes" />
                                     </div>
                                 </div>
                                 <div class="flex justify-end gap-2 mt-4">
@@ -3309,30 +3329,7 @@ onBeforeUnmount(() => {
                                         <input type="text" v-model="exitForm.description" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 dark:border-slate-700 dark:bg-slate-950/80 dark:text-slate-100 dark:placeholder:text-slate-500" placeholder="Opcional" />
                                     </div>
                                     <div class="sm:col-span-2">
-                                        <div class="rounded-lg border border-orange-300 bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-4 text-center shadow-sm">
-                                            <p class="text-xs font-medium uppercase tracking-wide text-orange-100">Valor total</p>
-                                            <p class="mt-1 text-2xl font-bold text-white">{{ formatCurrency(exitCalculatedTotal) }}</p>
-                                            <div class="mt-1 flex items-center justify-center gap-2">
-                                                <span class="text-xs text-orange-50">Fórmula</span>
-                                                <div class="relative inline-flex">
-                                                    <button
-                                                        type="button"
-                                                        @click="showExitCalculationTooltip = !showExitCalculationTooltip"
-                                                        class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-orange-200/60 bg-white/20 text-orange-50 transition-colors hover:bg-white/30"
-                                                        aria-label="Mostrar fórmula do cálculo"
-                                                        title="Mostrar fórmula"
-                                                    >
-                                                        <Info class="h-3.5 w-3.5" />
-                                                    </button>
-                                                    <div
-                                                        v-if="showExitCalculationTooltip"
-                                                        class="absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-md border border-orange-200 bg-white px-3 py-2 text-left text-xs text-orange-900 shadow-lg dark:border-orange-500/40 dark:bg-slate-900 dark:text-orange-100"
-                                                    >
-                                                        Cálculo: valor x quantidade - desconto
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <RecordTotalSummary :total="formatCurrency(exitCalculatedTotal)" :show-formula="true" />
                                     </div>
                                 </div>
                                 <div class="flex justify-end gap-2 mt-4">
@@ -3349,12 +3346,13 @@ onBeforeUnmount(() => {
                             <div class="p-3 sm:p-4">
                                 <!-- Mobile layout -->
                                 <div class="lg:hidden">
-                                    <div class="flex items-start justify-between gap-2 mb-2">
-                                        <div class="flex items-center gap-2 min-w-0">
+                                    <div class="flex flex-wrap items-start justify-between gap-2 mb-2">
+                                        <div class="flex flex-wrap items-center gap-2 min-w-0">
                                             <span :class="['inline-flex text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0', registro.tipo === 'entrada' ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700']">
                                                 {{ registro.tipo === 'entrada' ? 'Entrada' : 'Saída' }}
                                             </span>
-                                            <span :class="['font-bold text-base', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
+                                            <InlineRecordAmount v-if="!isPrivacyMode && !showRemoved" :amount="registro.valor" :type="registro.tipo" :save="(total, expected) => saveRecordTotal(registro.id, total, expected)" class="text-base" />
+                                            <span v-else :class="['font-bold text-base', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
                                                 {{ registro.tipo === 'entrada' ? '+' : '−' }} {{ formatCurrency(registro.valor) }}
                                             </span>
                                         </div>
@@ -3388,46 +3386,58 @@ onBeforeUnmount(() => {
                                     <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
                                         <div>
                                             <span class="text-gray-400 block">Categoria</span>
-                                            <p class="text-gray-700 font-medium truncate">{{ registro.categoria || '-' }}</p>
+                                            <InlineRecordSelect v-if="!showRemoved" label="categoria" :value="registro.categoriaId" :text="registro.categoria" :load-options="() => loadInlineOptions(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id')" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', value, expected)" class="font-medium" />
+                                            <p v-else class="text-gray-700 font-medium truncate">{{ registro.categoria || '-' }}</p>
                                         </div>
                                         <div>
                                             <span class="text-gray-400 block">Colaborador</span>
-                                            <p class="text-gray-700 truncate">{{ registro.colaborador || '-' }}</p>
+                                            <InlineRecordSelect v-if="!showRemoved" label="colaborador" :value="registro.colaboradorId" :text="registro.colaborador" :load-options="() => loadInlineOptions('collaborator_id')" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, 'collaborator_id', value, expected)" />
+                                            <p v-else class="text-gray-700 truncate">{{ registro.colaborador || '-' }}</p>
                                         </div>
-                                        <div v-if="registro.descricao" class="col-span-2">
+                                        <div v-if="!showRemoved || registro.descricao" class="col-span-2">
                                             <span class="text-gray-400 block">Descrição</span>
-                                            <p class="text-gray-600 truncate">{{ registro.descricao }}</p>
+                                            <InlineRecordDescription v-if="!showRemoved" :value="registro.descricaoOriginal" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, 'description', value, expected)" />
+                                            <p v-else class="text-gray-600 truncate">{{ registro.descricao }}</p>
                                         </div>
                                         <div class="col-span-2 pt-0.5 text-gray-400">
-                                            {{ formatDate(registro.dataOperacao) }}
+                                            <RecordDateTooltip :registered-at="formatDateTime(registro.registradoEm)" :class="['font-medium text-sm', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
+                                                <InlineRecordDate v-if="!showRemoved" :value="registro.dataOperacaoInput" :text="formatDate(registro.dataOperacao)" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, 'date', value, expected)" />
+                                                <span v-else>{{ formatDate(registro.dataOperacao) }}</span>
+                                            </RecordDateTooltip>
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Desktop layout -->
-                                <div class="hidden lg:flex lg:items-center gap-4">
+                                <div class="hidden lg:flex lg:flex-wrap lg:items-center gap-4">
                                     <!-- Valor -->
-                                    <div class="w-24 flex-shrink-0">
-                                        <span :class="['font-bold text-sm', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
+                                    <div class="w-24 flex-shrink-0 has-[form]:w-52">
+                                        <InlineRecordAmount v-if="!isPrivacyMode && !showRemoved" :amount="registro.valor" :type="registro.tipo" :save="(total, expected) => saveRecordTotal(registro.id, total, expected)" class="text-sm" />
+                                        <span v-else :class="['font-bold text-sm', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
                                             {{ registro.tipo === 'entrada' ? '+ ' : '- ' }}{{ formatCurrency(registro.valor) }}
                                         </span>
                                     </div>
                                     <!-- Categoria -->
-                                    <div class="w-32 flex-shrink-0">
-                                        <span class="text-gray-700 text-sm truncate block">{{ registro.categoria }}</span>
+                                    <div class="w-32 flex-shrink-0 has-[form]:w-52">
+                                        <InlineRecordSelect v-if="!showRemoved" label="categoria" :value="registro.categoriaId" :text="registro.categoria" :load-options="() => loadInlineOptions(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id')" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', value, expected)" class="text-sm" />
+                                        <span v-else class="text-gray-700 text-sm truncate block">{{ registro.categoria }}</span>
                                     </div>
                                     <!-- Colaborador -->
-                                    <div class="w-40 flex-shrink-0">
-                                        <span class="text-gray-700 text-sm truncate block">{{ registro.colaborador || '-' }}</span>
+                                    <div class="w-40 flex-shrink-0 has-[form]:w-52">
+                                        <InlineRecordSelect v-if="!showRemoved" label="colaborador" :value="registro.colaboradorId" :text="registro.colaborador" :load-options="() => loadInlineOptions('collaborator_id')" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, 'collaborator_id', value, expected)" class="text-sm" />
+                                        <span v-else class="text-gray-700 text-sm truncate block">{{ registro.colaborador || '-' }}</span>
                                     </div>
                                     <!-- Descrição -->
-                                    <div class="flex-1">
-                                        <span class="text-gray-600 text-sm block">{{ registro.descricao || '-' }}</span>
+                                    <div class="min-w-40 flex-1">
+                                        <InlineRecordDescription v-if="!showRemoved" :value="registro.descricaoOriginal" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, 'description', value, expected)" class="text-sm" />
+                                        <span v-else class="text-gray-600 text-sm truncate block">{{ registro.descricao || '-' }}</span>
                                     </div>
                                     <!-- Datas -->
-                                    <div class="w-64 flex-shrink-0 text-right">
-                                        <div class="text-gray-700 text-xs">Movimento: {{ formatDate(registro.dataOperacao) }}</div>
-                                        <div class="text-gray-500 text-xs">Registrado: {{ formatDateTime(registro.registradoEm) }}</div>
+                                    <div class="w-40 flex-shrink-0 text-right has-[form]:w-52">
+                                        <RecordDateTooltip :registered-at="formatDateTime(registro.registradoEm)" :class="['font-medium text-xs', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
+                                            <InlineRecordDate v-if="!showRemoved" :value="registro.dataOperacaoInput" :text="formatDate(registro.dataOperacao)" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, 'date', value, expected)" />
+                                            <span v-else>{{ formatDate(registro.dataOperacao) }}</span>
+                                        </RecordDateTooltip>
                                     </div>
                                     <!-- Actions -->
                                     <div class="flex gap-2 flex-shrink-0 ml-auto w-24 justify-end">
@@ -3472,12 +3482,12 @@ onBeforeUnmount(() => {
                                     <button
                                         @click="cancelDelete"
                                         :disabled="isDeleteLoading"
-                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                                     >Cancelar</button>
                                     <button
                                         @click="confirmDelete"
                                         :disabled="isDeleteLoading"
-                                        class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                                        class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                                     >{{ isDeleteLoading ? 'Removendo...' : 'Remover' }}</button>
                                 </div>
                             </div>
@@ -3486,7 +3496,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div
-                        v-if="activeTab === 'todos'"
+                        v-if="activeTab === 'todos' && !listError"
                         ref="infiniteScrollTrigger"
                         class="h-10"
                         aria-hidden="true"
@@ -3504,7 +3514,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <!-- Pagination -->
-                    <div v-if="activeTab !== 'todos' && !isLoading && !isListLoading && totalPages > 1" class="flex items-center justify-center gap-2 mt-6">
+                    <div v-if="activeTab !== 'todos' && !listError && !isLoading && !isListLoading && totalPages > 1" class="flex items-center justify-center gap-2 mt-6">
                         <button
                             @click="goToPage(currentPage - 1)"
                             :disabled="currentPage === 1"
