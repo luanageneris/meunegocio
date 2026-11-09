@@ -463,6 +463,10 @@ select.app-select-control option:focus {
     background-color: color-mix(in srgb, #fb923c 18%, transparent);
 }
 
+:root:not(.dark) .app-select-create:hover {
+    color: #c2410c;
+}
+
 /* Toast Title */
 .sonner-toast [data-title] {
     font-weight: 700 !important;

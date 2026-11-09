@@ -486,5 +486,6 @@ async function submit() {
 <style scoped>
 .select-option:hover {
     background-color: var(--accent);
+    color: var(--accent-foreground);
 }
 </style>
