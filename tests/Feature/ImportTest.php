@@ -97,6 +97,148 @@ class ImportTest extends TestCase
         $response->assertJsonPath('data.summary.exits_created', 2);
         $response->assertJsonPath('data.summary.commissions_created', 2);
         $response->assertJsonPath('data.summary.sheets_processed', 1);
+        $this->assertDatabaseHas('financial_records', [
+            'company_id' => $this->company->id,
+            'type' => 'exit',
+            'exit_type_id' => $this->exitType->id,
+            'date' => '2025-01-01',
+        ]);
+    }
+
+    public function test_company_owner_can_import_financial_records()
+    {
+        $owner = User::factory()->for($this->company)->create(['role' => 'owner']);
+        $this->company->update(['owner_id' => $owner->id]);
+        $file = $this->createExcelFile([
+            ['date' => '01/01/2025', 'entry' => 'R$ 100,00'],
+        ]);
+
+        $this->actingAs($owner, 'sanctum')
+            ->postJson('/api/import', [
+                'file' => $file,
+                'default_entry_type_id' => $this->entryType->id,
+                'default_exit_type_id' => $this->exitType->id,
+                'default_collaborator_id' => $this->collaborator->id,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.summary.entries_created', 1);
+    }
+
+    public function test_non_owner_cannot_import_financial_records()
+    {
+        $companyOwner = User::factory()->for($this->company)->create(['role' => 'owner']);
+        $this->company->update(['owner_id' => $companyOwner->id]);
+        $otherOwner = User::factory()->for($this->company)->create(['role' => 'owner']);
+        $file = $this->createExcelFile([
+            ['date' => '01/01/2025', 'entry' => 'R$ 100,00'],
+        ]);
+
+        $this->actingAs($otherOwner, 'sanctum')
+            ->postJson('/api/import', [
+                'file' => $file,
+                'default_entry_type_id' => $this->entryType->id,
+                'default_exit_type_id' => $this->exitType->id,
+                'default_collaborator_id' => $this->collaborator->id,
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Apenas o proprietário da empresa pode importar dados.');
+    }
+
+    public function test_import_creates_exit_types_in_lowercase_and_reuses_them_case_insensitively()
+    {
+        $file = $this->createExcelFile([
+            ['date' => '01/01/2025', 'exit' => 'R$ 10,00', 'nota' => 'Energia'],
+            ['date' => '02/01/2025', 'exit' => 'R$ 20,00', 'nota' => 'ENERGIA'],
+        ]);
+
+        $this->postJson('/api/import', [
+            'file' => $file,
+            'default_entry_type_id' => $this->entryType->id,
+            'default_exit_type_id' => $this->exitType->id,
+            'default_collaborator_id' => $this->collaborator->id,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.summary.exits_created', 2);
+
+        $matchingTypes = ExitType::forCompany($this->company->id)
+            ->get()
+            ->filter(fn (ExitType $exitType) => mb_strtolower(trim($exitType->name)) === 'energia');
+
+        $this->assertCount(1, $matchingTypes);
+        $this->assertSame('energia', $matchingTypes->first()->name);
+        $this->assertDatabaseHas('financial_records', [
+            'company_id' => $this->company->id,
+            'type' => 'exit',
+            'exit_type_id' => $matchingTypes->first()->id,
+            'date' => '2025-01-01',
+            'description' => 'Energia',
+        ]);
+        $this->assertDatabaseHas('financial_records', [
+            'company_id' => $this->company->id,
+            'type' => 'exit',
+            'exit_type_id' => $matchingTypes->first()->id,
+            'date' => '2025-01-02',
+            'description' => 'ENERGIA',
+        ]);
+    }
+
+    public function test_import_reuses_existing_exit_type_ignoring_letter_case()
+    {
+        $existingExitType = ExitType::factory()->create([
+            'company_id' => $this->company->id,
+            'name' => 'EnErGiA',
+        ]);
+        $file = $this->createExcelFile([
+            ['date' => '01/01/2025', 'exit' => 'R$ 10,00', 'nota' => 'energia'],
+        ]);
+
+        $this->postJson('/api/import', [
+            'file' => $file,
+            'default_entry_type_id' => $this->entryType->id,
+            'default_exit_type_id' => $this->exitType->id,
+            'default_collaborator_id' => $this->collaborator->id,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.summary.exits_created', 1);
+
+        $matchingTypes = ExitType::forCompany($this->company->id)
+            ->get()
+            ->filter(fn (ExitType $exitType) => mb_strtolower(trim($exitType->name)) === 'energia');
+
+        $this->assertCount(1, $matchingTypes);
+        $this->assertSame($existingExitType->id, $matchingTypes->first()->id);
+        $this->assertDatabaseHas('financial_records', [
+            'company_id' => $this->company->id,
+            'type' => 'exit',
+            'exit_type_id' => $existingExitType->id,
+        ]);
+    }
+
+    public function test_import_reuses_exit_type_when_database_collation_ignores_accents()
+    {
+        $existingExitType = ExitType::factory()->create([
+            'company_id' => $this->company->id,
+            'name' => 'Folha Cartão',
+        ]);
+        $file = $this->createExcelFile([
+            ['date' => '01/01/2025', 'exit' => 'R$ 10,00', 'nota' => 'folha cartao'],
+        ]);
+
+        $this->postJson('/api/import', [
+            'file' => $file,
+            'default_entry_type_id' => $this->entryType->id,
+            'default_exit_type_id' => $this->exitType->id,
+            'default_collaborator_id' => $this->collaborator->id,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.summary.exits_created', 1);
+
+        $this->assertDatabaseCount('exit_types', 2);
+        $this->assertDatabaseHas('financial_records', [
+            'company_id' => $this->company->id,
+            'type' => 'exit',
+            'exit_type_id' => $existingExitType->id,
+        ]);
     }
 
     public function test_import_accepts_month_first_string_dates()

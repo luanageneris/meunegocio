@@ -20,6 +20,12 @@ class ImportController extends Controller
 
     public function import(Request $request)
     {
+        if (!$request->user()->canManageFinancialRecords()) {
+            return response()->json([
+                'message' => 'Apenas o proprietário da empresa pode importar dados.',
+            ], 403);
+        }
+
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls'],
             'default_entry_type_id' => [

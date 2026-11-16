@@ -1894,19 +1894,16 @@ const confirmImport = async () => {
         });
 
         const json = await response.json();
+        const result = json?.data ?? json;
         if (!response.ok) {
-            // Mostrar erro com detalhes
-            let errorMessage = json?.message || 'Erro ao importar o arquivo.';
-            if (json?.error) {
-                errorMessage += ` (${json.error})`;
-            }
-            importError.value = errorMessage;
+            const message = result?.message || json?.message || 'Erro ao importar o arquivo.';
+            importError.value = result?.error ? `${message} (${result.error})` : message;
             return;
         }
 
         // Sucesso - mostrar mensagem e resumo
-        importSuccess.value = json?.message || 'Importação concluída com sucesso.';
-        importSummary.value = json?.summary ?? null;
+        importSuccess.value = result?.message || 'Importação concluída com sucesso.';
+        importSummary.value = result?.summary ?? null;
         
         // Aguardar 2 segundos e recarregar registros
         setTimeout(async () => {

@@ -226,7 +226,7 @@ Route::middleware(['auth:sanctum', 'company.isolation', 'track.changes'])->group
     });
 
     // Importação
-    Route::post('/import', [ImportController::class, 'import'])->middleware('root');
+    Route::post('/import', [ImportController::class, 'import']);
 
     // Suporte
     Route::post('/support', [SupportController::class, 'send']);

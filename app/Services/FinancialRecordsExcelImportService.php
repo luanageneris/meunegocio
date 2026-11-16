@@ -10,8 +10,10 @@ use App\Models\FinancialRecord;
 use App\Models\ImportLog;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -53,6 +55,17 @@ class FinancialRecordsExcelImportService
             $collaborator = Collaborator::forCompany()->findOrFail($defaultCollaboratorId);
             Log::info('Colaborador encontrado', ['id' => $collaborator->id, 'name' => $collaborator->name]);
 
+            $exitTypesByName = [];
+            $trashedExitTypesByName = [];
+            foreach (ExitType::forCompany($companyId)->withTrashed()->get() as $existingExitType) {
+                $normalizedName = $this->normalizeExitTypeKey($existingExitType->name);
+                if ($existingExitType->trashed()) {
+                    $trashedExitTypesByName[$normalizedName] ??= $existingExitType;
+                } else {
+                    $exitTypesByName[$normalizedName] ??= $existingExitType;
+                }
+            }
+
             Log::info('Carregando arquivo Excel...');
             $spreadsheet = IOFactory::load($file->getRealPath());
             
@@ -72,7 +85,7 @@ class FinancialRecordsExcelImportService
                 'invalid_date_examples' => [],
             ];
 
-            DB::transaction(function () use ($spreadsheet, $companyId, $entryType, $exitType, $collaborator, &$summary, &$diagnostics) {
+            DB::transaction(function () use ($spreadsheet, $companyId, $entryType, $exitType, $collaborator, &$exitTypesByName, &$trashedExitTypesByName, &$summary, &$diagnostics) {
                 foreach ($spreadsheet->getWorksheetIterator() as $sheet) {
                     $summary['sheets_processed']++;
                     $sheetName = $sheet->getTitle();
@@ -178,17 +191,24 @@ class FinancialRecordsExcelImportService
                         $exitAmount = $exitCell ? $this->parseCurrencyCell($exitCell) : 0;
                         if ($exitAmount > 0) {
                             $reason = trim((string) $columnF);
+                            $recordExitType = $this->resolveExitType(
+                                $companyId,
+                                $reason,
+                                $exitType,
+                                $exitTypesByName,
+                                $trashedExitTypesByName
+                            );
                             Log::info("Criando SAÍDA", [
                                 'data' => $date->toDateString(),
                                 'amount' => $exitAmount,
                                 'reason' => $reason ?: 'Sem descrição',
-                                'type_id' => $exitType->id,
+                                'type_id' => $recordExitType->id,
                             ]);
                             
                             FinancialRecord::create([
                                 'company_id' => $companyId,
                                 'type' => 'exit',
-                                'exit_type_id' => $exitType->id,
+                                'exit_type_id' => $recordExitType->id,
                                 'amount' => $exitAmount,
                                 'quantity' => 1,
                                 'discount' => 0,
@@ -263,6 +283,63 @@ class FinancialRecordsExcelImportService
                 ],
             ];
         }
+    }
+
+    private function resolveExitType(
+        int $companyId,
+        string $reason,
+        ExitType $defaultExitType,
+        array &$exitTypesByName,
+        array &$trashedExitTypesByName
+    ): ExitType
+    {
+        $name = mb_strtolower(trim($reason));
+        if ($name === '') {
+            return $defaultExitType;
+        }
+
+        $key = $this->normalizeExitTypeKey($name);
+        if (isset($exitTypesByName[$key])) {
+            return $exitTypesByName[$key];
+        }
+
+        if (isset($trashedExitTypesByName[$key])) {
+            $exitType = $trashedExitTypesByName[$key];
+            $exitType->restore();
+            unset($trashedExitTypesByName[$key]);
+            $exitTypesByName[$key] = $exitType;
+
+            return $exitType;
+        }
+
+        try {
+            $exitType = ExitType::create([
+                'company_id' => $companyId,
+                'name' => $name,
+            ]);
+        } catch (QueryException $exception) {
+            $exitType = ExitType::withTrashed()
+                ->forCompany($companyId)
+                ->whereRaw('LOWER(name) = ?', [$name])
+                ->first();
+
+            if (!$exitType) {
+                throw $exception;
+            }
+
+            if ($exitType->trashed()) {
+                $exitType->restore();
+            }
+        }
+
+        $exitTypesByName[$key] = $exitType;
+
+        return $exitType;
+    }
+
+    private function normalizeExitTypeKey(string $name): string
+    {
+        return mb_strtolower(trim(Str::ascii($name)));
     }
 
     private function parseCurrencyCell(Cell $cell): float
