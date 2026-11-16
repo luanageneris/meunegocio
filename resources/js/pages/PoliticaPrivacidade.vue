@@ -93,6 +93,10 @@ const handleBack = () => {
                         <p class="text-sm font-semibold text-orange-700">Logs e segurança</p>
                         <p class="text-gray-800">Logs de acesso, tentativas de login com sucesso e falha, endereço IP, localização aproximada por IP e eventos relevantes para auditoria e prevenção de fraude.</p>
                     </div>
+                    <div class="p-4 rounded-xl border border-orange-100 bg-orange-50">
+                        <p class="text-sm font-semibold text-orange-700">Localização para feriados</p>
+                        <p class="text-gray-800">Com seu consentimento, guardamos o país, a região e a cidade escolhidos manualmente para mostrar feriados. Não coletamos coordenadas nem usamos GPS para esta função. Você pode retirar o consentimento e remover essa localização em Minha Conta.</p>
+                    </div>
                 </div>
             </section>
 
@@ -116,6 +120,10 @@ const handleBack = () => {
                     <div class="p-4 rounded-xl border border-orange-100">
                         <p class="text-sm font-semibold text-orange-700">Suporte</p>
                         <p class="text-gray-800">Responder solicitações por meio do canal de atendimento da plataforma e manter histórico de atendimento.</p>
+                    </div>
+                    <div class="p-4 rounded-xl border border-orange-100">
+                        <p class="text-sm font-semibold text-orange-700">Feriados</p>
+                        <p class="text-gray-800">Consultamos dados por país e ano nas fontes OpenHolidays e BrasilAPI, sem enviar identificadores de usuários ou coordenadas. Para validar municípios brasileiros, utilizamos o catálogo público Municípios Brasileiros, de Kelvin S. do Prado (licença MIT). Os resultados compartilhados são armazenados separadamente da preferência individual; podem ser incompletos. Dados OpenHolidays: licença ODbL.</p>
                     </div>
                     <div class="p-4 rounded-xl border border-orange-100">
                         <p class="text-sm font-semibold text-orange-700">Obrigação legal</p>

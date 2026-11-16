@@ -4,7 +4,10 @@ namespace App\Services;
 
 use App\Models\Company;
 use App\Models\FinancialRecord;
+use App\Models\Holiday;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class ReportPdfService
@@ -25,10 +28,13 @@ class ReportPdfService
 
     private const TABLE_FONT_SIZE = '9px';
 
-    public function buildMonthlyStatementPdf(Company $company, Carbon $periodStart, string $pin): string
+    public function __construct(private HolidayService $holidayService) {}
+
+    public function buildMonthlyStatementPdf(Company $company, Carbon $periodStart, string $pin, User $recipient): string
     {
         $periodStart = $periodStart->copy()->startOfMonth();
         $periodEnd = $periodStart->copy()->endOfMonth();
+        $holidayData = $this->loadHolidayData($company, $recipient, $periodStart, $periodEnd);
 
         $records = FinancialRecord::query()
             ->where('company_id', $company->id)
@@ -76,7 +82,11 @@ class ReportPdfService
                 : ($record->exitType?->name ?? '-');
 
             $html .= '<tr style="background-color:' . $rowBackground . ';">';
-            $html .= '<td width="' . self::MONTHLY_COL_DATE . '">' . optional($record->date)->format('d/m/Y') . '</td>';
+            $dateLabel = optional($record->date)->format('d/m/Y');
+            if ($record->date && $holidayData && $this->isHoliday($holidayData['holidays'], $record->date)) {
+                $dateLabel = '<font color="#b91c1c">' . $dateLabel . ' *</font>';
+            }
+            $html .= '<td width="' . self::MONTHLY_COL_DATE . '">' . $dateLabel . '</td>';
             $html .= '<td width="' . self::MONTHLY_COL_TYPE . '">' . ($record->type === 'entry' ? 'Entrada' : 'Saída') . '</td>';
             $html .= '<td width="' . self::MONTHLY_COL_CATEGORY . '">' . e($category) . '</td>';
             $html .= '<td width="' . self::MONTHLY_COL_DESCRIPTION . '">' . e((string) ($record->description ?? '-')) . '</td>';
@@ -103,6 +113,7 @@ class ReportPdfService
         $html .= '</tr>';
 
         $html .= '</tbody></table>';
+        $html .= $this->buildHolidaySectionHtml($holidayData, true);
 
         $pdf->writeHTML($html, true, false, true, false, '');
 
@@ -117,8 +128,10 @@ class ReportPdfService
         return $finalPath;
     }
 
-    public function buildYearlySummaryPdf(Company $company, int $year, string $pin): string
+    public function buildYearlySummaryPdf(Company $company, int $year, string $pin, User $recipient): string
     {
+        $periodStart = Carbon::create($year, 1, 1)->startOfDay();
+        $holidayData = $this->loadHolidayData($company, $recipient, $periodStart, $periodStart->copy()->endOfYear());
         $generatedAt = now();
         $pdf = $this->createPdfDocument('Relatório Anual - Resumo', $pin, $generatedAt);
         $pdf->AddPage();
@@ -189,6 +202,7 @@ class ReportPdfService
         $html .= '</tr>';
 
         $html .= '</tbody></table>';
+        $html .= $this->buildHolidaySectionHtml($holidayData, false);
 
         $pdf->writeHTML($html, true, false, true, false, '');
 
@@ -201,6 +215,82 @@ class ReportPdfService
         $pdf->Output($finalPath, 'F');
 
         return $finalPath;
+    }
+
+    /**
+     * @return array{holidays: Collection<int, Holiday>, status: string}|null
+     */
+    private function loadHolidayData(Company $company, User $recipient, Carbon $start, Carbon $end): ?array
+    {
+        if ((int) $company->id !== (int) $recipient->company_id) {
+            throw new \InvalidArgumentException('O destinatário não pertence à empresa do relatório.');
+        }
+
+        $location = $recipient->holidayLocation()->first();
+        if (! $location) {
+            return null;
+        }
+
+        $sync = $this->holidayService->synchronize($location, $start->year);
+        $currentLocation = $recipient->holidayLocation()->first();
+        if (! $currentLocation || $currentLocation->cacheKey() !== $location->cacheKey()) {
+            return null;
+        }
+
+        return [
+            'holidays' => $sync->holidays()
+                ->where('start_date', '<=', $end->toDateString())
+                ->where('end_date', '>=', $start->toDateString())
+                ->orderBy('start_date')->orderBy('name')->get(),
+            'status' => $sync->status,
+        ];
+    }
+
+    /** @param Collection<int, Holiday> $holidays */
+    private function isHoliday(Collection $holidays, Carbon $date): bool
+    {
+        $day = $date->toDateString();
+
+        return $holidays->contains(fn (Holiday $holiday) => $holiday->start_date <= $day && $holiday->end_date >= $day);
+    }
+
+    /** @param array{holidays: Collection<int, Holiday>, status: string}|null $data */
+    private function buildHolidaySectionHtml(?array $data, bool $showMarkerLegend): string
+    {
+        if (! $data) {
+            return '';
+        }
+
+        $html = '<h3>Feriados e pontos facultativos</h3>';
+        if ($data['status'] === 'failed') {
+            return $html . '<p>Não foi possível consultar os feriados para este período.</p>';
+        }
+        if ($data['status'] === 'stale') {
+            $html .= '<p>Não foi possível atualizar os feriados; são exibidos os últimos dados salvos.</p>';
+        } elseif ($data['status'] === 'partial') {
+            $html .= '<p>Cobertura parcial: apenas datas nacionais disponíveis.</p>';
+        }
+        if ($data['holidays']->isEmpty()) {
+            return $html . '<p>Não há datas disponíveis para este período nas fontes consultadas.</p>';
+        }
+
+        if ($showMarkerLegend) {
+            $html .= '<p>As datas marcadas com * no extrato correspondem a feriados ou pontos facultativos.</p>';
+        }
+        $html .= '<ul>';
+        foreach ($data['holidays'] as $holiday) {
+            $start = Carbon::parse($holiday->start_date)->format('d/m/Y');
+            $end = Carbon::parse($holiday->end_date)->format('d/m/Y');
+            $period = $start === $end ? $start : $start . ' a ' . $end;
+            $type = match ($holiday->type) {
+                'public' => ' (Feriado)',
+                'optional' => ' (Ponto facultativo)',
+                default => '',
+            };
+            $html .= '<li>' . e($period . ' — ' . $holiday->name . $type) . '</li>';
+        }
+
+        return $html . '</ul>';
     }
 
     private function currency(float $value): string

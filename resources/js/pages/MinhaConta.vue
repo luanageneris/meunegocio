@@ -9,6 +9,9 @@ import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
 import { useInputMasks } from '@/composables/useInputMasks';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
+import HolidayLocationDialog from '@/components/HolidayLocationDialog.vue';
+import { formatHolidayLocation } from '@/types/holidays';
+import type { HolidayLocation } from '@/types/holidays';
 import logoUrl from '../../img/icon-logo.svg';
 
 type UserProfileForm = {
@@ -100,6 +103,50 @@ const initialReminderSettings = ref<Omit<ReminderSettingsForm, 'pdf_pin'> | null
 const reminderErrors = ref<Record<string, string[]>>({});
 const reminderSettingsLoading = ref(false);
 const reminderSettingsSaving = ref(false);
+const holidayLocation = ref<HolidayLocation | null>(null);
+const holidayLocationLoading = ref(true);
+const holidayDialogOpen = ref(false);
+const holidayLocationError = ref('');
+const holidayRevoking = ref(false);
+
+async function loadHolidayLocation() {
+    try {
+        const response = await fetch('/api/holidays/location', { credentials: 'include', headers: { Accept: 'application/json' } });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || 'Não foi possível carregar a localização.');
+        holidayLocation.value = payload.data;
+    } catch (error) {
+        holidayLocationError.value = error instanceof Error ? error.message : 'Não foi possível carregar a localização.';
+    } finally {
+        holidayLocationLoading.value = false;
+    }
+}
+
+function onHolidayLocationSaved(location: HolidayLocation) {
+    holidayLocation.value = location;
+    holidayDialogOpen.value = false;
+    holidayLocationError.value = '';
+}
+
+async function revokeHolidayLocation() {
+    if (!window.confirm('Retirar o consentimento e remover sua localização? Os feriados deixarão de aparecer no Dashboard.')) return;
+    holidayRevoking.value = true;
+    holidayLocationError.value = '';
+    try {
+        const response = await fetch('/api/holidays/location', {
+            method: 'DELETE', credentials: 'include',
+            headers: { Accept: 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || 'Não foi possível retirar o consentimento.');
+        holidayLocation.value = null;
+        window.localStorage.setItem('holiday-preference-changed', String(Date.now()));
+    } catch (error) {
+        holidayLocationError.value = error instanceof Error ? error.message : 'Não foi possível retirar o consentimento.';
+    } finally {
+        holidayRevoking.value = false;
+    }
+}
 
 const weekdays = [
     { value: 0, label: 'Dom' },
@@ -558,7 +605,7 @@ const closeDeleteModal = () => {
 
 const openClearRecordsModal = () => {
     if (!canEdit.value) {
-        toast.info('Acesso somente leitura', { description: 'Somente o usuário root pode limpar registros.' });
+        toast.info('Acesso somente leitura', { description: 'Somente o proprietário da empresa pode limpar registros.' });
         return;
     }
     showClearRecordsModal.value = true;
@@ -607,10 +654,10 @@ const handleClearRecordsConfirm = async () => {
             throw new Error(payload?.message || 'Erro ao limpar registros');
         }
 
-        clearRecordsSuccess.value = `${payload.financial_records_count} registros financeiros e ${payload.imported_commissions_count} comiss?es importadas foram removidos com sucesso.`;
+        clearRecordsSuccess.value = `${payload.financial_records_count} registros financeiros e ${payload.imported_commissions_count} comissões importadas foram removidos com sucesso.`;
 
         toast.success('Registros limpos', {
-            description: `${payload.financial_records_count} registros financeiros e ${payload.imported_commissions_count} comiss?es importadas foram removidos com sucesso.`,
+            description: `${payload.financial_records_count} registros financeiros e ${payload.imported_commissions_count} comissões importadas foram removidos com sucesso.`,
         });
         closeClearRecordsModal();
     } catch (error: any) {
@@ -680,6 +727,7 @@ onMounted(async () => {
     await fetchCompany();
     await fetchUserProfile();
     await fetchReminderSettings();
+    await loadHolidayLocation();
 });
 </script>
 
@@ -711,6 +759,18 @@ onMounted(async () => {
                         <LoadingSpinner v-if="isLoading" message="Carregando informações da conta..." />
 
                         <div v-else class="space-y-8">
+                            <section class="rounded-xl border border-blue-100 bg-blue-50 p-6 dark:border-slate-700 dark:bg-slate-800">
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Localização e feriados</h3>
+                                <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">Sua localização é escolhida manualmente e usada somente para mostrar os feriados disponíveis. Você pode retirar seu consentimento a qualquer momento.</p>
+                                <p v-if="holidayLocationLoading" class="mt-3 text-sm" role="status">Carregando localização...</p>
+                                <p v-else-if="holidayLocation" class="mt-3 text-sm">{{ formatHolidayLocation(holidayLocation) }}</p>
+                                <p v-else class="mt-3 text-sm">Você ainda não autorizou o uso de localização para feriados.</p>
+                                <p v-if="holidayLocationError" role="alert" class="mt-3 text-sm text-red-600">{{ holidayLocationError }}</p>
+                                <div v-if="!holidayLocationLoading" class="mt-4 flex flex-wrap gap-3">
+                                    <button type="button" class="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white" @click="holidayDialogOpen = true">{{ holidayLocation ? 'Alterar localização' : 'Escolher localização' }}</button>
+                                    <button v-if="holidayLocation" type="button" class="rounded-lg border border-red-500 px-4 py-2 font-semibold text-red-700 disabled:opacity-50" :disabled="holidayRevoking" @click="revokeHolidayLocation">{{ holidayRevoking ? 'Removendo...' : 'Retirar consentimento' }}</button>
+                                </div>
+                            </section>
                             <!-- User Profile Section -->
                             <section class="bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-700 rounded-xl p-6 shadow-sm overflow-hidden">
                                 <div class="flex items-center justify-between mb-4">
@@ -1238,4 +1298,5 @@ onMounted(async () => {
             </div>
         </Transition>
     </div>
+    <HolidayLocationDialog v-if="holidayDialogOpen" :location="holidayLocation" @close="holidayDialogOpen = false" @saved="onHolidayLocationSaved" />
 </template>

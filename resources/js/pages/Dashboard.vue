@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { computed, onMounted, ref, watch } from 'vue';
-import { AlertTriangle, Building2, CalendarDays, ChevronLeft, ChevronRight, RefreshCw, RotateCcw } from 'lucide-vue-next';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { AlertTriangle, Building2, CalendarDays, ChevronLeft, ChevronRight, MapPin, RefreshCw, RotateCcw } from 'lucide-vue-next';
 import Sidebar from '@/components/Sidebar.vue';
 import Footer from '@/components/Footer.vue';
 import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
 import AppSelect from '@/components/AppSelect.vue';
+import HolidayLocationDialog from '@/components/HolidayLocationDialog.vue';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { formatHolidayLocation } from '@/types/holidays';
+import type { Holiday, HolidayLocation } from '@/types/holidays';
 import { useAuth } from '@/composables/useAuth';
 import { usePrivacy } from '@/composables/usePrivacy';
 
@@ -75,6 +79,104 @@ const isRefreshing = ref(false);
 const loadError = ref('');
 const dashboardData = ref<DashboardSummary | null>(null);
 const isReady = ref(false);
+const holidayLocation = ref<HolidayLocation | null>(null);
+const holidayLocationLoaded = ref(false);
+const holidayDialogOpen = ref(false);
+const holidayItems = ref<Holiday[]>([]);
+const holidayLoading = ref(false);
+const holidayMonthLoaded = ref(false);
+const holidayNotice = ref('');
+const holidayPartialCoverage = ref(false);
+let holidayRequest = 0;
+let holidayLocationRequest = 0;
+
+const holidayTypeLabel = (type: Holiday['type']) => ({
+    public: 'Feriado',
+    optional: 'Ponto facultativo',
+    unknown: '',
+})[type];
+const holidayDisplayName = (holiday: Holiday) => {
+    const type = holidayTypeLabel(holiday.type);
+    return type ? `${holiday.name} (${type})` : holiday.name;
+};
+const holidaysForDay = (date: string) => holidayItems.value.filter((holiday) => holiday.start_date <= date && holiday.end_date >= date);
+
+async function loadHolidayMonth() {
+    const requestId = ++holidayRequest;
+    holidayItems.value = [];
+    holidayNotice.value = '';
+    holidayPartialCoverage.value = false;
+    holidayMonthLoaded.value = false;
+    if (!holidayLocation.value) {
+        holidayLoading.value = false;
+        return;
+    }
+    if (selectedYear.value < 2000 || selectedYear.value > 2100) {
+        holidayLoading.value = false;
+        holidayNotice.value = 'A consulta de feriados está disponível para anos de 2000 a 2100.';
+        return;
+    }
+    holidayLoading.value = true;
+    try {
+        const response = await fetch('/api/holidays/month', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+            body: JSON.stringify({ month: selectedMonth.value, year: selectedYear.value }),
+        });
+        const payload = await response.json();
+        if (requestId !== holidayRequest) return;
+        if (!response.ok) throw new Error(payload.message || 'Não foi possível carregar os feriados.');
+        holidayItems.value = payload.data.holidays;
+        holidayMonthLoaded.value = true;
+        if (payload.data.status === 'failed') holidayNotice.value = 'Não foi possível obter feriados para este período. Tente novamente mais tarde.';
+        if (payload.data.status === 'stale') holidayNotice.value = 'Não foi possível atualizar os feriados. Exibindo os últimos dados salvos.';
+        holidayPartialCoverage.value = payload.data.status === 'partial';
+    } catch (error) {
+        if (requestId === holidayRequest) holidayNotice.value = error instanceof Error ? error.message : 'Não foi possível carregar os feriados.';
+    } finally {
+        if (requestId === holidayRequest) holidayLoading.value = false;
+    }
+}
+
+async function loadHolidayLocation() {
+    const requestId = ++holidayLocationRequest;
+    ++holidayRequest;
+    holidayItems.value = [];
+    holidayMonthLoaded.value = false;
+    holidayLoading.value = false;
+    holidayPartialCoverage.value = false;
+    try {
+        const response = await fetch('/api/holidays/location', { credentials: 'include', headers: { Accept: 'application/json' } });
+        const payload = await response.json();
+        if (requestId !== holidayLocationRequest) return;
+        if (!response.ok) throw new Error(payload.message || 'Não foi possível carregar a preferência de feriados.');
+        holidayLocation.value = payload.data;
+        await loadHolidayMonth();
+    } catch (error) {
+        if (requestId === holidayLocationRequest) {
+            holidayLocation.value = null;
+            holidayNotice.value = error instanceof Error ? error.message : 'Não foi possível carregar a preferência de feriados.';
+        }
+    } finally {
+        if (requestId === holidayLocationRequest) holidayLocationLoaded.value = true;
+    }
+}
+
+function onHolidayLocationSaved(location: HolidayLocation) {
+    ++holidayLocationRequest;
+    holidayDialogOpen.value = false;
+    holidayLocation.value = location;
+    void loadHolidayMonth();
+}
+
+function onHolidayPreferenceChanged(event: StorageEvent) {
+    if (event.key === 'holiday-preference-changed') void loadHolidayLocation();
+}
+
+function onHolidayPageFocus() {
+    if (document.visibilityState === 'visible') void loadHolidayLocation();
+}
 
 const yearOptions = computed(() => {
     const years: number[] = [];
@@ -380,7 +482,7 @@ watch([selectedMonth, selectedYear], async () => {
         return;
     }
 
-    await loadDashboard(true);
+    await Promise.all([loadDashboard(true), loadHolidayMonth()]);
 });
 
 onMounted(async () => {
@@ -431,6 +533,14 @@ onMounted(async () => {
 
     await loadDashboard(false);
     isReady.value = true;
+    await loadHolidayLocation();
+    window.addEventListener('storage', onHolidayPreferenceChanged);
+    document.addEventListener('visibilitychange', onHolidayPageFocus);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('storage', onHolidayPreferenceChanged);
+    document.removeEventListener('visibilitychange', onHolidayPageFocus);
 });
 </script>
 
@@ -586,14 +696,14 @@ onMounted(async () => {
                                     :class="[cellStyle(day), day.is_today ? 'ring-2 ring-orange-400 ring-offset-1 dark:ring-offset-slate-900' : '']"
                                     role="button"
                                     tabindex="0"
-                                    title="Clique para ver detalhes"
-                                    aria-label="Clique para ver detalhes"
+                                    :title="holidaysForDay(day.date).map(holidayDisplayName).join('\n') || 'Clique para ver detalhes'"
+                                    :aria-label="`${day.day}: ${holidaysForDay(day.date).map(holidayDisplayName).join('; ')}. Clique para ver detalhes`"
                                     @click="openRecordsForDay(day)"
                                     @keyup.enter.prevent="openRecordsForDay(day)"
                                     @keyup.space.prevent="openRecordsForDay(day)"
                                 >
                                     <div class="flex flex-col gap-1 overflow-hidden">
-                                        <span class="text-[10px] font-semibold sm:text-sm lg:text-base">{{ day.day }}</span>
+                                        <span class="text-[10px] font-semibold sm:text-sm lg:text-base" :class="holidaysForDay(day.date).length ? 'text-red-600 dark:text-red-400' : ''">{{ day.day }}</span>
                                         <p v-if="day.status !== 'empty'" class="truncate text-[9px] font-semibold leading-tight sm:text-[10px] lg:text-sm">
                                             {{ dayValueLabel(day) }}
                                         </p>
@@ -606,6 +716,35 @@ onMounted(async () => {
                                     class="min-h-[4rem] rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-transparent sm:min-h-[4.5rem] lg:min-h-[4.75rem] xl:min-h-[6rem]"
                                 />
                             </template>
+                        </div>
+                        <div class="mt-4 text-sm">
+                            <button v-if="holidayLocationLoaded && !holidayLocation && !holidayNotice" type="button" class="inline-flex cursor-pointer items-center gap-2 font-semibold text-orange-700 transition-colors hover:text-orange-600 dark:text-orange-300 dark:hover:text-orange-200" title="Clique aqui e selecione sua localização para que possamos encontrar os feriados de onde você está." @click="holidayDialogOpen = true">
+                                <MapPin class="h-5 w-5 motion-safe:animate-pulse" aria-hidden="true" />
+                                Sabia que podemos mostrar os feriados?
+                            </button>
+                            <TooltipProvider v-if="holidayLocation" :delay-duration="0">
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <button type="button" class="inline-flex cursor-pointer items-center gap-2 text-gray-500 transition-colors hover:text-orange-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 dark:text-slate-400 dark:hover:text-orange-300" :aria-label="`Alterar localização: ${formatHolidayLocation(holidayLocation)}`" @click="holidayDialogOpen = true">
+                                            <MapPin class="h-5 w-5 shrink-0" aria-hidden="true" />
+                                            <span>{{ formatHolidayLocation(holidayLocation) }}</span>
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent class="max-w-64 space-y-2">
+                                        <p v-if="holidayPartialCoverage">Cobertura parcial: apenas datas nacionais disponíveis, com classificação não informada.</p>
+                                        <p>Feriados e pontos facultativos disponíveis para {{ formatHolidayLocation(holidayLocation) }}. A cobertura pode ser incompleta.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            <p v-if="holidayLoading" role="status">Carregando feriados...</p>
+                            <p v-if="holidayNotice" role="status" class="text-amber-700 dark:text-amber-300">{{ holidayNotice }}</p>
+                            <p v-if="holidayLocation && holidayMonthLoaded && !holidayLoading && !holidayNotice && !holidayItems.length" class="text-gray-600 dark:text-slate-400">Não há datas disponíveis para este mês nas fontes consultadas.</p>
+                            <ul v-if="holidayItems.length" class="mt-2 space-y-1">
+                                <li v-for="holiday in holidayItems" :key="`${holiday.start_date}-${holiday.name}`" class="text-gray-700 dark:text-slate-300">
+                                    {{ holiday.start_date.split('-').reverse().join('/') }}<template v-if="holiday.end_date !== holiday.start_date"> a {{ holiday.end_date.split('-').reverse().join('/') }}</template> — {{ holidayDisplayName(holiday) }}
+                                </li>
+                            </ul>
+                            <p v-if="holidayLocation" class="mt-3 text-xs text-gray-500 dark:text-slate-400">Fontes: <a class="underline" href="https://www.openholidaysapi.org/" target="_blank" rel="noopener noreferrer">OpenHolidays</a> (dados <a class="underline" href="https://opendatacommons.org/licenses/odbl/" target="_blank" rel="noopener noreferrer">ODbL</a>) e <a class="underline" href="https://brasilapi.com.br/" target="_blank" rel="noopener noreferrer">BrasilAPI</a>.</p>
                         </div>
                     </div>
 
@@ -681,6 +820,13 @@ onMounted(async () => {
                                         <p class="text-xs">Dia sem qualquer lançamento.</p>
                                     </div>
                                 </div>
+                                <div v-if="holidayLocation" class="flex items-start gap-3">
+                                    <span class="w-3.5 flex-shrink-0 text-center font-bold text-red-600 dark:text-red-400">1</span>
+                                    <div>
+                                        <p class="font-semibold text-gray-800 dark:text-slate-100">Número vermelho</p>
+                                        <p class="text-xs">Feriado ou ponto facultativo.</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -699,4 +845,5 @@ onMounted(async () => {
             <Footer />
         </div>
     </div>
+    <HolidayLocationDialog v-if="holidayDialogOpen" :location="holidayLocation" :year="selectedYear" :month="selectedMonth" @close="holidayDialogOpen = false" @saved="onHolidayLocationSaved" />
 </template>

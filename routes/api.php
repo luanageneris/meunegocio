@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\ReminderSettingsController;
 use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\HistoryController;
+use App\Http\Controllers\Api\HolidayController;
 use App\Models\Collaborator;
 use App\Models\FinancialRecord;
 
@@ -55,6 +56,11 @@ Route::middleware(['auth:sanctum', 'master.admin'])->group(function () {
 // ROTAS DE LEITURA (GET) - SEM RASTREAMENTO
 // ========================================================================
 Route::middleware(['auth:sanctum', 'company.isolation'])->group(function () {
+
+    Route::get('/holidays/countries', [HolidayController::class, 'countries']);
+    Route::get('/holidays/subdivisions', [HolidayController::class, 'subdivisions']);
+    Route::get('/holidays/cities', [HolidayController::class, 'cities']);
+    Route::get('/holidays/location', [HolidayController::class, 'location']);
     
     // Histórico (Auditoria) - leitura apenas
     Route::prefix('history')->group(function () {
@@ -133,6 +139,11 @@ Route::middleware(['auth:sanctum', 'company.isolation'])->group(function () {
 // ROTAS DE ESCRITA (POST/PUT/DELETE) - COM RASTREAMENTO
 // ========================================================================
 Route::middleware(['auth:sanctum', 'company.isolation', 'track.changes'])->group(function () {
+
+    Route::put('/holidays/location', [HolidayController::class, 'updateLocation']);
+    Route::delete('/holidays/location', [HolidayController::class, 'deleteLocation']);
+    Route::post('/holidays/month', [HolidayController::class, 'month']);
+    Route::post('/holidays/preview', [HolidayController::class, 'preview']);
     
     // Empresa - Escrita
     Route::prefix('company')->group(function () {

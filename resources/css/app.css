@@ -77,6 +77,31 @@
     ::file-selector-button {
         border-color: var(--color-gray-200, currentColor);
     }
+
+    button:not(:disabled):not([aria-disabled='true']) {
+        cursor: pointer;
+    }
+
+    button:disabled,
+    button[aria-disabled='true'] {
+        cursor: not-allowed;
+    }
+
+    @media (hover: hover) {
+        button:not(:disabled):not([aria-disabled='true']):hover {
+            filter: brightness(0.92);
+        }
+    }
+
+    button:not(:disabled):not([aria-disabled='true']):active {
+        filter: brightness(0.82);
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        button:not(:disabled):not([aria-disabled='true']):active {
+            scale: 0.98;
+        }
+    }
 }
 
 @layer utilities {

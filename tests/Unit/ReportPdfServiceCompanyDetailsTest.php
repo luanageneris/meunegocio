@@ -5,7 +5,7 @@ use App\Services\ReportPdfService;
 use Carbon\Carbon;
 
 it('includes company cnpj and address details when available', function () {
-    $service = new ReportPdfService();
+    $service = app(ReportPdfService::class);
     $company = new Company([
         'name' => 'Xerografia & Cia',
         'document' => '12.345.678/0001-99',
@@ -25,7 +25,7 @@ it('includes company cnpj and address details when available', function () {
 });
 
 it('supports cnpj alias when document is not set', function () {
-    $service = new ReportPdfService();
+    $service = app(ReportPdfService::class);
     $company = new Company([
         'name' => 'Empresa Teste',
         'address' => 'Avenida Central, 456',
@@ -45,7 +45,7 @@ it('supports cnpj alias when document is not set', function () {
 });
 
 it('builds footer html with app link and generated timestamp', function () {
-    $service = new ReportPdfService();
+    $service = app(ReportPdfService::class);
 
     $method = new ReflectionMethod(ReportPdfService::class, 'buildFooterHtml');
     $html = $method->invoke(

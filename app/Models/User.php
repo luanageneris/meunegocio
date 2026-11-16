@@ -82,6 +82,11 @@ class User extends Authenticatable
         return $this->hasOne(UserReminderSetting::class);
     }
 
+    public function holidayLocation(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(UserHolidayLocation::class);
+    }
+
     // Helpers
     public function isRoot(): bool
     {

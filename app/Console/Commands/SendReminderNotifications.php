@@ -228,6 +228,7 @@ class SendReminderNotifications extends Command
             company: $setting->user->company,
             periodStart: $reportMonth,
             pin: (string) $setting->pdf_pin,
+            recipient: $setting->user,
         );
 
         try {
@@ -276,6 +277,7 @@ class SendReminderNotifications extends Command
             company: $setting->user->company,
             year: $reportYear,
             pin: (string) $setting->pdf_pin,
+            recipient: $setting->user,
         );
 
         try {

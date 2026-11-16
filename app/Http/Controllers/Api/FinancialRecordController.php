@@ -603,12 +603,12 @@ class FinancialRecordController
     }
 
     /**
-     * Clear all financial records (only root can do this)
+     * Clear all financial records for the user's company.
      */
     public function clearAll(Request $request)
     {
-        if (!$request->user()->isRoot()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if (!$request->user()->canManageFinancialRecords()) {
+            return response()->json(['message' => 'Apenas o proprietário da empresa pode limpar registros financeiros.'], 403);
         }
 
         $companyId = $request->user()->company_id;

@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends string | number">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { ChevronDown } from 'lucide-vue-next';
 
 export type AppSelectOption<T extends string | number = string> = {
@@ -22,9 +22,12 @@ const emit = defineEmits<{
 }>();
 
 const root = ref<HTMLElement | null>(null);
+const menu = ref<HTMLElement | null>(null);
 const isOpen = ref(false);
 const activeIndex = ref(0);
 const query = ref('');
+const normalizeSearch = (value: string) =>
+    value.toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const selectedOption = computed(
     () => props.options.find((option) => option.value === props.modelValue) ?? props.options[0],
 );
@@ -36,10 +39,10 @@ const availableOptions = computed(() => {
     return [...props.options, option];
 });
 const filteredOptions = computed(() => {
-    const search = query.value.trim().toLocaleLowerCase('pt-BR');
+    const search = normalizeSearch(query.value.trim());
     return search
         ? availableOptions.value.filter((option) =>
-              `${option.label} ${option.value}`.toLocaleLowerCase('pt-BR').includes(search),
+              normalizeSearch(`${option.label} ${option.value}`).includes(search),
           )
         : availableOptions.value;
 });
@@ -87,7 +90,11 @@ function selectOption(option: AppSelectOption<T>) {
 
 function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
-        close();
+        if (isOpen.value) {
+            event.preventDefault();
+            event.stopPropagation();
+            close();
+        }
         return;
     }
 
@@ -104,13 +111,22 @@ function handleKeydown(event: KeyboardEvent) {
         const direction = event.key === 'ArrowDown' ? 1 : -1;
         activeIndex.value =
             (activeIndex.value + direction + options.length) % options.length;
+        void nextTick(() => {
+            menu.value?.querySelectorAll<HTMLElement>('[role="option"]')[activeIndex.value]?.scrollIntoView({ block: 'nearest' });
+        });
         return;
     }
 
     if (event.key === 'Enter' && props.searchable) {
         event.preventDefault();
+        if (!isOpen.value) {
+            openSearch();
+            return;
+        }
         if (!query.value.trim()) {
-            close();
+            const option = filteredOptions.value[activeIndex.value];
+            if (option) selectOption(option);
+            else close();
             return;
         }
         if (props.createInputOption) {
@@ -126,7 +142,7 @@ function handleKeydown(event: KeyboardEvent) {
             close();
             return;
         }
-        const option = filteredOptions.value[0];
+        const option = filteredOptions.value[activeIndex.value];
         if (option) selectOption(option);
         else close();
         return;
@@ -182,6 +198,7 @@ onUnmounted(() => document.removeEventListener('click', handleDocumentClick));
                 class="app-select-control w-full pr-9 text-left text-xs"
                 :placeholder="selectedOption?.label"
                 @focus="openSearch"
+                @click="openSearch"
                 @input="updateQuery"
                 @keydown="handleKeydown"
             />
@@ -194,9 +211,10 @@ onUnmounted(() => document.removeEventListener('click', handleDocumentClick));
 
         <div
             v-if="isOpen"
+            ref="menu"
             role="listbox"
             :aria-label="label"
-            class="app-select-menu absolute left-0 top-full z-50 mt-1 min-w-full overflow-hidden p-1"
+            class="app-select-menu absolute left-0 top-full z-50 mt-1 max-h-60 min-w-full overflow-y-auto p-1"
         >
             <button
                 v-for="(option, index) in (searchable ? filteredOptions : availableOptions)"

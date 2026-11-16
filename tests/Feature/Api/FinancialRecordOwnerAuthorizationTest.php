@@ -3,6 +3,8 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Company;
+use App\Models\Collaborator;
+use App\Models\Commission;
 use App\Models\EntryType;
 use App\Models\ExitType;
 use App\Models\FinancialRecord;
@@ -85,5 +87,70 @@ class FinancialRecordOwnerAuthorizationTest extends TestCase
         $this->actingAs($owner, 'sanctum')->postJson('/api/registros/financial-records', [
             'type' => 'exit', 'date' => '2025-02-01', 'amount' => 30, 'exit_type_id' => $otherType->id,
         ])->assertUnprocessable()->assertJsonValidationErrors('exit_type_id');
+    }
+
+    public function test_company_owner_can_clear_only_their_company_records_and_imported_commissions(): void
+    {
+        $company = Company::factory()->create();
+        $owner = User::factory()->for($company)->create(['role' => 'owner']);
+        $company->update(['owner_id' => $owner->id]);
+        $otherCompany = Company::factory()->create();
+        $record = FinancialRecord::factory()->for($company)->create();
+        $otherRecord = FinancialRecord::factory()->for($otherCompany)->create();
+        $commission = Commission::factory()->create([
+            'company_id' => $company->id,
+            'collaborator_id' => Collaborator::factory()->for($company)->create()->id,
+            'financial_record_id' => null,
+            'notes' => 'Comissão importada de planilha',
+        ]);
+        $otherCommission = Commission::factory()->create([
+            'company_id' => $otherCompany->id,
+            'collaborator_id' => Collaborator::factory()->for($otherCompany)->create()->id,
+            'financial_record_id' => null,
+            'notes' => 'Comissão importada de planilha',
+        ]);
+
+        $this->actingAs($owner, 'sanctum')
+            ->deleteJson('/api/registros/financial-records/clear-all')
+            ->assertOk()
+            ->assertJsonPath('financial_records_count', 1)
+            ->assertJsonPath('imported_commissions_count', 1);
+
+        $this->assertSoftDeleted('financial_records', ['id' => $record->id]);
+        $this->assertSoftDeleted('commissions', ['id' => $commission->id]);
+        $this->assertDatabaseHas('financial_records', ['id' => $otherRecord->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('commissions', ['id' => $otherCommission->id, 'deleted_at' => null]);
+    }
+
+    public function test_sole_owner_of_legacy_company_can_clear_records(): void
+    {
+        $company = Company::factory()->create(['owner_id' => null]);
+        $owner = User::factory()->for($company)->create(['role' => 'owner']);
+        $record = FinancialRecord::factory()->for($company)->create();
+
+        $this->actingAs($owner, 'sanctum')
+            ->deleteJson('/api/registros/financial-records/clear-all')
+            ->assertOk();
+
+        $this->assertSoftDeleted('financial_records', ['id' => $record->id]);
+    }
+
+    public function test_clear_records_is_denied_for_non_owner_and_ambiguous_legacy_owners(): void
+    {
+        $company = Company::factory()->create(['owner_id' => null]);
+        $owner = User::factory()->for($company)->create(['role' => 'owner']);
+        $other = User::factory()->for($company)->create(['role' => 'owner']);
+        $record = FinancialRecord::factory()->for($company)->create();
+
+        $this->actingAs($owner, 'sanctum')
+            ->deleteJson('/api/registros/financial-records/clear-all')
+            ->assertForbidden();
+
+        $company->update(['owner_id' => $other->id]);
+        $this->actingAs($owner->fresh(), 'sanctum')
+            ->deleteJson('/api/registros/financial-records/clear-all')
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('financial_records', ['id' => $record->id, 'deleted_at' => null]);
     }
 }
