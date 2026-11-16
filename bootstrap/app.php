@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\DisableRememberMe;
 use App\Http\Middleware\EnsureUserIsRoot;
 use App\Http\Middleware\EnsureCompanyIsolation;
 use App\Http\Middleware\EnsureMasterAdminAccess;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->web(append: [
+            DisableRememberMe::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

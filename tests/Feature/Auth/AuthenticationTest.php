@@ -2,12 +2,41 @@
 
 use App\Models\AuditLog;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
 use Laravel\Fortify\Features;
 
 test('login screen can be rendered', function () {
     $response = $this->get(route('login'));
 
     $response->assertStatus(200);
+});
+
+test('web sessions expire after 15 minutes and when the browser closes', function () {
+    expect(config('session.lifetime'))->toBe(15);
+    expect(config('session.expire_on_close'))->toBeTrue();
+});
+
+test('remember cookies cannot restore authentication after browser close', function () {
+    $user = User::factory()->create();
+    $user->setRememberToken(str()->random(60));
+    $user->save();
+
+    $recallerName = Auth::guard('web')->getRecallerName();
+    $recallerValue = implode('|', [
+        $user->getAuthIdentifier(),
+        $user->getRememberToken(),
+        $user->getAuthPassword(),
+    ]);
+
+    $response = $this->withCookie(
+        $recallerName,
+        Crypt::encryptString($recallerValue),
+    )->get(route('login'));
+
+    $response->assertOk();
+    $response->assertCookieExpired($recallerName);
+    $this->assertGuest();
 });
 
 test('authenticated users are redirected away from login screen', function () {

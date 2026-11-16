@@ -66,7 +66,7 @@ class AuthController extends Controller
             }
 
             // ⭐ CRÍTICO: Criar sessão (para Sanctum SPA stateful) + gerar token
-            \Illuminate\Support\Facades\Auth::login($user, remember: true);
+            \Illuminate\Support\Facades\Auth::login($user, remember: false);
 
             // Evita que uma pendência antiga force redirecionamento para registro.
             session()->forget('pending_registration');
@@ -235,7 +235,7 @@ class AuthController extends Controller
             session()->forget('pending_registration');
 
             // ⭐ CRÍTICO: Criar sessão para Sanctum + gerar token
-            \Illuminate\Support\Facades\Auth::login($user, remember: true);
+            \Illuminate\Support\Facades\Auth::login($user, remember: false);
             
             $token = $user->createToken('auth_token')->plainTextToken;
             session(['sanctum_token' => $token]);

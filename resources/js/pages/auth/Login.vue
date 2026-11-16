@@ -74,7 +74,7 @@ const handleEmailLogin = () => {
     router.post('/login', {
         email: trimmedEmail,
         password: password.value,
-        remember: true,
+        remember: false,
     }, {
         preserveScroll: true,
         onSuccess: async () => {
