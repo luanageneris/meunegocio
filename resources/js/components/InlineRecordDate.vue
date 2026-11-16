@@ -49,5 +49,5 @@ async function submit() {
     <InlineRecordEditor v-if="editing" label="data do movimento" :loading="false" :saving="saving" :disabled="false" :error="error" :ignore-outside="['[data-record-date-calendar]']" @save="submit" @cancel="editing = false">
         <DateInput v-model="selected" auto-open inline-editor aria-label="Selecionar data do movimento" :disabled="saving" class="app-select-control min-w-0 w-36 text-sm text-gray-800 dark:text-slate-100" />
     </InlineRecordEditor>
-    <button v-else type="button" class="font-medium decoration-orange-500 underline-offset-4 decoration-dotted hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-orange-500 cursor-pointer" aria-label="Editar data do movimento" title="Editar data do movimento" @click.stop="startEditing">{{ text }}</button>
+    <button v-else type="button" class="font-medium decoration-primary underline-offset-4 decoration-dotted hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-orange-500 cursor-pointer" aria-label="Editar data do movimento" title="Editar data do movimento" @click.stop="startEditing">{{ text }}</button>
 </template>

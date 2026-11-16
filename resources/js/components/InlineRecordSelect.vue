@@ -474,7 +474,7 @@ async function submit() {
     <button
         v-else
         type="button"
-        class="max-w-full cursor-pointer truncate text-left text-gray-700 decoration-orange-500 decoration-dotted underline-offset-4 hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-orange-500 dark:text-slate-200"
+        class="max-w-full cursor-pointer truncate text-left text-gray-700 decoration-primary decoration-dotted underline-offset-4 hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-orange-500 dark:text-slate-200"
         :aria-label="`Editar ${label}`"
         :title="`Editar ${label}`"
         @click.stop="startEditing"

@@ -116,7 +116,7 @@ class ImportApiTest extends TestCase
             ->assertJsonPath('data.summary.commissions_created', 2)
             ->assertJsonPath('data.summary.sheets_processed', 2);
 
-        $this->assertDatabaseCount('financial_records', 3);
+        $this->assertDatabaseCount('financial_records', 5);
         $this->assertDatabaseCount('commissions', 2);
         $this->assertDatabaseHas('import_logs', [
             'company_id' => $this->company->id,

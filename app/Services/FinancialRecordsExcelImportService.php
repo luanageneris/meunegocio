@@ -166,6 +166,24 @@ class FinancialRecordsExcelImportService
                         // COMISSÃO
                         $commissionAmount = $commissionCell ? $this->parseCurrencyCell($commissionCell) : 0;
                         if ($commissionAmount > 0) {
+                            $commissionType = $this->resolveExitType(
+                                $companyId,
+                                CompanyDefaultsService::DEFAULT_EXIT_TYPE_COMMISSION_LABEL,
+                                $exitType,
+                                $exitTypesByName,
+                                $trashedExitTypesByName
+                            );
+                            $commissionRecord = FinancialRecord::create([
+                                'company_id' => $companyId,
+                                'type' => 'exit',
+                                'exit_type_id' => $commissionType->id,
+                                'collaborator_id' => $collaborator->id,
+                                'amount' => $commissionAmount,
+                                'quantity' => 1,
+                                'discount' => 0,
+                                'date' => $date->toDateString(),
+                                'description' => 'Comissão importada de planilha',
+                            ]);
                             Log::info("Criando COMISSÃO", [
                                 'data' => $date->toDateString(),
                                 'amount' => $commissionAmount,
@@ -175,7 +193,7 @@ class FinancialRecordsExcelImportService
                             Commission::create([
                                 'company_id' => $companyId,
                                 'collaborator_id' => $collaborator->id,
-                                'financial_record_id' => null,
+                                'financial_record_id' => $commissionRecord->id,
                                 'date' => $date->toDateString(),
                                 'amount' => $commissionAmount,
                                 'paid_at' => null,
@@ -315,7 +333,9 @@ class FinancialRecordsExcelImportService
         try {
             $exitType = ExitType::create([
                 'company_id' => $companyId,
-                'name' => $name,
+                'name' => $key === $this->normalizeExitTypeKey(CompanyDefaultsService::DEFAULT_EXIT_TYPE_COMMISSION_LABEL)
+                    ? CompanyDefaultsService::DEFAULT_EXIT_TYPE_COMMISSION_LABEL
+                    : $name,
             ]);
         } catch (QueryException $exception) {
             $exitType = ExitType::withTrashed()

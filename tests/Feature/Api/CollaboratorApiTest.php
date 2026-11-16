@@ -98,6 +98,23 @@ class CollaboratorApiTest extends TestCase
             ->assertJsonMissing(['name' => CompanyDefaultsService::DEFAULT_LABEL]);
     }
 
+    public function test_default_collaborator_can_be_included_in_list(): void
+    {
+        Collaborator::create([
+            'name' => CompanyDefaultsService::DEFAULT_LABEL,
+            'cpf' => '000.000.000-01',
+            'active' => true,
+            'company_id' => $this->company->id,
+        ]);
+
+        $response = $this->actingAs($this->rootUser, 'sanctum')
+            ->getJson('/api/personalizar/collaborators?include_defaults=1');
+
+        $response->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonFragment(['name' => CompanyDefaultsService::DEFAULT_LABEL]);
+    }
+
     public function test_root_can_create_collaborator()
     {
         $response = $this->actingAs($this->rootUser, 'sanctum')
@@ -193,7 +210,7 @@ class CollaboratorApiTest extends TestCase
         $response = $this->actingAs($this->rootUser, 'sanctum')
             ->getJson("/api/personalizar/collaborators/{$collaborator->id}");
 
-        $response->assertStatus(403);
+        $response->assertNotFound();
     }
 
     public function test_cpf_must_be_unique()

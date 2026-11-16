@@ -6,6 +6,7 @@ use App\Models\Collaborator;
 use App\Models\Company;
 use App\Models\EntryType;
 use App\Models\ExitType;
+use App\Models\FinancialRecord;
 use App\Models\ImportLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -239,6 +240,53 @@ class ImportTest extends TestCase
             'type' => 'exit',
             'exit_type_id' => $existingExitType->id,
         ]);
+    }
+
+    public function test_imported_commission_is_listed_as_a_commission_exit_and_stays_in_sync()
+    {
+        $file = $this->createExcelFile([
+            ['date' => '01/01/2025', 'entry' => 'R$ 198,00', 'commission' => 'R$ 110,00'],
+        ]);
+
+        $this->postJson('/api/import', [
+            'file' => $file,
+            'default_entry_type_id' => $this->entryType->id,
+            'default_exit_type_id' => $this->exitType->id,
+            'default_collaborator_id' => $this->collaborator->id,
+        ])->assertCreated()->assertJsonPath('data.summary.commissions_created', 1);
+
+        $record = FinancialRecord::forCompany($this->company->id)
+            ->where('description', 'Comissão importada de planilha')
+            ->firstOrFail();
+        $this->assertSame('Comissão', $record->exitType->name);
+        $this->assertDatabaseHas('commissions', [
+            'company_id' => $this->company->id,
+            'collaborator_id' => $this->collaborator->id,
+            'financial_record_id' => $record->id,
+            'amount' => 110,
+            'deleted_at' => null,
+        ]);
+
+        $this->getJson('/api/registros/financial-records')
+            ->assertOk()
+            ->assertJsonPath('totals.entries', 198)
+            ->assertJsonPath('totals.exits', 110)
+            ->assertJsonPath('totals.commissions', 110)
+            ->assertJsonPath('totals.final_total', 88);
+        $this->getJson('/api/registros/financial-records?financial_type=comissao')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.exit_type.name', 'Comissão');
+
+        $this->patchJson("/api/registros/financial-records/{$record->id}/total", [
+            'total_cents' => 12000,
+            'expected_total_cents' => 11000,
+        ])->assertOk();
+        $this->assertDatabaseHas('commissions', ['financial_record_id' => $record->id, 'amount' => 120]);
+        $this->deleteJson("/api/registros/financial-records/{$record->id}")->assertOk();
+        $this->assertSoftDeleted('commissions', ['financial_record_id' => $record->id]);
+        $this->postJson("/api/registros/financial-records/{$record->id}/restore")->assertOk();
+        $this->assertDatabaseHas('commissions', ['financial_record_id' => $record->id, 'deleted_at' => null]);
     }
 
     public function test_import_accepts_month_first_string_dates()

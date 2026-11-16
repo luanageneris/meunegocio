@@ -366,7 +366,11 @@ class FinancialRecordController
             return $record->final_amount;
         });
         $commissionsTotal = (float) $commissions->sum('amount');
-        $finalTotal = $entriesTotal - $exitsTotal + $commissionsTotal;
+        $linkedImportedCommissions = (float) $commissions
+            ->whereNotNull('financial_record_id')
+            ->where('notes', 'Comissão importada de planilha')
+            ->sum('amount');
+        $finalTotal = $entriesTotal - $exitsTotal + $commissionsTotal - $linkedImportedCommissions;
 
         $summarySheet->fromArray([
             ['Filtro inicio', $request->start_date],
@@ -446,7 +450,10 @@ class FinancialRecordController
         } elseif ($type === 'comissao') {
             $query->where('type', 'exit')->where(function (Builder $query) {
                 $query->whereRaw("LOWER(description) LIKE ? ESCAPE '!'", ['%comissao%'])
-                    ->orWhereHas('exitType', fn (Builder $typeQuery) => $typeQuery->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", ['%comissao%']));
+                    ->orWhereRaw("LOWER(description) LIKE ? ESCAPE '!'", ['%comissão%'])
+                    ->orWhereHas('exitType', fn (Builder $typeQuery) => $typeQuery
+                        ->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", ['%comissao%'])
+                        ->orWhereRaw("LOWER(name) LIKE ? ESCAPE '!'", ['%comissão%']));
             });
         }
 
@@ -512,15 +519,20 @@ class FinancialRecordController
     {
         $this->applyListFilters($recordsQuery, $request);
         $totals = $this->calculateFinancialTotals($recordsQuery);
+        $linkedImportedCommissions = 0.0;
 
         if ($request->filled('financial_type') && $request->input('financial_type') !== 'comissao') {
             $totals['commissions'] = 0.0;
         } else {
             $this->applyCommissionSearchFilter($commissionQuery, $request);
-            $totals['commissions'] = (float) $commissionQuery->sum('amount');
+            $totals['commissions'] = (float) (clone $commissionQuery)->sum('amount');
+            $linkedImportedCommissions = (float) (clone $commissionQuery)
+                ->whereNotNull('financial_record_id')
+                ->where('notes', 'Comissão importada de planilha')
+                ->sum('amount');
         }
 
-        $totals['final_total'] = $totals['entries'] - $totals['exits'] + $totals['commissions'];
+        $totals['final_total'] = $totals['entries'] - $totals['exits'] + $totals['commissions'] - $linkedImportedCommissions;
 
         return $totals;
     }
@@ -615,7 +627,6 @@ class FinancialRecordController
 
         $financialRecordsCount = FinancialRecord::where('company_id', $companyId)->count();
         $importedCommissionsCount = Commission::where('company_id', $companyId)
-            ->whereNull('financial_record_id')
             ->where('notes', 'Comissão importada de planilha')
             ->count();
 
@@ -623,7 +634,6 @@ class FinancialRecordController
             FinancialRecord::where('company_id', $companyId)->delete();
 
             Commission::where('company_id', $companyId)
-                ->whereNull('financial_record_id')
                 ->where('notes', 'Comissão importada de planilha')
                 ->delete();
         });

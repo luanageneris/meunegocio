@@ -674,10 +674,20 @@ const activeFinancialFilterLabel = computed(() => {
     return '';
 });
 
+const getRecordTypeLabel = (record: { type: string; description?: string | null; exit_type?: { name?: string | null } | null }) => {
+    if (record.type === 'entry') return 'Entrada';
+
+    const isCommission = [record.description, record.exit_type?.name].some((value) =>
+        (value ?? '').toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('comissao'),
+    );
+    return isCommission ? 'Comissão' : 'Saída';
+};
+
 const viewRegistros = computed(() => registros.value.map((r: any) => ({
     id: r.id,
     // Determina tipo com base no campo type do banco de dados
     tipo: r.type === 'entry' ? 'entrada' as const : 'saida' as const,
+    tipoLabel: getRecordTypeLabel(r),
     valor: calculateRecordTotal(r.amount, r.quantity, r.discount),
     categoria: r.entry_type?.name ?? r.exit_type?.name ?? '-',
     categoriaId: (r.type === 'entry' ? r.entry_type_id : r.exit_type_id) ?? null,
@@ -2955,6 +2965,7 @@ onBeforeUnmount(() => {
                                         <li>Garanta que a coluna A tenha datas no formato <strong>d/m/Y</strong>.</li>
                                         <li>Não inclua linhas vazias antes dos dados e mantenha a linha final com <strong>Total</strong> na coluna A.</li>
                                         <li>Valores iguais a zero, vazios ou inválidos nas colunas B, C e D serão ignorados.</li>
+                                        <li>As comissões da coluna C serão registradas com a categoria <strong>Comissão</strong> e o colaborador padrão selecionado.</li>
                                         <li>Se uma linha tiver apenas comissão, a comissão será importada normalmente.</li>
                                         <li>Quando não houver identificação específica, revise os valores padrão selecionados antes de confirmar.</li>
                                         <li>Se houver saída, a coluna F será usada como descrição do registro.</li>
@@ -3322,8 +3333,9 @@ onBeforeUnmount(() => {
                             v-for="registro in paginatedRegistros"
                             :key="registro.id"
                             @click="selectRecord(registro.id)"
-                            class="group border border-gray-200 rounded-lg transition-shadow"
+                            class="group border border-gray-200 border-l-4 rounded-lg transition-shadow"
                             :class="[
+                                registro.tipoLabel === 'Comissão' ? 'border-l-blue-600 dark:border-l-blue-400' : registro.tipo === 'entrada' ? 'border-l-green-600 dark:border-l-green-400' : 'border-l-orange-500',
                                 editingRegistroId === registro.id
                                     ? 'ring-2 ring-yellow-300 shadow-md'
                                     : selectedRecordId === registro.id
@@ -3480,12 +3492,12 @@ onBeforeUnmount(() => {
                                 <div class="lg:hidden">
                                     <div class="flex flex-wrap items-start justify-between gap-2 mb-2">
                                         <div class="flex flex-wrap items-center gap-2 min-w-0">
-                                            <span :class="['inline-flex text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0', registro.tipo === 'entrada' ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700']">
-                                                {{ registro.tipo === 'entrada' ? 'Entrada' : 'Saída' }}
+                                            <span :class="['inline-flex text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0', registro.tipoLabel === 'Comissão' ? 'bg-blue-100 text-blue-700' : registro.tipo === 'entrada' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700']">
+                                                {{ registro.tipoLabel }}
                                             </span>
-                                            <InlineRecordAmount v-if="!isPrivacyMode && !showRemoved" :amount="registro.valor" :type="registro.tipo" :save="(total, expected) => saveRecordTotal(registro.id, total, expected)" class="text-base" />
-                                            <span v-else :class="['font-bold text-base', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
-                                                {{ registro.tipo === 'entrada' ? '+' : '−' }} {{ formatCurrency(registro.valor) }}
+                                            <InlineRecordAmount v-if="!isPrivacyMode && !showRemoved" :amount="registro.valor" :type="registro.tipo" :is-commission="registro.tipoLabel === 'Comissão'" :save="(total, expected) => saveRecordTotal(registro.id, total, expected)" class="text-base" />
+                                            <span v-else :class="['font-bold text-base', registro.tipoLabel === 'Comissão' ? 'text-blue-600 dark:text-blue-400' : registro.tipo === 'entrada' ? 'text-green-600 dark:text-green-400' : 'text-orange-500']">
+                                                <span class="text-[1.25em] leading-none">{{ registro.tipo === 'entrada' ? '+' : '−' }}</span> {{ formatCurrency(registro.valor) }}
                                             </span>
                                         </div>
                                         <div class="flex gap-1 flex-shrink-0">
@@ -3518,8 +3530,11 @@ onBeforeUnmount(() => {
                                     <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
                                         <div>
                                             <span class="text-gray-400 block">Categoria</span>
-                                            <InlineRecordSelect v-if="!showRemoved" label="categoria" :value="registro.categoriaId" :text="registro.categoria" :load-options="() => loadInlineOptions(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id')" :create-option="(name) => createInlineOption(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', name)" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', value, expected)" class="font-medium" />
-                                            <p v-else class="text-gray-700 font-medium truncate">{{ registro.categoria || '-' }}</p>
+                                            <div class="flex flex-wrap items-center gap-x-1.5">
+                                                <InlineRecordSelect v-if="!showRemoved" label="categoria" :value="registro.categoriaId" :text="registro.categoria" :load-options="() => loadInlineOptions(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id')" :create-option="(name) => createInlineOption(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', name)" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', value, expected)" class="font-medium min-w-0" />
+                                                <p v-else class="text-gray-700 font-medium truncate">{{ registro.categoria || '-' }}</p>
+                                                <span class="text-[10px] text-gray-500 dark:text-slate-400">({{ registro.tipoLabel }})</span>
+                                            </div>
                                         </div>
                                         <div>
                                             <span class="text-gray-400 block">Colaborador</span>
@@ -3532,7 +3547,7 @@ onBeforeUnmount(() => {
                                             <p v-else class="text-gray-600 truncate">{{ registro.descricao }}</p>
                                         </div>
                                         <div class="col-span-2 pt-0.5 text-gray-400">
-                                            <RecordDateTooltip :registered-at="formatDateTime(registro.registradoEm)" :class="['font-medium text-sm', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
+                                            <RecordDateTooltip :registered-at="formatDateTime(registro.registradoEm)" :class="['font-medium text-sm', registro.tipoLabel === 'Comissão' ? 'text-blue-600 dark:text-blue-400' : registro.tipo === 'entrada' ? 'text-green-600 dark:text-green-400' : 'text-orange-500']">
                                                 <InlineRecordDate v-if="!showRemoved" :value="registro.dataOperacaoInput" :text="formatDate(registro.dataOperacao)" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, 'date', value, expected)" />
                                                 <span v-else>{{ formatDate(registro.dataOperacao) }}</span>
                                             </RecordDateTooltip>
@@ -3543,16 +3558,17 @@ onBeforeUnmount(() => {
                                 <!-- Desktop layout -->
                                 <div class="hidden lg:flex lg:flex-wrap lg:items-center gap-4">
                                     <!-- Valor -->
-                                    <div class="w-24 flex-shrink-0 has-[form]:w-52">
-                                        <InlineRecordAmount v-if="!isPrivacyMode && !showRemoved" :amount="registro.valor" :type="registro.tipo" :save="(total, expected) => saveRecordTotal(registro.id, total, expected)" class="text-sm" />
-                                        <span v-else :class="['font-bold text-sm', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
-                                            {{ registro.tipo === 'entrada' ? '+ ' : '- ' }}{{ formatCurrency(registro.valor) }}
+                                    <div class="w-24 flex-shrink-0">
+                                        <InlineRecordAmount v-if="!isPrivacyMode && !showRemoved" :amount="registro.valor" :type="registro.tipo" :is-commission="registro.tipoLabel === 'Comissão'" :save="(total, expected) => saveRecordTotal(registro.id, total, expected)" class="text-sm" />
+                                        <span v-else :class="['font-bold text-sm', registro.tipoLabel === 'Comissão' ? 'text-blue-600 dark:text-blue-400' : registro.tipo === 'entrada' ? 'text-green-600 dark:text-green-400' : 'text-orange-500']">
+                                            <span class="text-[1.25em] leading-none">{{ registro.tipo === 'entrada' ? '+' : '−' }}</span> {{ formatCurrency(registro.valor) }}
                                         </span>
                                     </div>
                                     <!-- Categoria -->
-                                    <div class="w-32 flex-shrink-0 has-[form]:w-52">
-                                        <InlineRecordSelect v-if="!showRemoved" label="categoria" :value="registro.categoriaId" :text="registro.categoria" :load-options="() => loadInlineOptions(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id')" :create-option="(name) => createInlineOption(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', name)" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', value, expected)" class="text-sm" />
-                                        <span v-else class="text-gray-700 text-sm truncate block">{{ registro.categoria }}</span>
+                                    <div class="w-40 flex-shrink-0 has-[form]:w-52 flex flex-wrap items-center gap-x-1.5">
+                                        <InlineRecordSelect v-if="!showRemoved" label="categoria" :value="registro.categoriaId" :text="registro.categoria" :load-options="() => loadInlineOptions(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id')" :create-option="(name) => createInlineOption(registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', name)" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, registro.tipo === 'entrada' ? 'entry_type_id' : 'exit_type_id', value, expected)" class="text-sm min-w-0" />
+                                        <span v-else class="text-gray-700 text-sm truncate">{{ registro.categoria }}</span>
+                                        <span class="text-[10px] text-gray-500 dark:text-slate-400">({{ registro.tipoLabel }})</span>
                                     </div>
                                     <!-- Colaborador -->
                                     <div class="w-40 flex-shrink-0 has-[form]:w-52">
@@ -3566,7 +3582,7 @@ onBeforeUnmount(() => {
                                     </div>
                                     <!-- Datas -->
                                     <div class="w-40 flex-shrink-0 text-right has-[form]:w-52">
-                                        <RecordDateTooltip :registered-at="formatDateTime(registro.registradoEm)" :class="['font-medium text-xs', registro.tipo === 'entrada' ? 'text-yellow-500' : 'text-orange-500']">
+                                        <RecordDateTooltip :registered-at="formatDateTime(registro.registradoEm)" :class="['font-medium text-xs', registro.tipoLabel === 'Comissão' ? 'text-blue-600 dark:text-blue-400' : registro.tipo === 'entrada' ? 'text-green-600 dark:text-green-400' : 'text-orange-500']">
                                             <InlineRecordDate v-if="!showRemoved" :value="registro.dataOperacaoInput" :text="formatDate(registro.dataOperacao)" :save="(value, expected) => saveRecordField(registro.id, registro.tipo, 'date', value, expected)" />
                                             <span v-else>{{ formatDate(registro.dataOperacao) }}</span>
                                         </RecordDateTooltip>

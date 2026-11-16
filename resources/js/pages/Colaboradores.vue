@@ -94,6 +94,10 @@ const filtered = computed(() => {
     ));
 });
 
+const isDefaultCollaborator = (collaborator: Collaborator) => (
+    ['não definido', 'nao definido'].includes(collaborator.name.trim().toLowerCase())
+);
+
 const paginatedCollaborators = computed(() => {
     const start = (currentPage.value - 1) * itemsPerPage;
     const end = start + itemsPerPage;
@@ -148,7 +152,7 @@ const fetchCollaborators = async (showPageLoading = false) => {
         const endpoint = showRemoved.value
             ? '/api/personalizar/collaborators/with-trashed'
             : '/api/personalizar/collaborators';
-        const { data } = await axios.get(endpoint, { params: { include_inactive: 1 } });
+        const { data } = await axios.get(endpoint, { params: { include_inactive: 1, include_defaults: 1 } });
         collaborators.value = data;
     } catch (error: any) {
         errorMessage.value = error?.response?.data?.message || 'Erro ao carregar colaboradores';
@@ -610,8 +614,9 @@ onMounted(() => fetchCollaborators(true));
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20V10m5 10V4m5 16v-7" />
                                         </svg>
                                     </button>
-                                    <MasterDataStatusButton kind="collaborators" :id="collab.id" :active="collab.active" @updated="collab.active = $event" />
+                                    <MasterDataStatusButton v-if="!isDefaultCollaborator(collab)" kind="collaborators" :id="collab.id" :active="collab.active" @updated="collab.active = $event" />
                                     <button
+                                        v-if="!isDefaultCollaborator(collab)"
                                         @click="handleEdit(collab)"
                                         class="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
                                         title="Editar"
@@ -621,6 +626,7 @@ onMounted(() => fetchCollaborators(true));
                                         </svg>
                                     </button>
                                     <button
+                                        v-if="!isDefaultCollaborator(collab)"
                                         @click="handleDelete(collab)"
                                         class="p-2 text-red-500 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
                                         title="Remover"
