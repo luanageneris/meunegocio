@@ -116,8 +116,12 @@ jobs:
             if command -v crontab >/dev/null 2>&1; then
               CURRENT_CRON="$(crontab -l 2>/dev/null || true)"
               # Remove entradas antigas deste app e adiciona a atual (idempotente)
-              { echo "$CURRENT_CRON" | grep -v "$APP_DIR.*artisan schedule:run" | grep -v '^$' || true; echo "$CRON_LINE"; } | crontab -
-              crontab -l | grep "artisan schedule:run"
+              if { echo "$CURRENT_CRON" | grep -v "$APP_DIR.*artisan schedule:run" | grep -v '^$' || true; echo "$CRON_LINE"; } | crontab - 2>/dev/null \
+                && crontab -l 2>/dev/null | grep -F -x "$CRON_LINE" >/dev/null; then
+                echo "Cron do agendador configurado."
+              else
+                echo "AVISO: nao foi possivel configurar o cron; configure-o manualmente no hPanel."
+              fi
             else
               echo "AVISO: crontab indisponivel; configure o cron manualmente no hPanel."
             fi
@@ -222,4 +226,3 @@ jobs:
         run: |
           echo "Deploy script failed on server. Fallback build restore was executed to keep app online."
           exit 1
-
