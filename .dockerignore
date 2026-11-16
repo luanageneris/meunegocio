@@ -12,3 +12,7 @@ public/build
 compose.yaml
 compose.override.yaml
 *.md
+
+# AI agent configuration
+.github/copilot-instructions.md
+.mcp.json
