@@ -102,7 +102,10 @@ jobs:
             php artisan migrate --force
 
             echo "[4/6] Limpeza e link..."
-            php artisan storage:link || true
+            mkdir -p storage/app/public
+            if [ ! -e public/storage ] && [ ! -L public/storage ]; then
+              ln -s ../storage/app/public public/storage
+            fi
             php artisan optimize:clear
 
             echo "[5/6] Caches..."
@@ -111,19 +114,24 @@ jobs:
             php artisan view:cache
 
             echo "[6/6] Garantindo cron do agendador do Laravel..."
-            PHP_BIN="$(command -v php)"
-            CRON_LINE="* * * * * cd $APP_DIR && $PHP_BIN artisan schedule:run >> /dev/null 2>&1"
-            if command -v crontab >/dev/null 2>&1; then
-              CURRENT_CRON="$(crontab -l 2>/dev/null || true)"
-              # Remove entradas antigas deste app e adiciona a atual (idempotente)
-              if { echo "$CURRENT_CRON" | grep -v "$APP_DIR.*artisan schedule:run" | grep -v '^$' || true; echo "$CRON_LINE"; } | crontab - 2>/dev/null \
-                && crontab -l 2>/dev/null | grep -F -x "$CRON_LINE" >/dev/null; then
-                echo "Cron do agendador configurado."
+            if ! (
+              set +e
+              if command -v crontab >/dev/null 2>&1; then
+                PHP_BIN="$(command -v php || printf 'php')"
+                CRON_LINE="* * * * * cd $APP_DIR && $PHP_BIN artisan schedule:run >> /dev/null 2>&1"
+                CURRENT_CRON="$(crontab -l 2>/dev/null || true)"
+                # Remove entradas antigas deste app e adiciona a atual (idempotente)
+                if { echo "$CURRENT_CRON" | grep -v "$APP_DIR.*artisan schedule:run" | grep -v '^$' || true; echo "$CRON_LINE"; } | crontab - 2>/dev/null \
+                  && crontab -l 2>/dev/null | grep -F -x "$CRON_LINE" >/dev/null; then
+                  echo "Cron do agendador configurado."
+                else
+                  echo "AVISO: nao foi possivel configurar o cron; configure-o manualmente no hPanel."
+                fi
               else
-                echo "AVISO: nao foi possivel configurar o cron; configure-o manualmente no hPanel."
+                echo "AVISO: crontab indisponivel; configure o cron manualmente no hPanel."
               fi
-            else
-              echo "AVISO: crontab indisponivel; configure o cron manualmente no hPanel."
+            ); then
+              echo "AVISO: nao foi possivel configurar o cron; configure-o manualmente no hPanel."
             fi
 
             php artisan schedule:list || true
