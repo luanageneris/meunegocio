@@ -24,7 +24,8 @@ class CompanySetupFlowTest extends TestCase
         ]);
 
         $response->assertOk()
-            ->assertJsonPath('data.name', 'Empresa Setup Teste');
+            ->assertJsonPath('data.name', 'Empresa Setup Teste')
+            ->assertJsonPath('data.opening_days', [0, 1, 2, 3, 4, 5, 6]);
 
         $user->refresh();
         $this->assertNotNull($user->company_id);

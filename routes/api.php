@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DailyClosureController;
 use App\Http\Controllers\Api\CommissionController;
 use App\Http\Controllers\Api\BalanceController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\FinancialInsightsController;
 use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\ReminderSettingsController;
@@ -73,10 +74,15 @@ Route::middleware(['auth:sanctum', 'company.isolation'])->group(function () {
     // Dashboard (leitura)
     Route::prefix('dashboard')->group(function () {
         Route::get('/summary', [DashboardController::class, 'summary']);
+        Route::get('/monthly-report', [DashboardController::class, 'monthlyReport']);
         Route::get('/commissions-by-collaborator', [DashboardController::class, 'commissionsByCollaborator']);
         Route::get('/top-profitable-days', [DashboardController::class, 'topProfitableDays']);
         Route::get('/entries-exits', [DashboardController::class, 'entriesExits']);
+        Route::get('/curiosities/{kind}', [FinancialInsightsController::class, 'curiosity'])
+            ->whereIn('kind', ['monthly-ranking', 'monthly-average', 'best-day', 'weekday-average']);
     });
+
+    Route::get('/opportunities', [FinancialInsightsController::class, 'opportunities']);
 
     // Empresa (leitura)
     Route::prefix('company')->group(function () {

@@ -42,6 +42,12 @@ Route::middleware(['auth:sanctum', 'verified', 'prevent.auth.cache'])->group(fun
         return Inertia::render('Registros');
     })->name('registros');
 
+    Route::get('/oportunidades', function () {
+        return Inertia::render('Oportunidades', [
+            'today' => today()->toDateString(),
+        ]);
+    })->name('oportunidades');
+
     // Personalizar
     Route::get('/personalizar', function () {
         return Inertia::render('Customize');

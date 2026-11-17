@@ -196,7 +196,7 @@ class FinancialRecordsExcelImportService
                                 'financial_record_id' => $commissionRecord->id,
                                 'date' => $date->toDateString(),
                                 'amount' => $commissionAmount,
-                                'paid_at' => null,
+                                'paid_at' => $date->toDateString(),
                                 'notes' => 'Comissão importada de planilha',
                             ]);
                             $summary['commissions_created']++;

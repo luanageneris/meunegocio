@@ -13,6 +13,7 @@ class Company extends Model
 
     protected $attributes = [
         'use_service_types' => false,
+        'opening_days' => '[0,1,2,3,4,5,6]',
     ];
 
     protected $fillable = [
@@ -28,11 +29,13 @@ class Company extends Model
         'postal_code',
         'active',
         'use_service_types',
+        'opening_days',
     ];
 
     protected $casts = [
         'active' => 'boolean',
         'use_service_types' => 'boolean',
+        'opening_days' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',

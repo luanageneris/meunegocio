@@ -264,6 +264,7 @@ class ImportTest extends TestCase
             'collaborator_id' => $this->collaborator->id,
             'financial_record_id' => $record->id,
             'amount' => 110,
+            'paid_at' => '2025-01-01',
             'deleted_at' => null,
         ]);
 

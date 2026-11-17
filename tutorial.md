@@ -20,6 +20,57 @@ e necessario. Atualize as senhas correspondentes no `.env`. A remocao pode ser
 feita com `DROP USER IF EXISTS 'root'@'%';`. Nao remova o volume: ele contem
 os dados existentes.
 
+## Relatorio mensal pelo Dashboard
+
+No calendario do Dashboard, selecione o mes e o ano e use **Gerar relatorio PDF**
+no cartao da empresa. O download usa o mesmo extrato mensal enviado por e-mail
+no primeiro dia do mes, com os dados apenas da empresa autenticada.
+O PDF usa o PIN configurado em **Minha Conta > Lembretes e relatorios automaticos**.
+Configure esse PIN antes do primeiro download. Nao e necessario ativar os envios
+por e-mail; gerar o PDF nao envia mensagens nem altera o historico dos envios.
+
+Endpoint autenticado: `GET /api/dashboard/monthly-report?month=11&year=2026`.
+Mes e ano sao obrigatorios (1 a 12 e 2000 a 2100); erros retornam JSON e o
+sucesso retorna o arquivo `application/pdf`.
+
+## Comissoes no resumo do Dashboard
+
+O indicador **Comissoes do mes** fica no **Resumo** e soma as comissoes pagas
+e pendentes pela data da comissao no mes selecionado. **Saidas acumuladas**
+soma os lancamentos financeiros de saida do mesmo periodo, incluindo as
+comissoes lancadas como saida (como as importadas da planilha).
+O lucro e entradas menos saidas: nao se subtrai o indicador de comissoes
+novamente. Uma comissao sem lancamento de saida nao entra nesse total de saidas.
+
+## Periodo padrao de Oportunidades
+
+O periodo inicial vai do primeiro dia do mes ate hoje. A data de hoje vem
+do servidor, no fuso configurado em `app.timezone`, e e a mesma usada pela
+validacao da API. Assim, a virada de dia no navegador em outro fuso nao
+seleciona uma data futura para a aplicacao. O intervalo maximo permanece
+de dois anos e datas finais futuras sao bloqueadas.
+
+## Calculos das Curiosidades
+
+Cada cartao de Curiosidades no Dashboard tem um icone de informacao. Passe o
+cursor para ver a dica ou clique para abrir as regras especificas do indicador.
+O modal explica a elegibilidade, o periodo selecionado, os anos considerados
+quando disponiveis, o tratamento de empates e dias sem entradas e os dados
+adicionais mostrados quando nao existe historico do mes corrente.
+
+As curiosidades de medias mensais e por dia da semana apresentam entradas
+e saidas separadamente, sem subtrair os gastos das entradas. A media de saidas
+usa os mesmos anos e dias da media de entradas, incluindo zeros e o corte
+ate hoje quando o mes selecionado e o corrente. As saidas incluem comissoes
+com lancamento financeiro de saida, sem contar a comissao novamente.
+Sem historico comparavel, o mes corrente em andamento mostra tambem os totais
+de entradas e saidas e as medias semanais ate hoje. Ranking e melhor dia
+de vendas continuam baseados apenas em entradas, nao em lucro.
+O grafico semanal ocupa uma linha completa no desktop. Cada dia combina
+entradas (verde) e saidas (vermelho) na mesma barra, com os valores abaixo
+e o saldo medio (entradas menos saidas) ao lado. A escala e comum a todos
+os dias, baseada na maior soma de entradas e saidas medias.
+
 # Start docker
 ```
 sail up -d

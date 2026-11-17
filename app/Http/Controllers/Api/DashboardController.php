@@ -2,14 +2,42 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Requests\DownloadMonthlyReportRequest;
 use App\Models\Commission;
 use App\Models\FinancialRecord;
+use App\Models\UserReminderSetting;
+use App\Services\ReportPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller
 {
+    public function monthlyReport(DownloadMonthlyReportRequest $request, ReportPdfService $reports)
+    {
+        $user = $request->user();
+        $setting = UserReminderSetting::where('user_id', $user->id)->first();
+
+        if (! $setting || ! $setting->pdf_pin) {
+            return response()->json([
+                'message' => 'Configure o PIN do PDF em Minha Conta, na seção de lembretes, antes de gerar o relatório.',
+            ], 422);
+        }
+
+        $period = Carbon::create($request->integer('year'), $request->integer('month'), 1)->startOfDay();
+        $path = $reports->buildMonthlyStatementPdf(
+            company: $user->company,
+            periodStart: $period,
+            pin: (string) $setting->pdf_pin,
+            recipient: $user,
+        );
+
+        return response()->download($path, 'relatorio-mensal-'.$period->format('Y-m').'.pdf', [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'private, no-store',
+        ])->deleteFileAfterSend(true);
+    }
+
     public function summary(Request $request)
     {
         return response()->json([

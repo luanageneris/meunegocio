@@ -71,6 +71,7 @@ class CompanyController extends Controller
                     'postal_code' => $validated['postal_code'] ?? null,
                     'active' => true,
                     'use_service_types' => (bool) ($validated['use_service_types'] ?? false),
+                    'opening_days' => $validated['opening_days'] ?? range(0, 6),
                 ]);
 
                 $user->forceFill([

@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { AlertTriangle, Building2, CalendarDays, ChevronLeft, ChevronRight, MapPin, RefreshCw, RotateCcw } from 'lucide-vue-next';
+import { AlertTriangle, Building2, CalendarDays, ChevronLeft, ChevronRight, Download, Info, Lightbulb, MapPin, RefreshCw, RotateCcw } from 'lucide-vue-next';
 import Sidebar from '@/components/Sidebar.vue';
 import Footer from '@/components/Footer.vue';
 import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import AppInlineNotice from '@/components/AppInlineNotice.vue';
 import AppSelect from '@/components/AppSelect.vue';
+import CuriosityCalculationInfo from '@/components/CuriosityCalculationInfo.vue';
 import HolidayLocationDialog from '@/components/HolidayLocationDialog.vue';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatHolidayLocation } from '@/types/holidays';
@@ -50,6 +51,64 @@ type DashboardSummary = {
     days: DashboardDay[];
 };
 
+type CuriosityKind =
+    | 'monthly-ranking'
+    | 'monthly-average'
+    | 'best-day'
+    | 'weekday-average';
+
+type CuriosityWeekday = {
+    day: number;
+    label: string;
+    average_entries: number;
+    average_exits: number;
+};
+
+type CuriosityData = {
+    eligible: boolean;
+    eligibility: {
+        active_days: number;
+        required_active_days: number;
+        window_days: number;
+    };
+    available: boolean;
+    message?: string | null;
+    comparison_through_day?: number | null;
+    current_month_progress?: {
+        entries: number;
+        exits: number;
+        through_day: number;
+        rank: number | null;
+        months_compared: number;
+        weekday_averages: CuriosityWeekday[];
+    } | null;
+    years_count?: number;
+    years?: number[];
+    average_entries?: number;
+    average_exits?: number;
+    latest_comparable?: {
+        year: number;
+        entries: number;
+        rank: number;
+    } | null;
+    ranked_history?: Array<{
+        year: number;
+        entries: number;
+        rank: number;
+    }>;
+    best_day?: {
+        date: string;
+        entries: number;
+    };
+    weekdays?: CuriosityWeekday[];
+};
+
+type CuriosityState = {
+    loading: boolean;
+    error: string;
+    data: CuriosityData | null;
+};
+
 const auth = useAuth();
 const { isPrivacyMode } = usePrivacy();
 const registrationSuccessToastKey = 'registration_success_toast';
@@ -76,6 +135,8 @@ const selectedMonth = ref(new Date().getMonth() + 1);
 const selectedYear = ref(currentYear);
 const isLoading = ref(true);
 const isRefreshing = ref(false);
+const isDownloadingReport = ref(false);
+const reportError = ref('');
 const loadError = ref('');
 const dashboardData = ref<DashboardSummary | null>(null);
 const isReady = ref(false);
@@ -89,9 +150,32 @@ const holidayNotice = ref('');
 const holidayPartialCoverage = ref(false);
 let holidayRequest = 0;
 let holidayLocationRequest = 0;
+let curiosityRequest = 0;
+
+const curiosityKinds: CuriosityKind[] = [
+    'monthly-ranking',
+    'monthly-average',
+    'best-day',
+    'weekday-average',
+];
+const curiosityResults = ref<Record<CuriosityKind, CuriosityState>>({
+    'monthly-ranking': { loading: true, error: '', data: null },
+    'monthly-average': { loading: true, error: '', data: null },
+    'best-day': { loading: true, error: '', data: null },
+    'weekday-average': { loading: true, error: '', data: null },
+});
+const curiosityEligibility = computed(() => {
+    for (const kind of curiosityKinds) {
+        const data = curiosityResults.value[kind].data;
+        if (data && !data.eligible) return data.eligibility;
+    }
+
+    return null;
+});
+
 
 const holidayTypeLabel = (type: Holiday['type']) => ({
-    public: 'Feriado',
+    public: '',
     optional: 'Ponto facultativo',
     unknown: '',
 })[type];
@@ -196,6 +280,140 @@ const createYearOption = (query: string) => {
 const companyName = computed(() => dashboardData.value?.company?.name || auth.getCompanyName.value || 'Empresa');
 const monthLabel = computed(() => monthOptions.find((item) => item.value === selectedMonth.value)?.label || 'Mês');
 const monthTitle = computed(() => `${monthLabel.value} de ${selectedYear.value}`);
+
+const showTodayActivityWarning = computed(() => {
+    const today = dashboardData.value?.today;
+    if (!today || today.has_activity) return false;
+
+    const [year, month] = today.date.split('-').map(Number);
+    return selectedYear.value === year && selectedMonth.value === month;
+});
+
+const curiosityExplanations = computed<Record<CuriosityKind, string[]>>(() => {
+    const shared = (kind: CuriosityKind): string[] => {
+        const state = curiosityResults.value[kind];
+        const eligibility = state.data?.eligibility;
+        return [
+            `Período selecionado: ${monthTitle.value}. Usamos somente os registos financeiros da sua empresa que não foram excluídos. Entradas e saídas são calculadas separadamente, em todas as categorias; não subtraímos os gastos das entradas. Os valores de entradas não representam lucro.`,
+            `Cada lançamento vale (valor × quantidade) − desconto, com mínimo de zero. Os resultados monetários são arredondados para duas casas decimais. As saídas incluem comissões lançadas como saída, sem somar novamente os valores da lista de comissões.`,
+            `Para liberar esta análise, é preciso ter registos em pelo menos ${eligibility?.required_active_days ?? 30} dias diferentes nos últimos ${eligibility?.window_days ?? 90} dias, incluindo hoje, independentemente do mês selecionado. Vários lançamentos no mesmo dia contam como um único dia; um dia com apenas saída também conta.${eligibility ? ` A sua empresa tem ${eligibility.active_days} dias com registos nessa janela.` : ''}`,
+            ...(state.loading ? ['Os dados desta seção ainda estão carregando; as regras abaixo descrevem o cálculo que será aplicado.'] : []),
+            ...(state.error ? ['Não foi possível carregar os dados desta seção. As regras abaixo continuam disponíveis, mas não há um resultado confirmado para este carregamento.'] : []),
+        ];
+    };
+    const historyRules = (kind: CuriosityKind): string[] => {
+        const data = curiosityResults.value[kind].data;
+        const years = data?.years ?? data?.ranked_history?.map((item) => item.year);
+        const today = new Date();
+        const throughDay = data
+            ? data.comparison_through_day
+            : selectedMonth.value === today.getMonth() + 1 && selectedYear.value === today.getFullYear()
+              ? today.getDate()
+              : null;
+        return [
+            `Comparamos somente ${monthLabel.value.toLowerCase()} em anos anteriores a ${selectedYear.value}, sem incluir o ano selecionado nem anos posteriores. Um ano entra na comparação quando há pelo menos um registo de entrada ou saída nesse mês e intervalo. Se não houver lançamentos de um dos tipos, o total desse tipo é zero. Anos sem nenhum registo ficam fora.`,
+            throughDay
+                ? `Como o mês selecionado é o mês corrente, em cada ano histórico consideramos apenas os dias 1 a ${throughDay}, limitados ao último dia existente naquele mês. Os dias restantes não entram na comparação.`
+                : 'Como o mês selecionado não é o mês corrente, consideramos o mês completo de cada ano histórico disponível.',
+            ...(years?.length ? [`Anos efetivamente considerados: ${years.join(', ')}.`] : []),
+        ];
+    };
+    const fallbackRules = (kind: CuriosityKind): string[] => {
+        const progress = curiosityResults.value[kind].data?.current_month_progress;
+        return progress ? [
+            `Não há histórico comparável. Como o mês corrente ainda não terminou, mostramos também os dados do dia 1 ao dia ${progress.through_day} deste mês, sem substituir a mensagem de falta de histórico.`,
+        ] : [
+            'Sem anos históricos comparáveis, não calculamos um resultado histórico. Dados adicionais do mês atual só aparecem quando o mês selecionado é o corrente e ainda não chegou ao último dia.',
+        ];
+    };
+    return {
+        'monthly-ranking': [
+            ...shared('monthly-ranking'),
+            ...historyRules('monthly-ranking'),
+            'Somamos as entradas de cada ano para esse mês. A posição é 1 + a quantidade de anos com total maior: empates recebem a mesma posição. O destaque é o ano mais recente com histórico, que pode não ser o ano imediatamente anterior. As barras mostram o total de cada ano em proporção ao maior total da comparação.',
+            ...fallbackRules('monthly-ranking'),
+            'No ranking adicional do mês corrente, comparamos janeiro até o mês selecionado no mesmo ano, sempre do dia 1 até o número do dia de hoje. Meses sem entradas contam com zero. A posição usa a mesma regra de empate; se o mês atual não tiver entradas positivas, não mostramos posição.',
+        ],
+        'monthly-average': [
+            ...shared('monthly-average'),
+            ...historyRules('monthly-average'),
+            'Somamos o total de entradas desse mês em cada ano histórico considerado e dividimos pela quantidade desses anos. Repetimos o mesmo cálculo separadamente para as saídas, usando os mesmos anos, inclusive os com zero saídas. Cada ano tem o mesmo peso. Não dividimos pelo número de lançamentos nem pelos dias do mês: são médias de totais mensais ou dos intervalos equivalentes já decorridos.',
+            'É uma referência histórica, não uma previsão garantida nem uma projeção para os dias restantes do mês.',
+            ...fallbackRules('monthly-average'),
+            'Quando exibimos os valores registados neste mês, mostramos as somas de entradas e saídas do mês corrente até hoje separadamente. Não são médias nem estimativas.',
+        ],
+        'best-day': [
+            ...shared('best-day'),
+            `Consideramos as entradas de 1 de janeiro de ${selectedYear.value} até o último dia do mês selecionado, sem ultrapassar a data de hoje. Se o ano selecionado ainda não começou, não há período para analisar.`,
+            'Agrupamos os lançamentos por data, somamos as entradas de cada dia e escolhemos o maior total diário positivo. Em caso de empate, exibimos a data mais antiga.',
+            '“Vendas” aqui significa o total de entradas registadas, de todas as categorias, não o lucro do dia. Dias de meses posteriores ao selecionado e datas futuras não entram neste cálculo. Não é necessário ter dados de anos anteriores.',
+            'Se não houver um total diário de entradas maior que zero no intervalo, informamos que ainda não há entradas para apresentar um melhor dia.',
+        ],
+        'weekday-average': [
+            ...shared('weekday-average'),
+            ...historyRules('weekday-average'),
+            'Para cada dia da semana, somamos as entradas das datas correspondentes no histórico e dividimos pelo número de vezes que esse dia da semana ocorre nos intervalos considerados. Fazemos o mesmo para as saídas, com o mesmo divisor. Por exemplo: o total das saídas nas segundas-feiras dividido pela quantidade de segundas-feiras nesses intervalos.',
+            'Dias sem entradas ou sem saídas também entram no divisor, com valor zero para o respectivo tipo. Neste gráfico de Curiosidades são considerados todos os dias da semana, de domingo a sábado; a configuração de dias de funcionamento é aplicada ao gráfico de Oportunidades, não a este.',
+            'Cada dia tem uma barra com dois segmentos: entradas em verde e saídas em vermelho. Todos os dias usam a mesma escala, baseada na maior soma de média de entradas e média de saídas. Os valores de cada segmento aparecem abaixo. O saldo médio ao lado é a média de entradas menos a média de saídas; não é a soma dos segmentos. Dias sem ocorrências recebem média zero.',
+            ...fallbackRules('weekday-average'),
+            'No gráfico adicional do mês corrente, usamos somente o dia 1 até hoje deste mês, com a mesma regra: total de entradas ou saídas por dia da semana dividido por todas as ocorrências desse dia no intervalo, inclusive as sem lançamentos.',
+        ],
+    };
+});
+
+const downloadMonthlyReport = async () => {
+    if (isDownloadingReport.value) return;
+
+    const month = selectedMonth.value;
+    const year = selectedYear.value;
+    isDownloadingReport.value = true;
+    reportError.value = '';
+
+    try {
+        const response = await fetch(`/api/dashboard/monthly-report?month=${month}&year=${year}`, {
+            headers: {
+                Accept: 'application/pdf, application/json',
+                Authorization: `Bearer ${auth.token.value}`,
+            },
+        });
+
+        if (!response.ok) {
+            if (!response.headers.get('Content-Type')?.includes('application/json')) {
+                throw new Error('Não foi possível gerar o relatório. Tente novamente.');
+            }
+            const payload = await response.json();
+            const validationError = Object.values(payload.errors ?? {}).flat()[0];
+            throw new Error(response.status === 422
+                ? (typeof validationError === 'string' ? validationError : payload.message || 'Revise o período selecionado.')
+                : 'Não foi possível gerar o relatório. Atualize a página e tente novamente.');
+        }
+
+        if (!response.headers.get('Content-Type')?.includes('application/pdf')) {
+            throw new Error('O servidor não retornou um PDF válido. Atualize a página e tente novamente.');
+        }
+
+        const url = window.URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `relatorio-mensal-${year}-${String(month).padStart(2, '0')}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+        reportError.value = error instanceof TypeError
+            ? 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.'
+            : error instanceof Error ? error.message : 'Não foi possível gerar o relatório. Tente novamente.';
+    } finally {
+        isDownloadingReport.value = false;
+    }
+};
+const averageDailyProfit = computed(() => {
+    const totals = dashboardData.value?.totals;
+    const daysWithActivity = totals?.days_with_activity ?? 0;
+
+    return totals && daysWithActivity > 0 ? totals.profit / daysWithActivity : 0;
+});
 
 const getCsrfToken = (): string => {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -335,6 +553,108 @@ const loadDashboard = async (withSpinner = false) => {
     }
 };
 
+const loadCuriosities = async () => {
+    const requestId = ++curiosityRequest;
+    const params = new URLSearchParams({
+        month: String(selectedMonth.value),
+        year: String(selectedYear.value),
+    });
+
+    for (const kind of curiosityKinds) {
+        curiosityResults.value[kind] = { loading: true, error: '', data: null };
+    }
+
+    await Promise.all(
+        curiosityKinds.map(async (kind) => {
+            try {
+                const response = await fetch(
+                    `/api/dashboard/curiosities/${kind}?${params.toString()}`,
+                    {
+                        credentials: 'include',
+                        headers: { Accept: 'application/json' },
+                    },
+                );
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        payload?.message ||
+                            'Não foi possível carregar esta curiosidade.',
+                    );
+                }
+                if (requestId !== curiosityRequest) return;
+                if (!payload.data) {
+                    throw new Error(
+                        'A resposta desta curiosidade está incompleta.',
+                    );
+                }
+
+                curiosityResults.value[kind] = {
+                    loading: false,
+                    error: '',
+                    data: payload.data,
+                };
+            } catch (error) {
+                if (requestId === curiosityRequest) {
+                    curiosityResults.value[kind] = {
+                        loading: false,
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : 'Não foi possível carregar esta curiosidade.',
+                        data: null,
+                    };
+                }
+            } finally {
+                if (
+                    requestId === curiosityRequest &&
+                    curiosityResults.value[kind].loading
+                ) {
+                    curiosityResults.value[kind].loading = false;
+                }
+            }
+        }),
+    );
+};
+
+const refreshDashboard = async () => {
+    await Promise.all([loadDashboard(true), loadCuriosities()]);
+};
+
+const curiosityWeekdays = computed(() => {
+    const data = curiosityResults.value['weekday-average'].data;
+    return data?.weekdays ?? data?.current_month_progress?.weekday_averages ?? [];
+});
+
+const curiosityWeekdayMax = computed(() =>
+    Math.max(0, ...curiosityWeekdays.value.map((item) => item.average_entries + item.average_exits)),
+);
+
+const curiosityWeekdayWidth = (value: number): string => {
+    if (value <= 0 || curiosityWeekdayMax.value <= 0) return '0%';
+    return `${(value / curiosityWeekdayMax.value) * 100}%`;
+};
+
+const curiosityHistoryWidth = (value: number): string => {
+    const history =
+        curiosityResults.value['monthly-ranking'].data?.ranked_history ?? [];
+    const highest = Math.max(0, ...history.map((item) => item.entries));
+    if (highest <= 0) return '0%';
+    return `${Math.max(4, (value / highest) * 100)}%`;
+};
+
+const curiosityRankLabel = (rank: number, total: number): string => {
+    if (total === 1) return 'Único ano com registo';
+    if (rank === 1) return `Melhor resultado entre ${total} anos`;
+    if (rank === total) return `Pior resultado entre ${total} anos`;
+    return `${rank}.º melhor entre ${total} anos`;
+};
+
+const curiosityDateLabel = (date: string): string => {
+    const [year, month, day] = date.split('-');
+    return `${day}/${month}/${year}`;
+};
+
 const previousMonth = () => {
     if (selectedMonth.value === 1) {
         selectedMonth.value = 12;
@@ -355,20 +675,6 @@ const nextMonth = () => {
     selectedMonth.value += 1;
 };
 
-const goToCurrentMonth = async () => {
-    const now = new Date();
-    const currentMonthValue = now.getMonth() + 1;
-    const currentYearValue = now.getFullYear();
-
-    if (selectedMonth.value === currentMonthValue && selectedYear.value === currentYearValue) {
-        await loadDashboard(true);
-        return;
-    }
-
-    selectedMonth.value = currentMonthValue;
-    selectedYear.value = currentYearValue;
-};
-
 const clearDashboardFilter = async () => {
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -381,7 +687,7 @@ const clearDashboardFilter = async () => {
     updateQueryString();
 
     if (unchanged) {
-        await loadDashboard(true);
+        await refreshDashboard();
     }
 };
 
@@ -482,7 +788,7 @@ watch([selectedMonth, selectedYear], async () => {
         return;
     }
 
-    await Promise.all([loadDashboard(true), loadHolidayMonth()]);
+    await Promise.all([loadDashboard(true), loadHolidayMonth(), loadCuriosities()]);
 });
 
 onMounted(async () => {
@@ -533,12 +839,14 @@ onMounted(async () => {
 
     await loadDashboard(false);
     isReady.value = true;
+    void loadCuriosities();
     await loadHolidayLocation();
     window.addEventListener('storage', onHolidayPreferenceChanged);
     document.addEventListener('visibilitychange', onHolidayPageFocus);
 });
 
 onUnmounted(() => {
+    curiosityRequest++;
     window.removeEventListener('storage', onHolidayPreferenceChanged);
     document.removeEventListener('visibilitychange', onHolidayPageFocus);
 });
@@ -566,93 +874,9 @@ onUnmounted(() => {
                     @dismiss="dismissRegistrationSuccessMessage"
                 />
 
-                <!-- Period filter -->
-                <div class="bg-white dark:bg-slate-900/90 border border-transparent dark:border-slate-800 rounded-xl shadow-lg dark:shadow-none p-4 sm:p-6">
-                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                        <div class="flex items-center gap-2 shrink-0">
-                            <svg class="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <h2 class="text-xl font-bold text-gray-800 dark:text-slate-100">{{ monthTitle }}</h2>
-                        </div>
-
-                        <div class="flex flex-wrap items-end gap-3">
-                            <button
-                                type="button"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-200 rounded-lg font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all cursor-pointer"
-                                @click="previousMonth"
-                            >
-                                <ChevronLeft class="h-4 w-4" />
-                                Mês anterior
-                            </button>
-
-                            <button
-                                type="button"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-200 rounded-lg font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all cursor-pointer"
-                                @click="nextMonth"
-                            >
-                                Próximo mês
-                                <ChevronRight class="h-4 w-4" />
-                            </button>
-
-                            <button
-                                type="button"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 rounded-lg font-medium text-sm hover:bg-orange-50 dark:hover:bg-orange-950/40 transition-all cursor-pointer"
-                                @click="goToCurrentMonth"
-                            >
-                                Mês atual
-                            </button>
-
-                            <div class="flex items-end gap-3">
-                                <div class="flex flex-col gap-1">
-                                    <span class="text-xs font-semibold text-gray-500 dark:text-slate-400">Mês</span>
-                                    <AppSelect
-                                        v-model.number="selectedMonth"
-                                        label="Mês"
-                                        searchable
-                                        class="w-40 text-sm"
-                                        :options="monthOptions"
-                                    />
-                                </div>
-
-                                <div class="flex flex-col gap-1">
-                                    <span class="text-xs font-semibold text-gray-500 dark:text-slate-400">Ano</span>
-                                    <AppSelect
-                                        v-model.number="selectedYear"
-                                        label="Ano"
-                                        searchable
-                                        :create-input-option="createYearOption"
-                                        class="w-24 text-sm"
-                                        :options="yearOptions.map((year) => ({ value: year, label: String(year) }))"
-                                    />
-                                </div>
-                            </div>
-
-                            <button
-                                type="button"
-                                class="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-300 px-4 py-2 text-sm font-medium text-orange-700 transition-all hover:bg-orange-50 dark:border-orange-700 dark:text-orange-300 dark:hover:bg-orange-950/40 cursor-pointer"
-                                @click="clearDashboardFilter"
-                            >
-                                <RotateCcw class="h-4 w-4" />
-                                Limpar filtro
-                            </button>
-
-                            <button
-                                type="button"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium text-sm hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer"
-                                :disabled="isLoading || isRefreshing"
-                                @click="loadDashboard(true)"
-                            >
-                                <RefreshCw class="h-4 w-4" :class="isRefreshing ? 'animate-spin' : ''" />
-                                Atualizar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Today alert -->
                 <div
-                    v-if="dashboardData && !dashboardData.today.has_activity"
+                    v-if="showTodayActivityWarning"
                     class="bg-amber-50 dark:bg-amber-950/35 border border-amber-200 dark:border-amber-800/70 rounded-xl p-4 flex items-start gap-3"
                 >
                     <AlertTriangle class="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500 animate-pulse" />
@@ -668,15 +892,60 @@ onUnmounted(() => {
                     <p class="mt-1 text-xs text-red-700 dark:text-red-300">{{ loadError }}</p>
                 </div>
 
+                <div class="flex items-center gap-2">
+                    <CalendarDays class="h-6 w-6 text-amber-500" aria-hidden="true" />
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-slate-100">Movimentação diária</h2>
+                </div>
+
                 <!-- Calendar + Aside -->
                 <div class="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
 
                     <!-- Calendar -->
                     <div class="bg-white dark:bg-slate-900/90 border border-transparent dark:border-slate-800 rounded-xl shadow-lg dark:shadow-none p-4 sm:p-6">
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-5">
-                            <div class="flex items-center gap-2">
-                                <CalendarDays class="w-6 h-6 text-amber-500" />
-                                <h2 class="text-xl font-bold text-gray-800 dark:text-slate-100">Movimentação diária</h2>
+                        <div class="mb-4 grid grid-cols-2 gap-3 sm:mb-5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
+                            <button
+                                type="button"
+                                class="col-start-1 row-start-1 inline-flex cursor-pointer items-center justify-center gap-1.5 justify-self-start rounded-lg border-2 border-amber-300 px-3 py-2 text-sm font-medium text-amber-700 transition-all hover:bg-amber-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-950/40 sm:gap-2 sm:px-4"
+                                aria-label="Mês anterior"
+                                @click="previousMonth"
+                            >
+                                <ChevronLeft class="h-4 w-4" />
+                                <span>Anterior</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="col-start-2 row-start-1 inline-flex cursor-pointer items-center justify-center gap-1.5 justify-self-end rounded-lg border-2 border-amber-300 px-3 py-2 text-sm font-medium text-amber-700 transition-all hover:bg-amber-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-950/40 sm:col-start-3 sm:gap-2 sm:px-4"
+                                aria-label="Próximo mês"
+                                @click="nextMonth"
+                            >
+                                <span>Próximo</span>
+                                <ChevronRight class="h-4 w-4" />
+                            </button>
+
+                            <div class="col-span-2 row-start-2 grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(5rem,0.6fr)] gap-3 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:grid-cols-[10rem_6rem]">
+                                <label class="flex min-w-0 flex-col gap-1">
+                                    <span class="text-xs font-semibold text-gray-500 dark:text-slate-400">Mês</span>
+                                    <AppSelect
+                                        v-model.number="selectedMonth"
+                                        label="Mês"
+                                        searchable
+                                        class="w-full text-sm"
+                                        :options="monthOptions"
+                                    />
+                                </label>
+
+                                <label class="flex min-w-0 flex-col gap-1">
+                                    <span class="text-xs font-semibold text-gray-500 dark:text-slate-400">Ano</span>
+                                    <AppSelect
+                                        v-model.number="selectedYear"
+                                        label="Ano"
+                                        searchable
+                                        :create-input-option="createYearOption"
+                                        class="w-full text-sm"
+                                        :options="yearOptions.map((year) => ({ value: year, label: String(year) }))"
+                                    />
+                                </label>
                             </div>
                         </div>
 
@@ -717,7 +986,8 @@ onUnmounted(() => {
                                 />
                             </template>
                         </div>
-                        <div class="mt-4 text-sm">
+                        <div class="mt-4 flex flex-col gap-4 border-t border-gray-100 pt-4 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
+                            <div class="min-w-0 flex-1 text-sm">
                             <button v-if="holidayLocationLoaded && !holidayLocation && !holidayNotice" type="button" class="inline-flex cursor-pointer items-center gap-2 font-semibold text-orange-700 transition-colors hover:text-orange-600 dark:text-orange-300 dark:hover:text-orange-200" title="Clique aqui e selecione sua localização para que possamos encontrar os feriados de onde você está." @click="holidayDialogOpen = true">
                                 <MapPin class="h-5 w-5 motion-safe:animate-pulse" aria-hidden="true" />
                                 Sabia que podemos mostrar os feriados?
@@ -725,7 +995,7 @@ onUnmounted(() => {
                             <TooltipProvider v-if="holidayLocation" :delay-duration="0">
                                 <Tooltip>
                                     <TooltipTrigger as-child>
-                                        <button type="button" class="inline-flex cursor-pointer items-center gap-2 text-gray-500 transition-colors hover:text-orange-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 dark:text-slate-400 dark:hover:text-orange-300" :aria-label="`Alterar localização: ${formatHolidayLocation(holidayLocation)}`" @click="holidayDialogOpen = true">
+                                        <button type="button" class="inline-flex cursor-pointer items-center gap-2 text-primary transition-colors hover:text-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:text-primary" :aria-label="`Alterar localização: ${formatHolidayLocation(holidayLocation)}`" @click="holidayDialogOpen = true">
                                             <MapPin class="h-5 w-5 shrink-0" aria-hidden="true" />
                                             <span>{{ formatHolidayLocation(holidayLocation) }}</span>
                                         </button>
@@ -745,6 +1015,27 @@ onUnmounted(() => {
                                 </li>
                             </ul>
                             <p v-if="holidayLocation" class="mt-3 text-xs text-gray-500 dark:text-slate-400">Fontes: <a class="underline" href="https://www.openholidaysapi.org/" target="_blank" rel="noopener noreferrer">OpenHolidays</a> (dados <a class="underline" href="https://opendatacommons.org/licenses/odbl/" target="_blank" rel="noopener noreferrer">ODbL</a>) e <a class="underline" href="https://brasilapi.com.br/" target="_blank" rel="noopener noreferrer">BrasilAPI</a>.</p>
+                            </div>
+                            <div class="flex w-full shrink-0 flex-row gap-2 sm:w-auto">
+                                <button
+                                    type="button"
+                                    class="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-orange-300 px-2 py-2 text-xs font-medium text-orange-700 transition-all hover:bg-orange-50 dark:border-orange-700 dark:text-orange-300 dark:hover:bg-orange-950/40 sm:flex-none sm:px-4 sm:text-sm"
+                                    @click="clearDashboardFilter"
+                                >
+                                    <RotateCcw class="h-4 w-4" />
+                                    Limpar filtro
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-400 to-orange-500 px-2 py-2 text-xs font-medium text-white transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:px-4 sm:text-sm"
+                                    :disabled="isLoading || isRefreshing"
+                                    @click="loadDashboard(true)"
+                                >
+                                    <RefreshCw class="h-4 w-4" :class="isRefreshing ? 'animate-spin' : ''" />
+                                    Atualizar
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -762,10 +1053,22 @@ onUnmounted(() => {
                                     <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Dias com movimento</p>
                                     <p class="mt-1 text-xl font-bold text-gray-800 dark:text-slate-100">{{ dashboardData?.totals.days_with_activity || 0 }}</p>
                                 </div>
-                                <div class="rounded-lg bg-gray-50 dark:bg-slate-800 px-4 py-3">
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Comissões do mês</p>
-                                    <p class="mt-1 text-xl font-bold text-gray-800 dark:text-slate-100">{{ formatCurrency(dashboardData?.totals.commissions || 0) }}</p>
-                                </div>
+                                <button
+                                    type="button"
+                                    class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                                    :disabled="isDownloadingReport || isLoading"
+                                    :aria-busy="isDownloadingReport"
+                                    @click="downloadMonthlyReport"
+                                >
+                                    <RefreshCw v-if="isDownloadingReport" class="h-4 w-4 animate-spin" aria-hidden="true" />
+                                    <Download v-else class="h-4 w-4" aria-hidden="true" />
+                                    {{ isDownloadingReport ? 'Gerando relatório...' : 'Gerar relatório PDF' }}
+                                </button>
+                                <p class="text-xs text-gray-500 dark:text-slate-400">
+                                    Relatório de {{ monthTitle }}, igual ao enviado por e-mail. Use o PIN do PDF configurado em
+                                    <Link href="/minha-conta" class="font-semibold text-primary underline underline-offset-2 hover:opacity-80">Minha Conta</Link>.
+                                </p>
+                                <p v-if="reportError" role="alert" class="text-sm text-red-600 dark:text-red-400">{{ reportError }}</p>
                             </div>
                         </div>
 
@@ -777,9 +1080,33 @@ onUnmounted(() => {
                                     <span class="font-semibold text-emerald-900 dark:text-emerald-200">Lucro acumulado</span>
                                     <span class="font-bold text-emerald-700 dark:text-emerald-300">{{ formatSignedCurrency(dashboardData?.totals.profit || 0) }}</span>
                                 </div>
+                                <div class="flex items-center justify-between rounded-lg bg-orange-50 dark:bg-orange-950/35 border border-orange-100 dark:border-orange-800/70 px-4 py-3">
+                                    <span class="font-semibold text-orange-900 dark:text-orange-200" title="Lucro acumulado dividido pelos dias com movimento no período filtrado">Lucro médio diário</span>
+                                    <span class="font-bold text-orange-700 dark:text-orange-300">{{ formatSignedCurrency(averageDailyProfit) }}</span>
+                                </div>
                                 <div class="flex items-center justify-between rounded-lg bg-red-50 dark:bg-red-950/35 border border-red-100 dark:border-red-800/70 px-4 py-3">
                                     <span class="font-semibold text-red-900 dark:text-red-200">Saídas acumuladas</span>
                                     <span class="font-bold text-red-700 dark:text-red-300">{{ formatCurrency(dashboardData?.totals.exits || 0) }}</span>
+                                </div>
+                                <div class="rounded-lg bg-amber-50 dark:bg-amber-950/35 border border-amber-100 dark:border-amber-800/70 px-4 py-3">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <span class="inline-flex items-center gap-1.5 font-semibold text-amber-900 dark:text-amber-200">
+                                            Comissões do mês
+                                            <TooltipProvider :delay-duration="0">
+                                                <Tooltip>
+                                                    <TooltipTrigger as-child>
+                                                        <button type="button" class="inline-flex shrink-0 cursor-pointer rounded-full text-amber-700 hover:text-amber-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:text-amber-300 dark:hover:text-amber-100" aria-label="Informações sobre comissões do mês">
+                                                            <Info class="h-4 w-4" aria-hidden="true" />
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent class="max-w-64">
+                                                        Inclui comissões pagas e pendentes. As que foram lançadas como saída já fazem parte das saídas acumuladas.
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </span>
+                                        <span class="font-bold text-amber-700 dark:text-amber-300">{{ formatCurrency(dashboardData?.totals.commissions || 0) }}</span>
+                                    </div>
                                 </div>
                                 <div class="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 px-4 py-3">
                                     <span class="font-semibold text-gray-700 dark:text-slate-300">Entradas acumuladas</span>
@@ -841,6 +1168,471 @@ onUnmounted(() => {
                     </div>
                 </div>
 
+                <section
+                    class="space-y-4 sm:space-y-6"
+                    aria-labelledby="curiosities-title"
+                >
+                    <div class="flex items-start gap-3">
+                        <Lightbulb
+                            class="mt-0.5 h-6 w-6 shrink-0 text-amber-500"
+                            aria-hidden="true"
+                        />
+                        <div>
+                            <h2
+                                id="curiosities-title"
+                                class="text-xl font-bold text-gray-800 dark:text-slate-100"
+                            >
+                                Curiosidades
+                            </h2>
+                            <p
+                                class="mt-1 text-sm text-gray-600 dark:text-slate-300"
+                            >
+                                Informações simples sobre {{ monthTitle }}, com
+                                base nos registos históricos disponíveis.
+                            </p>
+                            <p
+                                v-if="
+                                    curiosityResults['monthly-average'].data
+                                        ?.comparison_through_day
+                                "
+                                class="mt-1 text-xs text-gray-500 dark:text-slate-400"
+                            >
+                                Como o mês está em andamento, as comparações
+                                históricas consideram apenas os dias 1 a
+                                {{
+                                    curiosityResults['monthly-average'].data
+                                        ?.comparison_through_day
+                                }}.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="curiosityEligibility"
+                        role="status"
+                        class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800/70 dark:bg-amber-950/35 dark:text-amber-100"
+                    >
+                        Ainda precisamos de mais registos para mostrar estas
+                        curiosidades. Há atividade em
+                        {{ curiosityEligibility.active_days }} de pelo menos
+                        {{ curiosityEligibility.required_active_days }} dias
+                        diferentes nos últimos
+                        {{ curiosityEligibility.window_days }} dias.
+                    </div>
+
+                    <div
+                        v-else
+                        class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                    >
+                        <article
+                            class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-5 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <h3 class="font-bold text-gray-800 dark:text-slate-100">
+                                    Ranking deste mês
+                                </h3>
+                                <CuriosityCalculationInfo title="Ranking deste mês" :paragraphs="curiosityExplanations['monthly-ranking']" />
+                            </div>
+                            <div
+                                v-if="
+                                    curiosityResults['monthly-ranking'].loading
+                                "
+                                role="status"
+                                class="mt-4 flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400"
+                            >
+                                <RefreshCw class="h-4 w-4 animate-spin" /> A
+                                carregar...
+                            </div>
+                            <p
+                                v-else-if="
+                                    curiosityResults['monthly-ranking'].error
+                                "
+                                role="alert"
+                                class="mt-3 text-sm text-rose-700 dark:text-rose-300"
+                            >
+                                {{ curiosityResults['monthly-ranking'].error }}
+                            </p>
+                            <template
+                                v-else-if="
+                                    curiosityResults['monthly-ranking'].data
+                                        ?.available
+                                "
+                            >
+                                <p
+                                    class="mt-3 text-sm text-gray-600 dark:text-slate-300"
+                                >
+                                    {{
+                                        curiosityResults['monthly-ranking'].data
+                                            ?.latest_comparable?.year
+                                    }}
+                                    foi o
+                                    <strong
+                                        class="text-gray-900 dark:text-white"
+                                        >{{
+                                            curiosityResults['monthly-ranking']
+                                                .data?.latest_comparable &&
+                                            curiosityRankLabel(
+                                                curiosityResults[
+                                                    'monthly-ranking'
+                                                ].data.latest_comparable.rank,
+                                                curiosityResults[
+                                                    'monthly-ranking'
+                                                ].data.years_count || 0,
+                                            )
+                                        }}</strong
+                                    >
+                                    neste mês, comparando os anos anteriores.
+                                </p>
+                                <div class="mt-4 space-y-3">
+                                    <div
+                                        v-for="item in curiosityResults[
+                                            'monthly-ranking'
+                                        ].data?.ranked_history"
+                                        :key="item.year"
+                                    >
+                                        <div
+                                            class="mb-1 flex justify-between text-xs text-gray-600 dark:text-slate-300"
+                                        >
+                                            <span>{{ item.year }}</span>
+                                            <span class="font-semibold">{{
+                                                formatCurrency(item.entries)
+                                            }}</span>
+                                        </div>
+                                        <div
+                                            class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800"
+                                        >
+                                            <div
+                                                class="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500"
+                                                :style="{
+                                                    width: curiosityHistoryWidth(
+                                                        item.entries,
+                                                    ),
+                                                }"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            <p
+                                v-else
+                                class="mt-3 text-sm text-gray-600 dark:text-slate-300"
+                            >
+                                {{
+                                    curiosityResults['monthly-ranking'].data
+                                        ?.message ||
+                                    'Ainda não há histórico suficiente para esta comparação.'
+                                }}
+                            </p>
+                            <div
+                                v-if="
+                                    curiosityResults['monthly-ranking'].data
+                                        ?.current_month_progress
+                                "
+                                class="mt-4 rounded-lg bg-orange-50 p-3 dark:bg-orange-950/30"
+                            >
+                                <p
+                                    v-if="
+                                        curiosityResults['monthly-ranking'].data
+                                            ?.current_month_progress?.rank !==
+                                        null
+                                    "
+                                    class="text-sm font-semibold text-orange-900 dark:text-orange-100"
+                                >
+                                    Até ao dia
+                                    {{
+                                        curiosityResults['monthly-ranking'].data
+                                            ?.current_month_progress?.through_day
+                                    }}, este mês ocupa a posição
+                                    {{
+                                        curiosityResults['monthly-ranking'].data
+                                            ?.current_month_progress?.rank
+                                    }} entre
+                                    {{
+                                        curiosityResults['monthly-ranking'].data
+                                            ?.current_month_progress
+                                            ?.months_compared
+                                    }}
+                                    meses considerados no ano.
+                                </p>
+                                <p
+                                    v-else
+                                    class="text-sm font-semibold text-orange-900 dark:text-orange-100"
+                                >
+                                    Ainda não há entradas neste mês para calcular
+                                    a posição no ano.
+                                </p>
+                                <p
+                                    class="mt-1 text-xs text-orange-800 dark:text-orange-200"
+                                >
+                                    Para comparar períodos equivalentes, cada mês
+                                    considera os dias 1 a
+                                    {{
+                                        curiosityResults['monthly-ranking'].data
+                                            ?.current_month_progress?.through_day
+                                    }}.
+                                </p>
+                            </div>
+                        </article>
+
+                        <article
+                            class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-5 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <h3 class="font-bold text-gray-800 dark:text-slate-100">
+                                    Média de entradas e saídas
+                                </h3>
+                                <CuriosityCalculationInfo title="Média de entradas e saídas" :paragraphs="curiosityExplanations['monthly-average']" />
+                            </div>
+                            <p
+                                class="mt-1 text-xs text-gray-500 dark:text-slate-400"
+                            >
+                                Nos anos anteriores, para
+                                {{ monthLabel.toLowerCase() }}
+                            </p>
+                            <div
+                                v-if="
+                                    curiosityResults['monthly-average'].loading
+                                "
+                                role="status"
+                                class="mt-4 flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400"
+                            >
+                                <RefreshCw class="h-4 w-4 animate-spin" /> A
+                                carregar...
+                            </div>
+                            <p
+                                v-else-if="
+                                    curiosityResults['monthly-average'].error
+                                "
+                                role="alert"
+                                class="mt-3 text-sm text-rose-700 dark:text-rose-300"
+                            >
+                                {{ curiosityResults['monthly-average'].error }}
+                            </p>
+                            <template
+                                v-else-if="
+                                    curiosityResults['monthly-average'].data
+                                        ?.available
+                                "
+                            >
+                                <p class="mt-3 text-xs font-semibold text-orange-700 dark:text-orange-300">Entradas</p>
+                                <p
+                                    class="mt-1 text-2xl font-bold text-orange-700 dark:text-orange-300"
+                                >
+                                    {{
+                                        formatCurrency(
+                                            curiosityResults['monthly-average']
+                                                .data?.average_entries || 0,
+                                        )
+                                    }}
+                                </p>
+                                <p class="mt-3 text-xs font-semibold text-rose-700 dark:text-rose-300">Saídas</p>
+                                <p class="mt-1 text-2xl font-bold text-rose-700 dark:text-rose-300">
+                                    {{ formatCurrency(curiosityResults['monthly-average'].data?.average_exits ?? 0) }}
+                                </p>
+                                <p
+                                    class="mt-2 text-xs leading-relaxed text-gray-600 dark:text-slate-300"
+                                >
+                                    Média dos registos de
+                                    {{
+                                        curiosityResults['monthly-average'].data
+                                            ?.years_count
+                                    }}
+                                    ano(s) anterior(es). É uma referência
+                                    histórica, não uma garantia.
+                                </p>
+                            </template>
+                            <p
+                                v-else
+                                class="mt-3 text-sm text-gray-600 dark:text-slate-300"
+                            >
+                                {{
+                                    curiosityResults['monthly-average'].data
+                                        ?.message ||
+                                    'Ainda não há histórico suficiente para esta comparação.'
+                                }}
+                            </p>
+                            <div
+                                v-if="
+                                    curiosityResults['monthly-average'].data
+                                        ?.current_month_progress
+                                "
+                                class="mt-3 rounded-lg bg-orange-50 p-3 dark:bg-orange-950/30"
+                            >
+                                <p
+                                    class="text-xs text-orange-900 dark:text-orange-100"
+                                >
+                                    Entradas registadas neste mês até ao dia
+                                    {{
+                                        curiosityResults['monthly-average'].data
+                                            ?.current_month_progress?.through_day
+                                    }}
+                                </p>
+                                <p
+                                    class="mt-1 text-xl font-bold text-orange-700 dark:text-orange-300"
+                                >
+                                    {{
+                                        formatCurrency(
+                                            curiosityResults['monthly-average']
+                                                .data?.current_month_progress
+                                                ?.entries || 0,
+                                        )
+                                    }}
+                                </p>
+                                <p class="mt-3 text-xs text-rose-900 dark:text-rose-100">
+                                    Saídas registadas neste mês no mesmo intervalo
+                                </p>
+                                <p class="mt-1 text-xl font-bold text-rose-700 dark:text-rose-300">
+                                    {{ formatCurrency(curiosityResults['monthly-average'].data?.current_month_progress?.exits ?? 0) }}
+                                </p>
+                            </div>
+                        </article>
+
+                        <article
+                            class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-5 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <h3 class="font-bold text-gray-800 dark:text-slate-100">
+                                    Melhor dia de vendas do ano
+                                </h3>
+                                <CuriosityCalculationInfo title="Melhor dia de vendas do ano" :paragraphs="curiosityExplanations['best-day']" />
+                            </div>
+                            <p
+                                class="mt-1 text-xs text-gray-500 dark:text-slate-400"
+                            >
+                                Até ao fim do mês selecionado
+                            </p>
+                            <div
+                                v-if="curiosityResults['best-day'].loading"
+                                role="status"
+                                class="mt-4 flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400"
+                            >
+                                <RefreshCw class="h-4 w-4 animate-spin" /> A
+                                carregar...
+                            </div>
+                            <p
+                                v-else-if="curiosityResults['best-day'].error"
+                                role="alert"
+                                class="mt-3 text-sm text-rose-700 dark:text-rose-300"
+                            >
+                                {{ curiosityResults['best-day'].error }}
+                            </p>
+                            <template
+                                v-else-if="
+                                    curiosityResults['best-day'].data?.available
+                                "
+                            >
+                                <p
+                                    class="mt-3 text-2xl font-bold text-orange-700 dark:text-orange-300"
+                                >
+                                    {{
+                                        curiosityDateLabel(
+                                            curiosityResults['best-day'].data
+                                                ?.best_day?.date || '',
+                                        )
+                                    }}
+                                </p>
+                                <p
+                                    class="mt-2 text-sm text-gray-600 dark:text-slate-300"
+                                >
+                                    {{
+                                        formatCurrency(
+                                            curiosityResults['best-day'].data
+                                                ?.best_day?.entries || 0,
+                                        )
+                                    }}
+                                    em entradas.
+                                </p>
+                            </template>
+                            <p
+                                v-else
+                                class="mt-3 text-sm text-gray-600 dark:text-slate-300"
+                            >
+                                {{
+                                    curiosityResults['best-day'].data
+                                        ?.message ||
+                                    'Ainda não há registos suficientes neste ano.'
+                                }}
+                            </p>
+                        </article>
+
+                        <article class="col-span-full rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-5 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none">
+                            <div class="flex items-start justify-between gap-2">
+                                <h3 class="font-bold text-gray-800 dark:text-slate-100">
+                                    Entradas e saídas por dia da semana
+                                </h3>
+                                <CuriosityCalculationInfo title="Entradas e saídas por dia da semana" :paragraphs="curiosityExplanations['weekday-average']" />
+                            </div>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                                Média dos meses equivalentes em anos anteriores
+                            </p>
+                            <div v-if="curiosityResults['weekday-average'].loading" role="status" class="mt-4 flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
+                                <RefreshCw class="h-4 w-4 animate-spin" /> A carregar...
+                            </div>
+                            <p v-else-if="curiosityResults['weekday-average'].error" role="alert" class="mt-3 text-sm text-rose-700 dark:text-rose-300">
+                                {{ curiosityResults['weekday-average'].error }}
+                            </p>
+                            <template v-else>
+                                <p v-if="!curiosityResults['weekday-average'].data?.available" class="mt-3 text-sm text-gray-600 dark:text-slate-300">
+                                    {{ curiosityResults['weekday-average'].data?.message || 'Ainda não há histórico suficiente para esta comparação.' }}
+                                </p>
+                                <p v-if="curiosityResults['weekday-average'].data?.current_month_progress" class="mt-3 text-xs text-gray-500 dark:text-slate-400">
+                                    Média por dia da semana neste mês, até ao dia
+                                    {{ curiosityResults['weekday-average'].data?.current_month_progress?.through_day }}
+                                </p>
+                                <div v-if="curiosityWeekdays.length" class="mt-5 space-y-5">
+                                    <div class="flex justify-end">
+                                        <TooltipProvider :delay-duration="0">
+                                            <Tooltip>
+                                                <TooltipTrigger as-child>
+                                                    <button type="button" class="inline-flex cursor-pointer items-center gap-1.5 rounded text-xs font-medium text-gray-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:text-slate-400" aria-label="Como calculamos o saldo médio">
+                                                        Saldo médio
+                                                        <Info class="h-4 w-4" aria-hidden="true" />
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent class="max-w-64">
+                                                    Média de entradas menos a média de saídas para cada dia da semana, no período considerado.
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
+                                    <div v-for="weekday in curiosityWeekdays" :key="weekday.day" class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2 sm:grid-cols-[8rem_minmax(0,1fr)_8rem]">
+                                        <span class="text-sm font-semibold text-gray-700 dark:text-slate-200">{{ weekday.label }}</span>
+                                        <div class="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
+                                            <div class="flex h-4 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800" aria-hidden="true">
+                                                <div class="h-full shrink-0 bg-emerald-500" :style="{ width: curiosityWeekdayWidth(weekday.average_entries) }" />
+                                                <div class="h-full shrink-0 bg-red-500" :style="{ width: curiosityWeekdayWidth(weekday.average_exits) }" />
+                                            </div>
+                                            <div class="mt-1.5 flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs">
+                                                <span class="font-medium text-emerald-700 dark:text-emerald-300">Entradas: {{ formatCurrency(weekday.average_entries) }}</span>
+                                                <span class="font-medium text-red-700 dark:text-red-300">Saídas: {{ formatCurrency(weekday.average_exits) }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-start-2 row-start-1 text-right sm:col-start-3">
+                                            <p title="Saldo médio" class="text-sm font-bold" :class="weekday.average_entries - weekday.average_exits < 0 ? 'text-red-700 dark:text-red-300' : 'text-emerald-900 dark:text-emerald-400'">
+                                                {{ formatSignedCurrency(weekday.average_entries - weekday.average_exits) }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </article>
+                    </div>
+                </section>
+
+                <!-- Loading toast -->
+                <div
+                    v-if="isLoading || isRefreshing"
+                    class="pointer-events-none fixed inset-x-0 bottom-6 z-30 flex justify-center px-4"
+                >
+                    <div
+                        class="pointer-events-auto inline-flex items-center gap-3 rounded-full border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                    >
+                        <RefreshCw
+                            class="h-4 w-4 animate-spin text-amber-500"
+                        />
+                        Processando dados do calendário...
+                    </div>
+                </div>
             </main>
             <Footer />
         </div>

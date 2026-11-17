@@ -14,3 +14,16 @@ test('authenticated users can visit the dashboard', function () {
     $response = $this->get(route('dashboard'));
     $response->assertStatus(200);
 });
+
+test('guests are redirected from the opportunities page', function () {
+    $response = $this->get(route('oportunidades'));
+    $response->assertRedirect(route('login'));
+});
+
+test('authenticated users can visit the opportunities page', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $response = $this->get(route('oportunidades'));
+    $response->assertStatus(200);
+});

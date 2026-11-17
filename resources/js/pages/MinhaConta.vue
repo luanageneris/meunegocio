@@ -28,6 +28,7 @@ type CompanyForm = {
     city: string;
     state: string;
     postal_code: string;
+    opening_days: number[];
 };
 
 type ReminderCondition = 'missing_entry' | 'missing_exit' | 'missing_entry_or_exit' | 'missing_both';
@@ -56,6 +57,7 @@ const form = ref<CompanyForm>({
     city: '',
     state: '',
     postal_code: '',
+    opening_days: [0, 1, 2, 3, 4, 5, 6],
 });
 const initialForm = ref<CompanyForm | null>(null);
 const errors = ref<Record<string, string[]>>({});
@@ -233,6 +235,9 @@ const fillForm = (data: any) => {
         city: data.city ?? '',
         state: data.state ?? '',
         postal_code: data.postal_code ?? '',
+        opening_days: Array.isArray(data.opening_days)
+            ? data.opening_days.map(Number).sort((a: number, b: number) => a - b)
+            : [0, 1, 2, 3, 4, 5, 6],
     };
 
     form.value = nextForm;
@@ -408,6 +413,21 @@ const toggleWeekday = (day: number) => {
     }
 
     reminderSettings.value.daily_days_of_week = [...current, day].sort((a, b) => a - b);
+};
+
+const toggleOpeningDay = (day: number) => {
+    const current = form.value.opening_days;
+    if (current.includes(day)) {
+        if (current.length === 1) {
+            toast.info('A empresa precisa funcionar em pelo menos um dia da semana.');
+            return;
+        }
+
+        form.value.opening_days = current.filter((item) => item !== day);
+        return;
+    }
+
+    form.value.opening_days = [...current, day].sort((a, b) => a - b);
 };
 
 const saveReminderSettings = async () => {
@@ -732,7 +752,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col overflow-x-hidden">
+    <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 dark:bg-none dark:bg-slate-950 flex flex-col overflow-x-hidden">
         <Head title="Minha Conta - MEU NEGÓCIO" />
 
         <Sidebar active-route="conta" />
@@ -743,7 +763,7 @@ onMounted(async () => {
                 subtitle="Gerencie as informações da sua empresa e acesso"
             />
             
-            <main class="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 overflow-x-hidden">
+            <main class="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 overflow-x-hidden">
                 <AppInlineNotice
                     v-if="saveSuccessMessage"
                     class="mb-6"
@@ -753,430 +773,456 @@ onMounted(async () => {
                     @dismiss="dismissSaveSuccessMessage"
                 />
 
-                <div class="bg-white rounded-xl shadow-lg border border-blue-200/70 overflow-hidden">
+                <LoadingSpinner v-if="isLoading" message="Carregando informações da conta..." />
 
-                    <div class="p-6 sm:p-10">
-                        <LoadingSpinner v-if="isLoading" message="Carregando informações da conta..." />
+                <div v-else class="space-y-6">
+                    <section class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-6 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none">
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Localização e feriados</h3>
+                        <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">Sua localização é escolhida manualmente e usada somente para mostrar os feriados disponíveis. Você pode retirar seu consentimento a qualquer momento.</p>
+                        <p v-if="holidayLocationLoading" class="mt-3 text-sm" role="status">Carregando localização...</p>
+                        <p v-else-if="holidayLocation" class="mt-3 text-sm">{{ formatHolidayLocation(holidayLocation) }}</p>
+                        <p v-else class="mt-3 text-sm">Você ainda não autorizou o uso de localização para feriados.</p>
+                        <p v-if="holidayLocationError" role="alert" class="mt-3 text-sm text-red-600">{{ holidayLocationError }}</p>
+                        <div v-if="!holidayLocationLoading" class="mt-4 flex flex-wrap gap-3">
+                            <button type="button" class="cursor-pointer rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition-colors hover:opacity-90" @click="holidayDialogOpen = true">{{ holidayLocation ? 'Alterar localização' : 'Escolher localização' }}</button>
+                            <button v-if="holidayLocation" type="button" class="rounded-lg border border-red-500 px-4 py-2 font-semibold text-red-700 disabled:opacity-50" :disabled="holidayRevoking" @click="revokeHolidayLocation">{{ holidayRevoking ? 'Removendo...' : 'Retirar consentimento' }}</button>
+                        </div>
+                    </section>
+                    <!-- User Profile Section -->
+                    <section class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-6 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none overflow-hidden">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <p class="text-xs uppercase tracking-wide text-blue-500 dark:text-blue-400 font-semibold">Seu Perfil</p>
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Informações Pessoais</h3>
+                            </div>
+                            <span v-if="!canEdit" class="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded-full">Somente leitura</span>
+                        </div>
 
-                        <div v-else class="space-y-8">
-                            <section class="rounded-xl border border-blue-100 bg-blue-50 p-6 dark:border-slate-700 dark:bg-slate-800">
-                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Localização e feriados</h3>
-                                <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">Sua localização é escolhida manualmente e usada somente para mostrar os feriados disponíveis. Você pode retirar seu consentimento a qualquer momento.</p>
-                                <p v-if="holidayLocationLoading" class="mt-3 text-sm" role="status">Carregando localização...</p>
-                                <p v-else-if="holidayLocation" class="mt-3 text-sm">{{ formatHolidayLocation(holidayLocation) }}</p>
-                                <p v-else class="mt-3 text-sm">Você ainda não autorizou o uso de localização para feriados.</p>
-                                <p v-if="holidayLocationError" role="alert" class="mt-3 text-sm text-red-600">{{ holidayLocationError }}</p>
-                                <div v-if="!holidayLocationLoading" class="mt-4 flex flex-wrap gap-3">
-                                    <button type="button" class="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white" @click="holidayDialogOpen = true">{{ holidayLocation ? 'Alterar localização' : 'Escolher localização' }}</button>
-                                    <button v-if="holidayLocation" type="button" class="rounded-lg border border-red-500 px-4 py-2 font-semibold text-red-700 disabled:opacity-50" :disabled="holidayRevoking" @click="revokeHolidayLocation">{{ holidayRevoking ? 'Removendo...' : 'Retirar consentimento' }}</button>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome completo</label>
+                                <input
+                                    v-model="userProfile.name"
+                                    type="text"
+                                    :disabled="!canEdit"
+                                    placeholder="Digite seu nome completo"
+                                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent disabled:bg-gray-100"
+                                />
+                                <p v-if="userProfileErrors.name" class="text-sm text-red-600 dark:text-red-400 mt-1">{{ userProfileErrors.name[0] }}</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                                <input
+                                    v-model="userProfile.email"
+                                    type="email"
+                                    :disabled="!canEdit"
+                                    placeholder="seu.email@exemplo.com"
+                                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent disabled:bg-gray-100"
+                                />
+                                <p v-if="userProfileErrors.email" class="text-sm text-red-600 dark:text-red-400 mt-1">{{ userProfileErrors.email[0] }}</p>
+                            </div>
+
+                            <div v-if="userProfileSuccess" class="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 mt-4">
+                                <p class="text-sm text-green-700 dark:text-green-400">{{ userProfileSuccess }}</p>
+                            </div>
+
+                            <button
+                                v-if="canEdit && userProfileHasChanges"
+                                @click="saveUserProfile"
+                                :disabled="userProfileSaving"
+                                class="w-full mt-4 px-4 py-2.5 bg-blue-500 dark:bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer disabled:cursor-not-allowed"
+                            >
+                                {{ userProfileSaving ? 'Salvando...' : 'Salvar Perfil' }}
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- Company Info Section -->
+                    <div class="grid gap-6 lg:grid-cols-2 overflow-hidden">
+                        <section class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-6 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none overflow-hidden">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Informações da Conta</p>
+                                    <h3 class="text-lg font-bold text-gray-800">Dados da empresa</h3>
                                 </div>
-                            </section>
-                            <!-- User Profile Section -->
-                            <section class="bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-700 rounded-xl p-6 shadow-sm overflow-hidden">
-                                <div class="flex items-center justify-between mb-4">
-                                    <div>
-                                        <p class="text-xs uppercase tracking-wide text-blue-500 dark:text-blue-400 font-semibold">Seu Perfil</p>
-                                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Informações Pessoais</h3>
-                                    </div>
-                                    <span v-if="!canEdit" class="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded-full">Somente leitura</span>
+                                <span v-if="!canEdit" class="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded-full">Somente leitura</span>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da empresa *</label>
+                                    <input
+                                        v-model="form.name"
+                                        type="text"
+                                        :disabled="!canEdit"
+                                        placeholder="Ex: Xerografia & Cia"
+                                        class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                    />
+                                    <p v-if="errors.name" class="text-sm text-red-600 mt-1">{{ errors.name[0] }}</p>
                                 </div>
 
-                                <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Email de contato</label>
+                                    <input
+                                        v-model="form.email"
+                                        type="email"
+                                        :disabled="!canEdit"
+                                        placeholder="contato@empresa.com"
+                                        class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                    />
+                                    <p v-if="errors.email" class="text-sm text-red-600 mt-1">{{ errors.email[0] }}</p>
+                                </div>
+
+                                <div class="grid gap-4 sm:grid-cols-2">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome completo</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
                                         <input
-                                            v-model="userProfile.name"
+                                            v-model="form.phone"
+                                            @input="handlePhoneInput"
+                                            type="tel"
+                                            :disabled="!canEdit"
+                                            placeholder="(11) 99999-9999"
+                                            class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">CNPJ/CPF</label>
+                                        <input
+                                            v-model="form.document"
+                                            @input="handleDocumentInput"
                                             type="text"
                                             :disabled="!canEdit"
-                                            placeholder="Digite seu nome completo"
-                                            class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent disabled:bg-gray-100"
+                                            placeholder="00.000.000/0000-00"
+                                            class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
                                         />
-                                        <p v-if="userProfileErrors.name" class="text-sm text-red-600 dark:text-red-400 mt-1">{{ userProfileErrors.name[0] }}</p>
+                                        <p v-if="errors.document" class="text-sm text-red-600 mt-1">{{ errors.document[0] }}</p>
                                     </div>
+                                </div>
 
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-                                        <input
-                                            v-model="userProfile.email"
-                                            type="email"
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dias de funcionamento</label>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Selecione os dias em que a empresa abre. Esse dado será usado nos gráficos de Oportunidades.</p>
+                                    <div class="mt-2 flex flex-wrap gap-2">
+                                        <button
+                                            v-for="weekday in weekdays"
+                                            :key="weekday.value"
+                                            type="button"
                                             :disabled="!canEdit"
-                                            placeholder="seu.email@exemplo.com"
-                                            class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent disabled:bg-gray-100"
-                                        />
-                                        <p v-if="userProfileErrors.email" class="text-sm text-red-600 dark:text-red-400 mt-1">{{ userProfileErrors.email[0] }}</p>
+                                            :aria-pressed="form.opening_days.includes(weekday.value)"
+                                            @click="toggleOpeningDay(weekday.value)"
+                                            :class="[
+                                                'px-3 py-1.5 text-xs rounded-full border transition cursor-pointer disabled:cursor-not-allowed',
+                                                form.opening_days.includes(weekday.value)
+                                                    ? 'bg-amber-500 text-white border-amber-500'
+                                                    : 'bg-white text-gray-700 border-amber-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600',
+                                                !canEdit
+                                                    ? 'opacity-50'
+                                                    : form.opening_days.includes(weekday.value)
+                                                      ? 'hover:bg-amber-600 hover:border-amber-600'
+                                                      : 'hover:bg-amber-100 dark:hover:bg-slate-700'
+                                            ]"
+                                        >{{ weekday.label }}</button>
                                     </div>
-
-                                    <div v-if="userProfileSuccess" class="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 mt-4">
-                                        <p class="text-sm text-green-700 dark:text-green-400">{{ userProfileSuccess }}</p>
-                                    </div>
-
-                                    <button
-                                        v-if="canEdit && userProfileHasChanges"
-                                        @click="saveUserProfile"
-                                        :disabled="userProfileSaving"
-                                        class="w-full mt-4 px-4 py-2.5 bg-blue-500 dark:bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer disabled:cursor-not-allowed"
-                                    >
-                                        {{ userProfileSaving ? 'Salvando...' : 'Salvar Perfil' }}
-                                    </button>
+                                    <p v-if="errors.opening_days" class="text-sm text-red-600 mt-1">{{ errors.opening_days[0] }}</p>
                                 </div>
-                            </section>
-
-                            <!-- Company Info Section -->
-                            <div class="grid gap-6 lg:grid-cols-2 overflow-hidden">
-                                <section class="bg-orange-50 border border-orange-100 rounded-xl p-6 shadow-sm overflow-hidden">
-                                    <div class="flex items-center justify-between mb-4">
-                                        <div>
-                                            <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Informações da Conta</p>
-                                            <h3 class="text-lg font-bold text-gray-800">Dados da empresa</h3>
-                                        </div>
-                                        <span v-if="!canEdit" class="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded-full">Somente leitura</span>
-                                    </div>
-
-                                    <div class="space-y-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da empresa *</label>
-                                            <input
-                                                v-model="form.name"
-                                                type="text"
-                                                :disabled="!canEdit"
-                                                placeholder="Ex: Xerografia & Cia"
-                                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
-                                            />
-                                            <p v-if="errors.name" class="text-sm text-red-600 mt-1">{{ errors.name[0] }}</p>
-                                        </div>
-
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Email de contato</label>
-                                            <input
-                                                v-model="form.email"
-                                                type="email"
-                                                :disabled="!canEdit"
-                                                placeholder="contato@empresa.com"
-                                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
-                                            />
-                                            <p v-if="errors.email" class="text-sm text-red-600 mt-1">{{ errors.email[0] }}</p>
-                                        </div>
-
-                                        <div class="grid gap-4 sm:grid-cols-2">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                                                <input
-                                                    v-model="form.phone"
-                                                    @input="handlePhoneInput"
-                                                    type="tel"
-                                                    :disabled="!canEdit"
-                                                    placeholder="(11) 99999-9999"
-                                                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">CNPJ/CPF</label>
-                                                <input
-                                                    v-model="form.document"
-                                                    @input="handleDocumentInput"
-                                                    type="text"
-                                                    :disabled="!canEdit"
-                                                    placeholder="00.000.000/0000-00"
-                                                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
-                                                />
-                                                <p v-if="errors.document" class="text-sm text-red-600 mt-1">{{ errors.document[0] }}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                </section>
-
-                                <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm overflow-hidden">
-                                    <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Endereço (opcional)</p>
-                                    <h3 class="text-lg font-bold text-gray-800 mb-4">Onde sua empresa fica?</h3>
-
-                                    <div class="space-y-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
-                                            <input
-                                                v-model="form.address"
-                                                type="text"
-                                                :disabled="!canEdit"
-                                                placeholder="Rua, número, bairro"
-                                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
-                                            />
-                                        </div>
-
-                                        <div class="grid gap-4 sm:grid-cols-2">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
-                                                <input
-                                                    v-model="form.city"
-                                                    type="text"
-                                                    :disabled="!canEdit"
-                                                    placeholder="Cidade"
-                                                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">UF</label>
-                                                <input
-                                                    v-model="form.state"
-                                                    type="text"
-                                                    maxlength="2"
-                                                    :disabled="!canEdit"
-                                                    placeholder="UF"
-                                                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent uppercase disabled:bg-gray-100"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div class="grid gap-4 sm:grid-cols-2">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">CEP</label>
-                                                <input
-                                                    v-model="form.postal_code"
-                                                    type="text"
-                                                    :disabled="!canEdit"
-                                                    placeholder="00000-000"
-                                                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
-                                                />
-                                            </div>
-                                            <div class="flex items-center gap-3 text-sm text-gray-600 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
-                                                <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
-                                                </svg>
-                                                <span>Endereço é opcional e pode ser usado em relatórios futuros.</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </section>
-                            </div>
-                            <div class="flex flex-col sm:flex-row flex-wrap gap-3 justify-end">
-                                <button
-                                    type="button"
-                                    :disabled="isSaving || !canEdit || !hasChanges"
-                                    @click="save"
-                                    class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
-                                >
-                                    {{ isSaving ? 'Salvando...' : 'Salvar alterações' }}
-                                </button>
                             </div>
 
+                        </section>
 
-                            <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm overflow-hidden">
-                                <div class="flex items-center justify-between gap-4 mb-4">
+                        <section class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-6 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none overflow-hidden">
+                            <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Endereço (opcional)</p>
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">Onde sua empresa fica?</h3>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
+                                    <input
+                                        v-model="form.address"
+                                        type="text"
+                                        :disabled="!canEdit"
+                                        placeholder="Rua, número, bairro"
+                                        class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                    />
+                                </div>
+
+                                <div class="grid gap-4 sm:grid-cols-2">
                                     <div>
-                                        <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Notificações por e-mail</p>
-                                        <h3 class="text-lg font-bold text-gray-800">Lembretes e relatórios automáticos</h3>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
+                                        <input
+                                            v-model="form.city"
+                                            type="text"
+                                            :disabled="!canEdit"
+                                            placeholder="Cidade"
+                                            class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">UF</label>
+                                        <input
+                                            v-model="form.state"
+                                            type="text"
+                                            maxlength="2"
+                                            :disabled="!canEdit"
+                                            placeholder="UF"
+                                            class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent uppercase disabled:bg-gray-100"
+                                        />
                                     </div>
                                 </div>
 
-                                <LoadingSpinner v-if="reminderSettingsLoading" message="Carregando configurações de lembrete..." />
-
-                                <div v-else class="space-y-5">
-                                    <p class="text-sm text-gray-600">
-                                        Você pode cancelar a qualquer momento os envios automáticos nesta seção.
-                                        Os e-mails de relatório não exibem dados sensíveis no corpo da mensagem.
-                                    </p>
-
-                                    <div class="grid gap-4 lg:grid-cols-2">
-                                        <div class="space-y-3 border border-amber-100 rounded-lg p-4 bg-amber-50/40">
-                                            <label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-800">
-                                                <input v-model="reminderSettings.daily_enabled" type="checkbox" :disabled="!canEdit" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400" />
-                                                Ativar lembrete diário
-                                            </label>
-
-                                            <div class="space-y-2">
-                                                <label class="block text-sm font-medium text-gray-700">Condição para envio diário</label>
-                                                <select
-                                                    v-model="reminderSettings.daily_condition"
-                                                    :disabled="!canEdit || !reminderSettings.daily_enabled"
-                                                    class="app-select-control w-full px-3 py-2.5 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100"
-                                                >
-                                                    <option value="missing_entry_or_exit">Quando faltar entrada ou saída</option>
-                                                    <option value="missing_both">Quando faltar entrada e saída</option>
-                                                    <option value="missing_entry">Quando faltar somente entrada</option>
-                                                    <option value="missing_exit">Quando faltar somente saída</option>
-                                                </select>
-                                            </div>
-
-                                            <div class="space-y-2">
-                                                <label class="block text-sm font-medium text-gray-700">Dias da semana</label>
-                                                <div class="flex flex-wrap gap-2">
-                                                    <button class="cursor-pointer disabled:cursor-not-allowed"
-                                                        v-for="weekday in weekdays"
-                                                        :key="weekday.value"
-                                                        type="button"
-                                                        :disabled="!canEdit || !reminderSettings.daily_enabled"
-                                                        @click="toggleWeekday(weekday.value)"
-                                                        :class="[
-                                                            'px-3 py-1.5 text-xs rounded-full border transition',
-                                                            reminderSettings.daily_days_of_week.includes(weekday.value)
-                                                                ? 'bg-amber-500 text-white border-amber-500'
-                                                                : 'bg-white text-gray-700 border-amber-200',
-                                                            (!canEdit || !reminderSettings.daily_enabled) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-amber-100'
-                                                        ]"
-                                                    >
-                                                        {{ weekday.label }}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="space-y-3 border border-amber-100 rounded-lg p-4 bg-white">
-                                            <div class="space-y-2">
-                                                <label class="block text-sm font-medium text-gray-700">Horário de envio</label>
-                                                <input
-                                                    v-model="reminderSettings.send_time"
-                                                    type="time"
-                                                    :disabled="!canEdit"
-                                                    class="w-full px-3 py-2.5 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100"
-                                                />
-                                            </div>
-
-                                            <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-                                                <input v-model="reminderSettings.monthly_enabled" type="checkbox" :disabled="!canEdit" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400" />
-                                                Enviar relatório mensal (dia 1, mês anterior)
-                                            </label>
-
-                                            <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-                                                <input v-model="reminderSettings.yearly_enabled" type="checkbox" :disabled="!canEdit" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400" />
-                                                Enviar relatório anual (01/01, ano anterior)
-                                            </label>
-
-                                            <div class="space-y-2">
-                                                <label class="block text-sm font-medium text-gray-700">PIN do PDF (4 caracteres alfanuméricos)</label>
-                                                <input
-                                                    v-model="reminderSettings.pdf_pin"
-                                                    type="text"
-                                                    maxlength="4"
-                                                    autocomplete="off"
-                                                    :disabled="!canEdit"
-                                                    placeholder="Ex: A1B2"
-                                                    class="w-full px-3 py-2.5 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100 uppercase"
-                                                />
-                                                <p class="text-xs text-gray-500">Deixe em branco para manter o PIN atual.</p>
-                                            </div>
-                                        </div>
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">CEP</label>
+                                        <input
+                                            v-model="form.postal_code"
+                                            type="text"
+                                            :disabled="!canEdit"
+                                            placeholder="00000-000"
+                                            class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:bg-gray-100"
+                                        />
                                     </div>
-
-                                    <p v-if="reminderErrors.pdf_pin" class="text-sm text-red-600">{{ reminderErrors.pdf_pin[0] }}</p>
-                                    <p v-if="reminderErrors.send_time" class="text-sm text-red-600">{{ reminderErrors.send_time[0] }}</p>
-
-                                    <div class="flex justify-end">
-                                        <button
-                                            type="button"
-                                            :disabled="reminderSettingsSaving || !canEdit || !hasReminderChanges"
-                                            @click="saveReminderSettings"
-                                            class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
-                                        >
-                                            {{ reminderSettingsSaving ? 'Salvando lembretes...' : 'Salvar lembretes' }}
-                                        </button>
+                                    <div class="flex items-center gap-3 text-sm text-gray-600 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+                                        <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                                        </svg>
+                                        <span>Endereço é opcional e pode ser usado em relatórios futuros.</span>
                                     </div>
-                                </div>
-                            </section>
-
-                            <div class="grid gap-6 lg:grid-cols-2 overflow-hidden">
-                                <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm overflow-hidden">
-                                    <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Acesso</p>
-                                    <h3 class="text-lg font-bold text-gray-800 mb-4">Alterar senha</h3>
-
-                                    <div class="space-y-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Senha atual *</label>
-                                            <input
-                                                v-model="passwordForm.current_password"
-                                                type="password"
-                                                autocomplete="current-password"
-                                                placeholder="Digite sua senha atual"
-                                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-                                            />
-                                            <p v-if="passwordFormErrors.current_password" class="text-sm text-red-600 mt-1">{{ passwordFormErrors.current_password[0] }}</p>
-                                        </div>
-
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Nova senha *</label>
-                                            <input
-                                                v-model="passwordForm.password"
-                                                type="password"
-                                                autocomplete="new-password"
-                                                placeholder="Digite a nova senha"
-                                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-                                            />
-                                            <p v-if="passwordFormErrors.password" class="text-sm text-red-600 mt-1">{{ passwordFormErrors.password[0] }}</p>
-                                        </div>
-
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Confirmar nova senha *</label>
-                                            <input
-                                                v-model="passwordForm.password_confirmation"
-                                                type="password"
-                                                autocomplete="new-password"
-                                                placeholder="Confirme a nova senha"
-                                                class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-                                            />
-                                            <p v-if="passwordFormErrors.password_confirmation" class="text-sm text-red-600 mt-1">{{ passwordFormErrors.password_confirmation[0] }}</p>
-                                        </div>
-
-                                        <button
-                                            type="button"
-                                            :disabled="passwordFormSaving"
-                                            @click="submitPasswordChange"
-                                            class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
-                                        >
-                                            {{ passwordFormSaving ? 'Atualizando...' : 'Atualizar senha' }}
-                                        </button>
-
-                                        <p v-if="passwordFormSuccess" class="text-sm font-medium text-emerald-700">{{ passwordFormSuccess }}</p>
-                                    </div>
-                                </section>
-
-                                <section class="bg-white border border-amber-100 rounded-xl p-6 shadow-sm flex flex-col gap-4 overflow-hidden">
-                                    <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Identidade visual</p>
-                                    <div class="flex flex-col sm:flex-row items-center gap-4">
-                                        <div class="w-24 h-24 rounded-full border-2 border-orange-200 bg-orange-50 flex items-center justify-center overflow-hidden shadow">
-                                            <img :src="logoUrl" alt="Logomarca" class="w-16 h-16 object-contain" />
-                                        </div>
-                                        <div class="space-y-1">
-                                            <h3 class="text-lg font-bold text-gray-800">Logomarca ou foto</h3>
-                                            <p class="text-sm text-gray-600">Envio de logo estará disponível em breve.</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        disabled
-                                        class="w-full sm:w-auto px-4 py-3 border border-amber-200 text-orange-600 rounded-lg font-medium bg-orange-50 cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
-                                    >
-                                        Upload disponível em breve
-                                    </button>
-                                </section>
-                            </div>
-
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 text-center sm:text-left">
-                                <div class="w-full sm:w-auto">
-                                    <p class="text-sm text-gray-600">Conta criada em</p>
-                                    <p class="text-lg font-semibold text-gray-800">{{ createdAtText }}</p>
-                                </div>
-                                <div class="flex flex-col sm:flex-row gap-3">
-                                    <button
-                                        type="button"
-                                        :disabled="!canEdit || isClearingRecords"
-                                        @click="openClearRecordsModal"
-                                        class="w-full sm:w-auto px-5 py-3 bg-orange-50 text-orange-600 border border-orange-300 rounded-lg font-medium hover:bg-orange-100 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
-                                    >
-                                        Limpar registros
-                                    </button>
-                                    <button
-                                        type="button"
-                                        :disabled="!canEdit || isDeleting"
-                                        @click="openDeleteModal"
-                                        class="w-full sm:w-auto px-5 py-3 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium hover:bg-red-100 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
-                                    >
-                                        Apagar conta
-                                    </button>
                                 </div>
                             </div>
+                        </section>
+                    </div>
+                    <div class="flex flex-col sm:flex-row flex-wrap gap-3 justify-end">
+                        <button
+                            type="button"
+                            :disabled="isSaving || !canEdit || !hasChanges"
+                            @click="save"
+                            class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium enabled:hover:shadow-lg transition-all cursor-pointer disabled:bg-none disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-slate-800 dark:disabled:text-slate-400"
+                        >
+                            {{ isSaving ? 'Salvando...' : 'Salvar alterações' }}
+                        </button>
+                    </div>
 
-                            <div v-if="clearRecordsSuccess" class="-mt-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
-                                <p class="text-sm font-medium text-emerald-700">{{ clearRecordsSuccess }}</p>
+
+                    <section class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-6 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none overflow-hidden">
+                        <div class="flex items-center justify-between gap-4 mb-4">
+                            <div>
+                                <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Notificações por e-mail</p>
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Lembretes e relatórios automáticos</h3>
                             </div>
                         </div>
+
+                        <LoadingSpinner v-if="reminderSettingsLoading" message="Carregando configurações de lembrete..." />
+
+                        <div v-else class="space-y-5">
+                            <p class="text-sm text-gray-600 dark:text-gray-300">
+                                Você pode cancelar a qualquer momento os envios automáticos nesta seção.
+                                Os e-mails de relatório não exibem dados sensíveis no corpo da mensagem.
+                            </p>
+
+                            <div class="grid gap-4 lg:grid-cols-2">
+                                <div class="space-y-3 border border-amber-100 rounded-lg p-4 bg-amber-50/40 dark:border-slate-700 dark:bg-slate-800">
+                                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100">
+                                        <input v-model="reminderSettings.daily_enabled" type="checkbox" :disabled="!canEdit" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400 dark:border-slate-600 dark:bg-slate-900 dark:checked:bg-amber-500" />
+                                        Ativar lembrete diário
+                                    </label>
+
+                                    <div class="space-y-2">
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Condição para envio diário</label>
+                                        <select
+                                            v-model="reminderSettings.daily_condition"
+                                            :disabled="!canEdit || !reminderSettings.daily_enabled"
+                                            class="app-select-control w-full px-3 py-2.5 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100 dark:border-slate-600 dark:bg-slate-900 dark:text-gray-100 dark:disabled:bg-slate-800"
+                                        >
+                                            <option value="missing_entry_or_exit">Quando faltar entrada ou saída</option>
+                                            <option value="missing_both">Quando faltar entrada e saída</option>
+                                            <option value="missing_entry">Quando faltar somente entrada</option>
+                                            <option value="missing_exit">Quando faltar somente saída</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="space-y-2">
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Dias da semana</label>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button class="cursor-pointer disabled:cursor-not-allowed"
+                                                v-for="weekday in weekdays"
+                                                :key="weekday.value"
+                                                type="button"
+                                                :disabled="!canEdit || !reminderSettings.daily_enabled"
+                                                @click="toggleWeekday(weekday.value)"
+                                                :class="[
+                                                    'px-3 py-1.5 text-xs rounded-full border transition',
+                                                    reminderSettings.daily_days_of_week.includes(weekday.value)
+                                                        ? 'bg-amber-500 text-white border-amber-500'
+                                                        : 'bg-white text-gray-700 border-amber-200 dark:bg-slate-900 dark:text-slate-200 dark:border-slate-600',
+                                                    (!canEdit || !reminderSettings.daily_enabled)
+                                                        ? 'opacity-50 cursor-not-allowed'
+                                                        : reminderSettings.daily_days_of_week.includes(weekday.value)
+                                                          ? 'hover:bg-amber-600 hover:border-amber-600'
+                                                          : 'hover:bg-amber-100 dark:hover:bg-slate-700'
+                                                ]"
+                                            >
+                                                {{ weekday.label }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-3 border border-amber-100 rounded-lg p-4 bg-white dark:border-slate-700 dark:bg-slate-800">
+                                    <div class="space-y-2">
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Horário de envio</label>
+                                        <input
+                                            v-model="reminderSettings.send_time"
+                                            type="time"
+                                            :disabled="!canEdit"
+                                            class="w-full px-3 py-2.5 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100 dark:border-slate-600 dark:bg-slate-900 dark:text-gray-100 dark:disabled:bg-slate-800 dark:[color-scheme:dark]"
+                                        />
+                                    </div>
+
+                                    <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        <input v-model="reminderSettings.monthly_enabled" type="checkbox" :disabled="!canEdit" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400 dark:border-slate-600 dark:bg-slate-900 dark:checked:bg-amber-500" />
+                                        Enviar relatório mensal (dia 1, mês anterior)
+                                    </label>
+
+                                    <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        <input v-model="reminderSettings.yearly_enabled" type="checkbox" :disabled="!canEdit" class="rounded border-gray-300 text-amber-500 focus:ring-amber-400 dark:border-slate-600 dark:bg-slate-900 dark:checked:bg-amber-500" />
+                                        Enviar relatório anual (01/01, ano anterior)
+                                    </label>
+
+                                    <div class="space-y-2">
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">PIN do PDF (4 caracteres alfanuméricos)</label>
+                                        <input
+                                            v-model="reminderSettings.pdf_pin"
+                                            type="text"
+                                            maxlength="4"
+                                            autocomplete="off"
+                                            :disabled="!canEdit"
+                                            placeholder="Ex: A1B2"
+                                            class="w-full px-3 py-2.5 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100 uppercase dark:border-slate-600 dark:bg-slate-900 dark:text-gray-100 dark:placeholder:text-slate-400 dark:disabled:bg-slate-800"
+                                        />
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">Deixe em branco para manter o PIN atual.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p v-if="reminderErrors.pdf_pin" class="text-sm text-red-600 dark:text-red-400">{{ reminderErrors.pdf_pin[0] }}</p>
+                            <p v-if="reminderErrors.send_time" class="text-sm text-red-600 dark:text-red-400">{{ reminderErrors.send_time[0] }}</p>
+
+                            <div class="flex justify-end">
+                                <button
+                                    type="button"
+                                    :disabled="reminderSettingsSaving || !canEdit || !hasReminderChanges"
+                                    @click="saveReminderSettings"
+                                    class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                    {{ reminderSettingsSaving ? 'Salvando lembretes...' : 'Salvar lembretes' }}
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="grid gap-6 lg:grid-cols-2 overflow-hidden">
+                        <section class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-6 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none overflow-hidden">
+                            <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Acesso</p>
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">Alterar senha</h3>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Senha atual *</label>
+                                    <input
+                                        v-model="passwordForm.current_password"
+                                        type="password"
+                                        autocomplete="current-password"
+                                        placeholder="Digite sua senha atual"
+                                        class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                                    />
+                                    <p v-if="passwordFormErrors.current_password" class="text-sm text-red-600 mt-1">{{ passwordFormErrors.current_password[0] }}</p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Nova senha *</label>
+                                    <input
+                                        v-model="passwordForm.password"
+                                        type="password"
+                                        autocomplete="new-password"
+                                        placeholder="Digite a nova senha"
+                                        class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                                    />
+                                    <p v-if="passwordFormErrors.password" class="text-sm text-red-600 mt-1">{{ passwordFormErrors.password[0] }}</p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Confirmar nova senha *</label>
+                                    <input
+                                        v-model="passwordForm.password_confirmation"
+                                        type="password"
+                                        autocomplete="new-password"
+                                        placeholder="Confirme a nova senha"
+                                        class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                                    />
+                                    <p v-if="passwordFormErrors.password_confirmation" class="text-sm text-red-600 mt-1">{{ passwordFormErrors.password_confirmation[0] }}</p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    :disabled="passwordFormSaving"
+                                    @click="submitPasswordChange"
+                                    class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                    {{ passwordFormSaving ? 'Atualizando...' : 'Atualizar senha' }}
+                                </button>
+
+                                <p v-if="passwordFormSuccess" class="text-sm font-medium text-emerald-700">{{ passwordFormSuccess }}</p>
+                            </div>
+                        </section>
+
+                        <section class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-6 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none flex flex-col gap-4 overflow-hidden">
+                            <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Identidade visual</p>
+                            <div class="flex flex-col sm:flex-row items-center gap-4">
+                                <div class="w-24 h-24 rounded-full border-2 border-orange-200 bg-orange-50 flex items-center justify-center overflow-hidden shadow">
+                                    <img :src="logoUrl" alt="Logomarca" class="w-16 h-16 object-contain" />
+                                </div>
+                                <div class="space-y-1">
+                                    <h3 class="text-lg font-bold text-gray-800">Logomarca ou foto</h3>
+                                    <p class="text-sm text-gray-600">Envio de logo estará disponível em breve.</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                disabled
+                                class="w-full sm:w-auto px-4 py-3 border border-amber-200 text-orange-600 rounded-lg font-medium bg-orange-50 cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
+                            >
+                                Upload disponível em breve
+                            </button>
+                        </section>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-transparent bg-white p-4 text-center shadow-lg sm:p-6 sm:text-left dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none">
+                        <div class="w-full sm:w-auto">
+                            <p class="text-sm text-gray-600">Conta criada em</p>
+                            <p class="text-lg font-semibold text-gray-800">{{ createdAtText }}</p>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <button
+                                type="button"
+                                :disabled="!canEdit || isClearingRecords"
+                                @click="openClearRecordsModal"
+                                class="w-full sm:w-auto px-5 py-3 bg-orange-50 text-orange-600 border border-orange-300 rounded-lg font-medium hover:bg-orange-100 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
+                            >
+                                Limpar registros
+                            </button>
+                            <button
+                                type="button"
+                                :disabled="!canEdit || isDeleting"
+                                @click="openDeleteModal"
+                                class="w-full sm:w-auto px-5 py-3 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium hover:bg-red-100 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer disabled:cursor-not-allowed"
+                            >
+                                Apagar conta
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="clearRecordsSuccess" class="-mt-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+                        <p class="text-sm font-medium text-emerald-700">{{ clearRecordsSuccess }}</p>
                     </div>
                 </div>
             </main>

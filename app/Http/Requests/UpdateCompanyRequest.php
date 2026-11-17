@@ -47,6 +47,8 @@ class UpdateCompanyRequest extends FormRequest
             'state' => 'nullable|string|max:2',
             'postal_code' => 'nullable|string|max:20',
             'use_service_types' => 'sometimes|boolean',
+            'opening_days' => ['sometimes', 'required', 'array', 'min:1', 'max:7'],
+            'opening_days.*' => ['integer', 'between:0,6', 'distinct'],
         ];
     }
 
@@ -60,6 +62,13 @@ class UpdateCompanyRequest extends FormRequest
             'name.unique' => 'Este nome de empresa já está registrado.',
             'email.email' => 'O email deve ser válido.',
             'email.unique' => 'Este email já está registrado.',
+            'opening_days.required' => 'Selecione os dias de funcionamento da empresa.',
+            'opening_days.array' => 'Os dias de funcionamento selecionados são inválidos.',
+            'opening_days.min' => 'Selecione pelo menos um dia de funcionamento.',
+            'opening_days.max' => 'Selecione no máximo sete dias de funcionamento.',
+            'opening_days.*.integer' => 'Selecione dias da semana válidos.',
+            'opening_days.*.between' => 'Selecione dias da semana válidos.',
+            'opening_days.*.distinct' => 'Não selecione o mesmo dia mais de uma vez.',
         ];
     }
 }
