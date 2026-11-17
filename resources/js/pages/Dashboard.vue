@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { AlertTriangle, Building2, CalendarDays, ChevronLeft, ChevronRight, Download, Info, Lightbulb, MapPin, RefreshCw, RotateCcw } from 'lucide-vue-next';
+import { AlertTriangle, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Download, Info, Lightbulb, MapPin, RefreshCw, RotateCcw } from 'lucide-vue-next';
 import Sidebar from '@/components/Sidebar.vue';
 import Footer from '@/components/Footer.vue';
 import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
@@ -10,6 +10,7 @@ import AppSelect from '@/components/AppSelect.vue';
 import CuriosityCalculationInfo from '@/components/CuriosityCalculationInfo.vue';
 import HolidayLocationDialog from '@/components/HolidayLocationDialog.vue';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatHolidayLocation } from '@/types/holidays';
 import type { Holiday, HolidayLocation } from '@/types/holidays';
 import { useAuth } from '@/composables/useAuth';
@@ -100,6 +101,10 @@ type CuriosityData = {
         date: string;
         entries: number;
     };
+    previous_year_month_best_day?: {
+        date: string;
+        entries: number;
+    } | null;
     weekdays?: CuriosityWeekday[];
 };
 
@@ -280,6 +285,7 @@ const createYearOption = (query: string) => {
 const companyName = computed(() => dashboardData.value?.company?.name || auth.getCompanyName.value || 'Empresa');
 const monthLabel = computed(() => monthOptions.find((item) => item.value === selectedMonth.value)?.label || 'Mês');
 const monthTitle = computed(() => `${monthLabel.value} de ${selectedYear.value}`);
+const previousYearMonthBestDay = computed(() => curiosityResults.value['best-day'].data?.previous_year_month_best_day ?? null);
 
 const showTodayActivityWarning = computed(() => {
     const today = dashboardData.value?.today;
@@ -348,6 +354,8 @@ const curiosityExplanations = computed<Record<CuriosityKind, string[]>>(() => {
             'Agrupamos os lançamentos por data, somamos as entradas de cada dia e escolhemos o maior total diário positivo. Em caso de empate, exibimos a data mais antiga.',
             '“Vendas” aqui significa o total de entradas registadas, de todas as categorias, não o lucro do dia. Dias de meses posteriores ao selecionado e datas futuras não entram neste cálculo. Não é necessário ter dados de anos anteriores.',
             'Se não houver um total diário de entradas maior que zero no intervalo, informamos que ainda não há entradas para apresentar um melhor dia.',
+            `Também procuramos o melhor dia de ${monthLabel.value.toLowerCase()} de ${selectedYear.value - 1}, o ano imediatamente anterior ao selecionado. Usamos o mês inteiro, mesmo que o mês corrente ainda esteja em andamento, mas nunca incluímos datas futuras. Aplicamos a mesma soma de entradas e o mesmo desempate pela data mais antiga.`,
+            'O destaque do mês do ano anterior aparece somente se houver um total diário positivo nesse mês, mesmo que não haja entradas no ano selecionado. Não substituímos o ano anterior por outro ano mais antigo quando faltam registos.',
         ],
         'weekday-average': [
             ...shared('weekday-average'),
@@ -361,7 +369,7 @@ const curiosityExplanations = computed<Record<CuriosityKind, string[]>>(() => {
     };
 });
 
-const downloadMonthlyReport = async () => {
+const downloadReport = async (type: 'monthly' | 'yearly') => {
     if (isDownloadingReport.value) return;
 
     const month = selectedMonth.value;
@@ -370,7 +378,8 @@ const downloadMonthlyReport = async () => {
     reportError.value = '';
 
     try {
-        const response = await fetch(`/api/dashboard/monthly-report?month=${month}&year=${year}`, {
+        const periodQuery = type === 'monthly' ? `month=${month}&year=${year}` : `year=${year}`;
+        const response = await fetch(`/api/dashboard/${type}-report?${periodQuery}`, {
             headers: {
                 Accept: 'application/pdf, application/json',
                 Authorization: `Bearer ${auth.token.value}`,
@@ -395,7 +404,9 @@ const downloadMonthlyReport = async () => {
         const url = window.URL.createObjectURL(await response.blob());
         const link = document.createElement('a');
         link.href = url;
-        link.download = `relatorio-mensal-${year}-${String(month).padStart(2, '0')}.pdf`;
+        link.download = type === 'monthly'
+            ? `relatorio-mensal-${year}-${String(month).padStart(2, '0')}.pdf`
+            : `relatorio-anual-${year}.pdf`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -892,7 +903,7 @@ onUnmounted(() => {
                     <p class="mt-1 text-xs text-red-700 dark:text-red-300">{{ loadError }}</p>
                 </div>
 
-                <div class="flex items-center gap-2">
+                <div class="dashboard-reveal flex items-center gap-2">
                     <CalendarDays class="h-6 w-6 text-amber-500" aria-hidden="true" />
                     <h2 class="text-xl font-bold text-gray-800 dark:text-slate-100">Movimentação diária</h2>
                 </div>
@@ -901,7 +912,7 @@ onUnmounted(() => {
                 <div class="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
 
                     <!-- Calendar -->
-                    <div class="bg-white dark:bg-slate-900/90 border border-transparent dark:border-slate-800 rounded-xl shadow-lg dark:shadow-none p-4 sm:p-6">
+                    <div class="dashboard-reveal bg-white dark:bg-slate-900/90 border border-transparent dark:border-slate-800 rounded-xl shadow-lg dark:shadow-none p-4 sm:p-6">
                         <div class="mb-4 grid grid-cols-2 gap-3 sm:mb-5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
                             <button
                                 type="button"
@@ -1040,7 +1051,7 @@ onUnmounted(() => {
                     </div>
 
                     <!-- Aside -->
-                    <aside class="space-y-4 sm:space-y-6">
+                    <aside class="dashboard-stagger space-y-4 sm:space-y-6">
 
                         <!-- Company stats -->
                         <div class="bg-white dark:bg-slate-900/90 border border-transparent dark:border-slate-800 rounded-xl shadow-lg dark:shadow-none p-4 sm:p-6">
@@ -1053,19 +1064,33 @@ onUnmounted(() => {
                                     <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Dias com movimento</p>
                                     <p class="mt-1 text-xl font-bold text-gray-800 dark:text-slate-100">{{ dashboardData?.totals.days_with_activity || 0 }}</p>
                                 </div>
-                                <button
-                                    type="button"
-                                    class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-                                    :disabled="isDownloadingReport || isLoading"
-                                    :aria-busy="isDownloadingReport"
-                                    @click="downloadMonthlyReport"
-                                >
-                                    <RefreshCw v-if="isDownloadingReport" class="h-4 w-4 animate-spin" aria-hidden="true" />
-                                    <Download v-else class="h-4 w-4" aria-hidden="true" />
-                                    {{ isDownloadingReport ? 'Gerando relatório...' : 'Gerar relatório PDF' }}
-                                </button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger as-child>
+                                        <button
+                                            type="button"
+                                            class="inline-flex w-fit max-w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 xl:w-full"
+                                            :disabled="isDownloadingReport || isLoading"
+                                            :aria-busy="isDownloadingReport"
+                                        >
+                                            <RefreshCw v-if="isDownloadingReport" class="h-4 w-4 animate-spin" aria-hidden="true" />
+                                            <Download v-else class="h-4 w-4" aria-hidden="true" />
+                                            {{ isDownloadingReport ? 'Gerando relatório...' : 'Gerar relatório PDF' }}
+                                            <ChevronDown class="ml-auto h-4 w-4" aria-hidden="true" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" class="w-(--reka-dropdown-menu-trigger-width) min-w-56 border-gray-200 bg-white text-gray-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                                        <DropdownMenuItem class="cursor-pointer focus:bg-orange-50 dark:focus:bg-slate-800" :disabled="isDownloadingReport || isLoading" @select="downloadReport('monthly')">
+                                            <span>Mensal</span>
+                                            <span class="ml-auto text-xs text-gray-500 dark:text-slate-400">{{ monthTitle }}</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem class="cursor-pointer focus:bg-orange-50 dark:focus:bg-slate-800" :disabled="isDownloadingReport || isLoading" @select="downloadReport('yearly')">
+                                            <span>Anual</span>
+                                            <span class="ml-auto text-xs text-gray-500 dark:text-slate-400">{{ selectedYear }}</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                                 <p class="text-xs text-gray-500 dark:text-slate-400">
-                                    Relatório de {{ monthTitle }}, igual ao enviado por e-mail. Use o PIN do PDF configurado em
+                                    Mensal de {{ monthTitle }} ou anual de {{ selectedYear }}, iguais aos enviados por e-mail. Use o PIN do PDF configurado em
                                     <Link href="/minha-conta" class="font-semibold text-primary underline underline-offset-2 hover:opacity-80">Minha Conta</Link>.
                                 </p>
                                 <p v-if="reportError" role="alert" class="text-sm text-red-600 dark:text-red-400">{{ reportError }}</p>
@@ -1172,7 +1197,7 @@ onUnmounted(() => {
                     class="space-y-4 sm:space-y-6"
                     aria-labelledby="curiosities-title"
                 >
-                    <div class="flex items-start gap-3">
+                    <div class="dashboard-reveal flex items-start gap-3">
                         <Lightbulb
                             class="mt-0.5 h-6 w-6 shrink-0 text-amber-500"
                             aria-hidden="true"
@@ -1210,7 +1235,7 @@ onUnmounted(() => {
                     <div
                         v-if="curiosityEligibility"
                         role="status"
-                        class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800/70 dark:bg-amber-950/35 dark:text-amber-100"
+                        class="dashboard-reveal rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800/70 dark:bg-amber-950/35 dark:text-amber-100"
                     >
                         Ainda precisamos de mais registos para mostrar estas
                         curiosidades. Há atividade em
@@ -1222,7 +1247,7 @@ onUnmounted(() => {
 
                     <div
                         v-else
-                        class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                        class="dashboard-stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
                     >
                         <article
                             class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-5 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none"
@@ -1313,6 +1338,7 @@ onUnmounted(() => {
                                     </div>
                                 </div>
                             </template>
+
                             <p
                                 v-else
                                 class="mt-3 text-sm text-gray-600 dark:text-slate-300"
@@ -1532,7 +1558,7 @@ onUnmounted(() => {
                                     }}
                                 </p>
                                 <p
-                                    class="mt-2 text-sm text-gray-600 dark:text-slate-300"
+                                    class="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300"
                                 >
                                     {{
                                         formatCurrency(
@@ -1553,6 +1579,20 @@ onUnmounted(() => {
                                     'Ainda não há registos suficientes neste ano.'
                                 }}
                             </p>
+                            <div
+                                v-if="!curiosityResults['best-day'].loading && !curiosityResults['best-day'].error && previousYearMonthBestDay"
+                                class="mt-4 border-t border-gray-100 pt-4 dark:border-slate-800"
+                            >
+                                <p class="text-xs font-semibold text-gray-500 dark:text-slate-400">
+                                    Melhor dia de {{ monthLabel.toLowerCase() }} de {{ selectedYear - 1 }}
+                                </p>
+                                <p class="mt-2 text-lg font-bold text-orange-700 dark:text-orange-300">
+                                    {{ curiosityDateLabel(previousYearMonthBestDay.date) }}
+                                </p>
+                                <p class="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                    {{ formatCurrency(previousYearMonthBestDay.entries) }} em entradas.
+                                </p>
+                            </div>
                         </article>
 
                         <article class="col-span-full rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-5 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none">
@@ -1639,3 +1679,36 @@ onUnmounted(() => {
     </div>
     <HolidayLocationDialog v-if="holidayDialogOpen" :location="holidayLocation" :year="selectedYear" :month="selectedMonth" @close="holidayDialogOpen = false" @saved="onHolidayLocationSaved" />
 </template>
+
+<style scoped>
+@media (prefers-reduced-motion: no-preference) {
+    .dashboard-reveal,
+    .dashboard-stagger > * {
+        animation: dashboard-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    }
+
+    .dashboard-stagger > :nth-child(2) {
+        animation-delay: 35ms;
+    }
+
+    .dashboard-stagger > :nth-child(3) {
+        animation-delay: 70ms;
+    }
+
+    .dashboard-stagger > :nth-child(n + 4) {
+        animation-delay: 105ms;
+    }
+
+    @keyframes dashboard-enter {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+}
+</style>

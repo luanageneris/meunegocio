@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\DownloadMonthlyReportRequest;
+use App\Http\Requests\DownloadYearlyReportRequest;
 use App\Models\Commission;
 use App\Models\FinancialRecord;
 use App\Models\UserReminderSetting;
@@ -15,6 +16,16 @@ class DashboardController extends Controller
 {
     public function monthlyReport(DownloadMonthlyReportRequest $request, ReportPdfService $reports)
     {
+        return $this->downloadReport($request, $reports, false);
+    }
+
+    public function yearlyReport(DownloadYearlyReportRequest $request, ReportPdfService $reports)
+    {
+        return $this->downloadReport($request, $reports, true);
+    }
+
+    private function downloadReport(Request $request, ReportPdfService $reports, bool $yearly)
+    {
         $user = $request->user();
         $setting = UserReminderSetting::where('user_id', $user->id)->first();
 
@@ -24,15 +35,26 @@ class DashboardController extends Controller
             ], 422);
         }
 
-        $period = Carbon::create($request->integer('year'), $request->integer('month'), 1)->startOfDay();
-        $path = $reports->buildMonthlyStatementPdf(
-            company: $user->company,
-            periodStart: $period,
-            pin: (string) $setting->pdf_pin,
-            recipient: $user,
-        );
+        if ($yearly) {
+            $path = $reports->buildYearlySummaryPdf(
+                company: $user->company,
+                year: $request->integer('year'),
+                pin: (string) $setting->pdf_pin,
+                recipient: $user,
+            );
+            $filename = 'relatorio-anual-'.$request->integer('year').'.pdf';
+        } else {
+            $period = Carbon::create($request->integer('year'), $request->integer('month'), 1)->startOfDay();
+            $path = $reports->buildMonthlyStatementPdf(
+                company: $user->company,
+                periodStart: $period,
+                pin: (string) $setting->pdf_pin,
+                recipient: $user,
+            );
+            $filename = 'relatorio-mensal-'.$period->format('Y-m').'.pdf';
+        }
 
-        return response()->download($path, 'relatorio-mensal-'.$period->format('Y-m').'.pdf', [
+        return response()->download($path, $filename, [
             'Content-Type' => 'application/pdf',
             'Cache-Control' => 'private, no-store',
         ])->deleteFileAfterSend(true);

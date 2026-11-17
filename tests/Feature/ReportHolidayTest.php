@@ -141,7 +141,36 @@ class ReportHolidayTest extends TestCase
         }
     }
 
-    public function test_both_emailed_reports_use_the_recipients_location(): void
+    public function test_yearly_pdf_does_not_consult_holidays_even_with_location_consent(): void
+    {
+        $user = User::factory()->create();
+        $this->createLocation($user, 'PT-LI');
+        $holidays = Mockery::mock(HolidayService::class);
+        $holidays->shouldNotReceive('synchronize');
+        $service = new ReportPdfService($holidays);
+
+        $path = $service->buildYearlySummaryPdf($user->company, 2026, '1234', $user);
+        try {
+            $this->assertStringStartsWith('%PDF-', file_get_contents($path));
+        } finally {
+            unlink($path);
+            $temporaryPath = substr($path, 0, -4);
+            if (is_file($temporaryPath)) {
+                unlink($temporaryPath);
+            }
+        }
+    }
+
+    public function test_yearly_pdf_rejects_a_recipient_from_another_company(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+
+        $this->expectException(\InvalidArgumentException::class);
+        app(ReportPdfService::class)->buildYearlySummaryPdf($user->company, 2026, '1234', $other);
+    }
+
+    public function test_both_emailed_reports_use_the_company_and_recipient(): void
     {
         $user = User::factory()->create();
         UserReminderSetting::create([

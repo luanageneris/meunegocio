@@ -20,18 +20,34 @@ e necessario. Atualize as senhas correspondentes no `.env`. A remocao pode ser
 feita com `DROP USER IF EXISTS 'root'@'%';`. Nao remova o volume: ele contem
 os dados existentes.
 
-## Relatorio mensal pelo Dashboard
+## Animacao de entrada do Dashboard
+
+Calendario, cartoes laterais e Curiosidades surgem com opacidade e deslocamento
+suaves em 240 ms, com pequenos intervalos entre cartoes (ate 345 ms no total).
+A animacao usa apenas CSS, nao espera pelas APIs nem bloqueia os controles,
+e nao reinicia ao atualizar os dados ou trocar o mes. A preferencia de
+movimento reduzido do dispositivo desativa esse efeito.
+
+## Relatorios pelo Dashboard
 
 No calendario do Dashboard, selecione o mes e o ano e use **Gerar relatorio PDF**
-no cartao da empresa. O download usa o mesmo extrato mensal enviado por e-mail
-no primeiro dia do mes, com os dados apenas da empresa autenticada.
+no cartao da empresa. O menu **Mensal** baixa o mesmo extrato mensal enviado
+por e-mail no primeiro dia do mes; **Anual** baixa o mesmo resumo anual
+enviado por e-mail, usando o ano selecionado e todos os seus meses.
+Ambos usam apenas dados da empresa autenticada.
+O relatorio anual nao inclui feriados ou pontos facultativos; o mensal
+mantem a indicacao dessas datas conforme a localizacao autorizada.
 O PDF usa o PIN configurado em **Minha Conta > Lembretes e relatorios automaticos**.
 Configure esse PIN antes do primeiro download. Nao e necessario ativar os envios
 por e-mail; gerar o PDF nao envia mensagens nem altera o historico dos envios.
 
-Endpoint autenticado: `GET /api/dashboard/monthly-report?month=11&year=2026`.
-Mes e ano sao obrigatorios (1 a 12 e 2000 a 2100); erros retornam JSON e o
-sucesso retorna o arquivo `application/pdf`.
+Endpoints autenticados:
+- `GET /api/dashboard/monthly-report?month=11&year=2026`: mes e ano obrigatorios.
+- `GET /api/dashboard/yearly-report?year=2026`: apenas ano obrigatorio.
+
+Mes deve estar entre 1 e 12 e ano entre 2000 e 2100; erros retornam JSON e o
+sucesso retorna o arquivo `application/pdf`. Gerar relatorios nao envia
+e-mails nem altera o historico dos envios agendados.
 
 ## Comissoes no resumo do Dashboard
 
@@ -44,11 +60,24 @@ novamente. Uma comissao sem lancamento de saida nao entra nesse total de saidas.
 
 ## Periodo padrao de Oportunidades
 
+Em **Minha Conta > Dados da empresa > Dias de funcionamento**, os dias
+selecionados possuem uma marca de confirmacao. Alteracoes ficam pendentes
+ate clicar em **Salvar alteracoes** dentro do cartao; o proprio campo confirma os dias salvos.
+**Dados da empresa** e **Endereco** possuem botoes e confirmacoes independentes:
+salvar um cartao nao salva nem descarta alteracoes pendentes no outro.
+Mantenha a migration `2026_11_17_000001_add_opening_days_to_companies_table`
+aplicada para persistir essa configuracao.
+
 O periodo inicial vai do primeiro dia do mes ate hoje. A data de hoje vem
 do servidor, no fuso configurado em `app.timezone`, e e a mesma usada pela
 validacao da API. Assim, a virada de dia no navegador em outro fuso nao
 seleciona uma data futura para a aplicacao. O intervalo maximo permanece
 de dois anos e datas finais futuras sao bloqueadas.
+Os cartoes Entradas, Dias da semana e Fluxo de caixa tambem possuem icones
+de informacao com modais de calculo. Cada explicacao usa o periodo e a
+categoria do resultado exibido e detalha a comparacao, as medias e a faixa
+de possivel impacto. O grafico semanal considera os dias de funcionamento;
+os totais financeiros continuam incluindo todos os movimentos do intervalo.
 
 ## Calculos das Curiosidades
 
@@ -66,6 +95,11 @@ com lancamento financeiro de saida, sem contar a comissao novamente.
 Sem historico comparavel, o mes corrente em andamento mostra tambem os totais
 de entradas e saidas e as medias semanais ate hoje. Ranking e melhor dia
 de vendas continuam baseados apenas em entradas, nao em lucro.
+O cartao do melhor dia tambem mostra o melhor dia do mesmo mes no ano
+imediatamente anterior ao ano selecionado, se houver entradas positivas.
+Esse destaque usa o mes completo (nunca datas futuras), soma os lancamentos
+de cada data e, em empate, escolhe a mais antiga. Pode aparecer mesmo sem
+entradas no ano selecionado; nao ha substituicao por anos mais antigos.
 O grafico semanal ocupa uma linha completa no desktop. Cada dia combina
 entradas (verde) e saidas (vermelho) na mesma barra, com os valores abaixo
 e o saldo medio (entradas menos saidas) ao lado. A escala e comum a todos

@@ -75,6 +75,7 @@ Route::middleware(['auth:sanctum', 'company.isolation'])->group(function () {
     Route::prefix('dashboard')->group(function () {
         Route::get('/summary', [DashboardController::class, 'summary']);
         Route::get('/monthly-report', [DashboardController::class, 'monthlyReport']);
+        Route::get('/yearly-report', [DashboardController::class, 'yearlyReport']);
         Route::get('/commissions-by-collaborator', [DashboardController::class, 'commissionsByCollaborator']);
         Route::get('/top-profitable-days', [DashboardController::class, 'topProfitableDays']);
         Route::get('/entries-exits', [DashboardController::class, 'entriesExits']);

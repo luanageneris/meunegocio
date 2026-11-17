@@ -320,7 +320,58 @@ class FinancialInsightsApiTest extends TestCase
         $bestDay->assertOk()
             ->assertJsonPath('data.available', true)
             ->assertJsonPath('data.best_day.date', '2026-02-14')
-            ->assertJsonPath('data.best_day.entries', 500);
+            ->assertJsonPath('data.best_day.entries', 500)
+            ->assertJsonPath('data.previous_year_month_best_day', null);
+    }
+
+    public function test_best_day_includes_the_same_full_month_last_year_with_daily_totals_and_tenant_isolation(): void
+    {
+        $this->addRecentActivityDays();
+        $this->createRecord('entry', '2026-11-01', 500);
+        $this->createRecord('entry', '2025-11-25', 100)->update(['quantity' => 3, 'discount' => 20]);
+        $this->createRecord('entry', '2025-11-25', 20);
+        $this->createRecord('entry', '2025-11-26', 300);
+        $this->createRecord('entry', '2025-10-25', 9999);
+        $this->createRecord('exit', '2025-11-24', 9999);
+        $this->createRecord('entry', '2025-11-24', 8888)->delete();
+        FinancialRecord::factory()->for(Company::factory()->create())->create([
+            'type' => 'entry', 'date' => '2025-11-24', 'amount' => 99999,
+        ]);
+
+        $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/dashboard/curiosities/best-day?month=11&year=2026')
+            ->assertOk()
+            ->assertJsonPath('data.best_day.date', '2026-11-01')
+            ->assertJsonPath('data.best_day.entries', 500)
+            ->assertJsonPath('data.previous_year_month_best_day.date', '2025-11-25')
+            ->assertJsonPath('data.previous_year_month_best_day.entries', 300);
+    }
+
+    public function test_previous_year_month_best_day_can_exist_without_entries_in_the_selected_year(): void
+    {
+        $this->addRecentActivityDays();
+        $this->createRecord('entry', '2024-02-29', 250);
+        $this->createRecord('entry', '2024-03-01', 9999);
+        $this->createRecord('entry', '2023-02-28', 9999);
+
+        $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/dashboard/curiosities/best-day?month=2&year=2025')
+            ->assertOk()
+            ->assertJsonPath('data.available', false)
+            ->assertJsonPath('data.previous_year_month_best_day.date', '2024-02-29')
+            ->assertJsonPath('data.previous_year_month_best_day.entries', 250);
+    }
+
+    public function test_previous_year_month_best_day_does_not_fall_back_to_older_years_or_exits(): void
+    {
+        $this->addRecentActivityDays();
+        $this->createRecord('entry', '2024-03-01', 500);
+        $this->createRecord('exit', '2025-03-01', 800);
+
+        $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/dashboard/curiosities/best-day?month=3&year=2026')
+            ->assertOk()
+            ->assertJsonPath('data.previous_year_month_best_day', null);
     }
 
     public function test_curiosities_average_exits_over_the_same_historical_years_and_elapsed_days(): void

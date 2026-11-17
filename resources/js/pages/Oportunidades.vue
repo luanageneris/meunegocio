@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppSelect from '@/components/AppSelect.vue';
+import CuriosityCalculationInfo from '@/components/CuriosityCalculationInfo.vue';
 import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import Footer from '@/components/Footer.vue';
 import Sidebar from '@/components/Sidebar.vue';
@@ -12,6 +13,7 @@ import {
     ArrowUpRight,
     CalendarDays,
     RefreshCw,
+    TrendingUp,
     Wallet,
 } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
@@ -146,6 +148,57 @@ const maxWeekdayAverage = computed(() =>
         ) ?? []),
     ),
 );
+
+const calculationExplanations = computed(() => {
+    const data = analysis.value;
+    if (!data) return { revenue: [], weekday: [], cashFlow: [] };
+
+    const dayMilliseconds = 86400000;
+    const start = new Date(`${data.period.start_date}T00:00:00Z`);
+    const end = new Date(`${data.period.end_date}T00:00:00Z`);
+    const periodDays = Math.round((end.getTime() - start.getTime()) / dayMilliseconds) + 1;
+    const previousEnd = new Date(start.getTime() - dayMilliseconds);
+    const previousStart = new Date(start.getTime() - periodDays * dayMilliseconds);
+    const dateLabel = (date: Date) => date.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+    const category = data.selected_category;
+    const categoryLabel = data.categories.find((option) => option.value === `${category.type}:${category.id}`)?.label;
+    const common = [
+        `Período analisado: ${dateLabel(start)} a ${dateLabel(end)}, incluindo as duas datas (${periodDays} dias). As explicações usam o período do resultado exibido, mesmo que os filtros tenham sido alterados sem atualizar a análise.`,
+        `Usamos somente registos financeiros da sua empresa que não foram excluídos. Cada lançamento vale (valor × quantidade) − desconto, com mínimo de zero. Valores monetários são arredondados para duas casas decimais.`,
+        `A análise exige registos em pelo menos ${data.eligibility.required_active_days} dias diferentes nos últimos ${data.eligibility.window_days} dias até hoje, no fuso da aplicação. A sua empresa tem ${data.eligibility.active_days} dias nessa janela. Vários lançamentos na mesma data contam uma vez, e dias com apenas saídas também contam. Essa regra é independente do período e da categoria selecionados.`,
+        category.type === 'all'
+            ? 'Categoria: todas. Consideramos entradas e saídas de todas as categorias.'
+            : `Categoria: ${categoryLabel ?? (category.type === 'entry' ? 'tipo de entrada selecionado' : 'tipo de saída selecionado')}. O filtro é aplicado somente às ${category.type === 'entry' ? 'entradas; as saídas continuam incluindo todas as categorias' : 'saídas; as entradas continuam incluindo todas as categorias'}.`,
+    ];
+    const comparison = `O período anterior é ${dateLabel(previousStart)} a ${dateLabel(previousEnd)}: os ${periodDays} dias imediatamente anteriores, com a mesma duração. Não é necessariamente o mês anterior nem o mesmo período de outro ano. Aplicamos o mesmo filtro de categoria aos dois intervalos.`;
+
+    return {
+        revenue: [
+            ...common,
+            comparison,
+            'Somamos somente as entradas de cada período. Saídas e comissões não são descontadas: este indicador mede entradas, não lucro.',
+            'Variação em reais = entradas do período selecionado − entradas do período anterior. A porcentagem é essa diferença dividida pelas entradas anteriores, multiplicada por 100 e arredondada para uma casa decimal. Se as entradas anteriores forem zero, não calculamos porcentagem.',
+            'Diferença positiva indica crescimento; negativa indica queda; zero indica estabilidade. A recomendação acompanha essa direção.',
+            '“Possível impacto” só aparece quando as entradas diminuem: a faixa é de 25% a 50% do valor da queda observada. É uma referência para avaliar ações de melhoria, não uma previsão nem recuperação garantida.',
+        ],
+        weekday: [
+            ...common,
+            'Usamos somente entradas do período analisado e exibimos apenas os dias de funcionamento configurados em Minha Conta. Essa configuração limita este gráfico e a escolha dos dias mais fortes e mais fracos; não remove movimentos dos totais de Entradas ou de Fluxo de caixa.',
+            'Para cada dia da semana, dividimos a soma das entradas desse dia pelo número de vezes que ele ocorre no intervalo. Dias sem entradas contam com zero. Se um dia de funcionamento não ocorrer no intervalo, sua média será zero. A barra usa como referência a maior média entre os dias exibidos.',
+            'A recomendação sugere uma ação para o dia de menor média, comparando-o com o de maior média. Em empate, a ordem de domingo a sábado desempata: o primeiro empatado é escolhido como menor e o último como maior. Se todas as médias forem iguais, informamos que são parecidas.',
+            `Para “Possível impacto”, calculamos a diferença entre a maior e a menor média e multiplicamos pela quantidade de ocorrências do dia mais fraco nos ${periodDays} dias seguintes ao fim do intervalo analisado. Exibimos de 25% a 50% desse valor de referência quando a diferença é positiva. Essa janela pode estar no passado e não significa previsão a partir de hoje.`,
+            'As médias não descontam gastos, e as estimativas não garantem resultados futuros. Este gráfico não usa médias dos meses equivalentes em anos anteriores, ao contrário das Curiosidades do Dashboard.',
+        ],
+        cashFlow: [
+            ...common,
+            comparison,
+            'Somamos as entradas e as saídas separadamente. Fluxo de caixa = entradas − saídas do período selecionado. O saldo anterior, usado na comparação interna, é calculado da mesma forma no intervalo anterior. Não é o saldo bancário acumulado desde o início da empresa.',
+            'As saídas incluem comissões que possuem lançamento financeiro de saída. Não somamos novamente a lista de comissões; uma comissão sem saída financeira não é descontada aqui.',
+            'Se o saldo for negativo, sugerimos rever despesas e pagamentos. Se for zero ou positivo, informamos que as entradas cobriram as saídas.',
+            '“Possível impacto” só aparece quando as saídas atuais superam as anteriores. Calculamos o aumento das saídas e mostramos uma faixa de 25% a 50% desse aumento como referência de revisão de despesas, não como economia garantida.',
+        ],
+    };
+});
 
 function formatDate(date: Date): string {
     const year = date.getFullYear();
@@ -475,14 +528,13 @@ onMounted(() => {
                                         Entradas
                                     </h2>
                                 </div>
-                                <span
-                                    v-if="
-                                        analysis.insights.revenue_trend
-                                            .direction === 'stable'
-                                    "
-                                    class="text-xs font-semibold text-gray-500 dark:text-slate-400"
-                                    >Estáveis</span
-                                >
+                                <div class="flex items-center gap-2">
+                                    <span
+                                        v-if="analysis.insights.revenue_trend.direction === 'stable'"
+                                        class="text-xs font-semibold text-gray-500 dark:text-slate-400"
+                                    >Estáveis</span>
+                                    <CuriosityCalculationInfo title="Entradas" :paragraphs="calculationExplanations.revenue" />
+                                </div>
                             </div>
                             <p
                                 class="text-xs text-gray-500 dark:text-slate-400"
@@ -594,6 +646,9 @@ onMounted(() => {
                                 >
                                     Dias da semana
                                 </h2>
+                                <div class="ml-auto">
+                                    <CuriosityCalculationInfo title="Dias da semana" :paragraphs="calculationExplanations.weekday" />
+                                </div>
                             </div>
                             <p
                                 class="text-sm text-gray-600 dark:text-slate-300"
@@ -691,6 +746,9 @@ onMounted(() => {
                                 >
                                     Fluxo de caixa
                                 </h2>
+                                <div class="ml-auto">
+                                    <CuriosityCalculationInfo title="Fluxo de caixa" :paragraphs="calculationExplanations.cashFlow" />
+                                </div>
                             </div>
                             <p
                                 class="text-xs text-gray-500 dark:text-slate-400"

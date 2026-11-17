@@ -1,6 +1,7 @@
 ﻿<script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
+import { Check } from 'lucide-vue-next';
 import Sidebar from '@/components/Sidebar.vue';
 import FixedPageHeaderTitle from '@/components/FixedPageHeaderTitle.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
@@ -30,6 +31,8 @@ type CompanyForm = {
     postal_code: string;
     opening_days: number[];
 };
+
+type CompanySection = 'details' | 'address';
 
 type ReminderCondition = 'missing_entry' | 'missing_exit' | 'missing_entry_or_exit' | 'missing_both';
 
@@ -62,7 +65,9 @@ const form = ref<CompanyForm>({
 const initialForm = ref<CompanyForm | null>(null);
 const errors = ref<Record<string, string[]>>({});
 const isLoading = ref(true);
-const isSaving = ref(false);
+const savingCompanySection = ref<CompanySection | null>(null);
+const isSaving = computed(() => savingCompanySection.value !== null);
+const companySaveMessages = ref<Record<CompanySection, string>>({ details: '', address: '' });
 const showDeleteModal = ref(false);
 const deleteStep = ref<1 | 2>(1);
 const deleteConfirmInput = ref('');
@@ -171,10 +176,56 @@ const canEdit = computed(() => {
     return role === 'root' || role === 'owner';
 });
 
-const hasChanges = computed(() => {
+const getCompanySectionValues = (value: CompanyForm, section: CompanySection) => {
+    if (section === 'details') {
+        return {
+            name: value.name,
+            email: value.email,
+            phone: value.phone,
+            document: value.document,
+            opening_days: [...value.opening_days],
+        };
+    }
+
+    return {
+        address: value.address,
+        city: value.city,
+        state: value.state,
+        postal_code: value.postal_code,
+    };
+};
+
+const hasCompanySectionChanges = (section: CompanySection) => {
     if (!initialForm.value) return false;
 
-    return JSON.stringify(form.value) !== JSON.stringify(initialForm.value);
+    return JSON.stringify(getCompanySectionValues(form.value, section))
+        !== JSON.stringify(getCompanySectionValues(initialForm.value, section));
+};
+
+const hasCompanyChanges = computed(() => hasCompanySectionChanges('details'));
+const hasAddressChanges = computed(() => hasCompanySectionChanges('address'));
+
+const openingDaysHaveChanges = computed(() => {
+    if (!initialForm.value) return false;
+
+    return JSON.stringify(form.value.opening_days) !== JSON.stringify(initialForm.value.opening_days);
+});
+
+const openingDaysStatus = computed(() => {
+    if (openingDaysHaveChanges.value) {
+        return savingCompanySection.value === 'details'
+            ? 'Salvando dias de funcionamento...'
+            : 'Alterações pendentes. Clique em Salvar alterações para confirmar.';
+    }
+
+    const selectedDays = weekdays
+        .filter((weekday) => form.value.opening_days.includes(weekday.value))
+        .map((weekday) => weekday.label)
+        .join(', ');
+
+    return companySaveMessages.value.details
+        ? `Dias de funcionamento salvos: ${selectedDays}.`
+        : `Dias selecionados: ${selectedDays}.`;
 });
 
 const userProfileHasChanges = computed(() => {
@@ -241,7 +292,7 @@ const fillForm = (data: any) => {
     };
 
     form.value = nextForm;
-    initialForm.value = { ...nextForm };
+    initialForm.value = { ...nextForm, opening_days: [...nextForm.opening_days] };
 };
 
 const handlePhoneInput = (event: Event) => {
@@ -423,10 +474,14 @@ const toggleOpeningDay = (day: number) => {
             return;
         }
 
+        saveSuccessMessage.value = '';
+        companySaveMessages.value.details = '';
         form.value.opening_days = current.filter((item) => item !== day);
         return;
     }
 
+    saveSuccessMessage.value = '';
+    companySaveMessages.value.details = '';
     form.value.opening_days = [...current, day].sort((a, b) => a - b);
 };
 
@@ -490,19 +545,24 @@ const saveReminderSettings = async () => {
     }
 };
 
-const save = async () => {
+const save = async (section: CompanySection) => {
     if (!canEdit.value) {
         toast.info('Acesso somente leitura', { description: 'Somente o usuário root pode editar a conta.' });
         return;
     }
 
-    if (!hasChanges.value) {
+    if (isSaving.value || !initialForm.value || !hasCompanySectionChanges(section)) {
         return;
     }
 
-    isSaving.value = true;
+    const requestData = {
+        ...initialForm.value,
+        ...getCompanySectionValues(form.value, section),
+    };
+    savingCompanySection.value = section;
     errors.value = {};
     saveSuccessMessage.value = '';
+    companySaveMessages.value[section] = '';
 
     try {
         const response = await fetch('/api/company', {
@@ -513,7 +573,7 @@ const save = async () => {
                 'Authorization': `Bearer ${auth.token.value}`,
                 'X-CSRF-TOKEN': getCsrfToken(),
             },
-            body: JSON.stringify(form.value),
+            body: JSON.stringify(requestData),
         });
 
         const payload = await response.json();
@@ -523,17 +583,23 @@ const save = async () => {
             throw new Error(payload?.message || 'Erro ao salvar');
         }
 
+        const unsavedValues = getCompanySectionValues(form.value, section === 'details' ? 'address' : 'details');
         fillForm(payload.data);
+        Object.assign(form.value, unsavedValues);
 
         // Atualiza o usuário em memória para manter company sincronizado
         const currentUser = auth.user.value || {};
         auth.setUser({ ...currentUser, company: payload.data });
 
-        saveSuccessMessage.value = 'Informações salvas com sucesso.';
+        const message = section === 'details'
+            ? 'Dados da empresa salvos com sucesso.'
+            : 'Endereço salvo com sucesso.';
+        companySaveMessages.value[section] = message;
+        saveSuccessMessage.value = message;
     } catch (error: any) {
         toast.error('Não foi possível salvar', { description: error?.message || 'Revise os campos e tente novamente.' });
     } finally {
-        isSaving.value = false;
+        savingCompanySection.value = null;
     }
 };
 
@@ -798,8 +864,8 @@ onMounted(async () => {
                             <span v-if="!canEdit" class="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded-full">Somente leitura</span>
                         </div>
 
-                        <div class="space-y-4">
-                            <div>
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
+                            <div class="min-w-0 lg:flex-1">
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome completo</label>
                                 <input
                                     v-model="userProfile.name"
@@ -811,7 +877,7 @@ onMounted(async () => {
                                 <p v-if="userProfileErrors.name" class="text-sm text-red-600 dark:text-red-400 mt-1">{{ userProfileErrors.name[0] }}</p>
                             </div>
 
-                            <div>
+                            <div class="min-w-0 lg:flex-1">
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
                                 <input
                                     v-model="userProfile.email"
@@ -823,24 +889,23 @@ onMounted(async () => {
                                 <p v-if="userProfileErrors.email" class="text-sm text-red-600 dark:text-red-400 mt-1">{{ userProfileErrors.email[0] }}</p>
                             </div>
 
-                            <div v-if="userProfileSuccess" class="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 mt-4">
-                                <p class="text-sm text-green-700 dark:text-green-400">{{ userProfileSuccess }}</p>
-                            </div>
-
                             <button
-                                v-if="canEdit && userProfileHasChanges"
+                                type="button"
                                 @click="saveUserProfile"
-                                :disabled="userProfileSaving"
-                                class="w-full mt-4 px-4 py-2.5 bg-blue-500 dark:bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer disabled:cursor-not-allowed"
+                                :disabled="userProfileSaving || !canEdit || !userProfileHasChanges"
+                                class="w-fit max-w-full shrink-0 self-start rounded-lg border-2 border-transparent bg-blue-500 px-4 py-2.5 font-semibold text-white transition-colors enabled:hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 dark:bg-blue-600 dark:enabled:hover:bg-blue-700 dark:disabled:bg-slate-800 dark:disabled:text-slate-400 sm:py-3 lg:mt-6 cursor-pointer"
                             >
                                 {{ userProfileSaving ? 'Salvando...' : 'Salvar Perfil' }}
                             </button>
+                        </div>
+                        <div v-if="userProfileSuccess" class="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 mt-4">
+                            <p class="text-sm text-green-700 dark:text-green-400">{{ userProfileSuccess }}</p>
                         </div>
                     </section>
 
                     <!-- Company Info Section -->
                     <div class="grid gap-6 lg:grid-cols-2 overflow-hidden">
-                        <section class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-6 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none overflow-hidden">
+                        <section class="flex flex-col rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-6 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none overflow-hidden">
                             <div class="flex items-center justify-between mb-4">
                                 <div>
                                     <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Informações da Conta</p>
@@ -849,7 +914,7 @@ onMounted(async () => {
                                 <span v-if="!canEdit" class="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded-full">Somente leitura</span>
                             </div>
 
-                            <div class="space-y-4">
+                            <fieldset :disabled="!canEdit || savingCompanySection === 'details'" class="min-w-0 space-y-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da empresa *</label>
                                     <input
@@ -900,19 +965,19 @@ onMounted(async () => {
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dias de funcionamento</label>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">Selecione os dias em que a empresa abre. Esse dado será usado nos gráficos de Oportunidades.</p>
+                                <div role="group" aria-labelledby="opening-days-label" aria-describedby="opening-days-help opening-days-status">
+                                    <p id="opening-days-label" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dias de funcionamento</p>
+                                    <p id="opening-days-help" class="text-xs text-gray-500 dark:text-gray-400">Selecione os dias em que a empresa abre e clique em Salvar alterações. Esse dado será usado nos gráficos de Oportunidades.</p>
                                     <div class="mt-2 flex flex-wrap gap-2">
                                         <button
                                             v-for="weekday in weekdays"
                                             :key="weekday.value"
                                             type="button"
-                                            :disabled="!canEdit"
+                                            :disabled="!canEdit || savingCompanySection === 'details'"
                                             :aria-pressed="form.opening_days.includes(weekday.value)"
                                             @click="toggleOpeningDay(weekday.value)"
                                             :class="[
-                                                'px-3 py-1.5 text-xs rounded-full border transition cursor-pointer disabled:cursor-not-allowed',
+                                                'inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs rounded-full border transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed',
                                                 form.opening_days.includes(weekday.value)
                                                     ? 'bg-amber-500 text-white border-amber-500'
                                                     : 'bg-white text-gray-700 border-amber-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600',
@@ -922,19 +987,42 @@ onMounted(async () => {
                                                       ? 'hover:bg-amber-600 hover:border-amber-600'
                                                       : 'hover:bg-amber-100 dark:hover:bg-slate-700'
                                             ]"
-                                        >{{ weekday.label }}</button>
+                                        >
+                                            <Check class="h-3 w-3 shrink-0" :class="form.opening_days.includes(weekday.value) ? 'opacity-100' : 'opacity-0'" aria-hidden="true" />
+                                            {{ weekday.label }}
+                                        </button>
                                     </div>
+                                    <p
+                                        id="opening-days-status"
+                                        role="status"
+                                        class="mt-2 text-xs"
+                                        :class="openingDaysHaveChanges
+                                            ? 'font-medium text-amber-700 dark:text-amber-300'
+                                            : companySaveMessages.details
+                                              ? 'font-medium text-emerald-700 dark:text-emerald-300'
+                                              : 'text-gray-500 dark:text-gray-400'"
+                                    >{{ openingDaysStatus }}</p>
                                     <p v-if="errors.opening_days" class="text-sm text-red-600 mt-1">{{ errors.opening_days[0] }}</p>
                                 </div>
+                            </fieldset>
+                            <p v-if="companySaveMessages.details && !hasCompanyChanges" role="status" class="mt-3 text-sm text-emerald-700 dark:text-emerald-300">{{ companySaveMessages.details }}</p>
+                            <div class="mt-auto flex justify-end pt-4">
+                                <button
+                                    type="button"
+                                    :disabled="isSaving || !canEdit || !hasCompanyChanges"
+                                    @click="save('details')"
+                                    class="w-fit max-w-full px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium enabled:hover:shadow-lg transition-all cursor-pointer disabled:bg-none disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-slate-800 dark:disabled:text-slate-400"
+                                >
+                                    {{ savingCompanySection === 'details' ? 'Salvando...' : 'Salvar alterações' }}
+                                </button>
                             </div>
-
                         </section>
 
-                        <section class="rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-6 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none overflow-hidden">
+                        <section class="flex flex-col rounded-xl border border-transparent bg-white p-4 shadow-lg sm:p-6 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-none overflow-hidden">
                             <p class="text-xs uppercase tracking-wide text-orange-500 font-semibold">Endereço (opcional)</p>
                             <h3 class="text-lg font-bold text-gray-800 mb-4">Onde sua empresa fica?</h3>
 
-                            <div class="space-y-4">
+                            <fieldset :disabled="!canEdit || savingCompanySection === 'address'" class="min-w-0 space-y-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
                                     <input
@@ -988,18 +1076,19 @@ onMounted(async () => {
                                         <span>Endereço é opcional e pode ser usado em relatórios futuros.</span>
                                     </div>
                                 </div>
+                            </fieldset>
+                            <p v-if="companySaveMessages.address && !hasAddressChanges" role="status" class="mt-3 text-sm text-emerald-700 dark:text-emerald-300">{{ companySaveMessages.address }}</p>
+                            <div class="mt-auto flex justify-end pt-4">
+                                <button
+                                    type="button"
+                                    :disabled="isSaving || !canEdit || !hasAddressChanges"
+                                    @click="save('address')"
+                                    class="w-fit max-w-full px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium enabled:hover:shadow-lg transition-all cursor-pointer disabled:bg-none disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-slate-800 dark:disabled:text-slate-400"
+                                >
+                                    {{ savingCompanySection === 'address' ? 'Salvando...' : 'Salvar alterações' }}
+                                </button>
                             </div>
                         </section>
-                    </div>
-                    <div class="flex flex-col sm:flex-row flex-wrap gap-3 justify-end">
-                        <button
-                            type="button"
-                            :disabled="isSaving || !canEdit || !hasChanges"
-                            @click="save"
-                            class="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg font-medium enabled:hover:shadow-lg transition-all cursor-pointer disabled:bg-none disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-slate-800 dark:disabled:text-slate-400"
-                        >
-                            {{ isSaving ? 'Salvando...' : 'Salvar alterações' }}
-                        </button>
                     </div>
 
 

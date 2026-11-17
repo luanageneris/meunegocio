@@ -526,12 +526,42 @@ class FinancialInsightsService
         $start = Carbon::create($year, 1, 1)->startOfDay();
         $selectedMonthEnd = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
         $end = $selectedMonthEnd->lessThan(now()->endOfDay()) ? $selectedMonthEnd : now()->endOfDay();
+        $previousMonthStart = Carbon::create($year - 1, $month, 1)->startOfDay();
+        $result = [
+            'previous_year_month_best_day' => $this->bestEntryDay(
+                $companyId,
+                $previousMonthStart,
+                $previousMonthStart->copy()->endOfMonth()->endOfDay(),
+            ),
+        ];
 
         if ($end->lessThan($start)) {
-            return [
+            return array_merge($result, [
                 'available' => false,
                 'message' => 'Ainda não há registos neste ano até ao mês selecionado.',
-            ];
+            ]);
+        }
+
+        $bestDay = $this->bestEntryDay($companyId, $start, $end);
+
+        if (! $bestDay) {
+            return array_merge($result, [
+                'available' => false,
+                'message' => 'Ainda não há entradas registadas neste ano até ao mês selecionado.',
+            ]);
+        }
+
+        return array_merge($result, [
+            'available' => true,
+            'best_day' => $bestDay,
+        ]);
+    }
+
+    private function bestEntryDay(int $companyId, Carbon $start, Carbon $end): ?array
+    {
+        $end = $end->min(now()->endOfDay());
+        if ($end->lessThan($start)) {
+            return null;
         }
 
         $bestDay = FinancialRecord::forCompany($companyId)
@@ -544,18 +574,12 @@ class FinancialInsightsService
             ->first();
 
         if (! $bestDay || (float) $bestDay->total <= 0) {
-            return [
-                'available' => false,
-                'message' => 'Ainda não há entradas registadas neste ano até ao mês selecionado.',
-            ];
+            return null;
         }
 
         return [
-            'available' => true,
-            'best_day' => [
-                'date' => $bestDay->day,
-                'entries' => round((float) $bestDay->total, 2),
-            ],
+            'date' => $bestDay->day,
+            'entries' => round((float) $bestDay->total, 2),
         ];
     }
 }

@@ -130,8 +130,10 @@ class ReportPdfService
 
     public function buildYearlySummaryPdf(Company $company, int $year, string $pin, User $recipient): string
     {
-        $periodStart = Carbon::create($year, 1, 1)->startOfDay();
-        $holidayData = $this->loadHolidayData($company, $recipient, $periodStart, $periodStart->copy()->endOfYear());
+        if ((int) $company->id !== (int) $recipient->company_id) {
+            throw new \InvalidArgumentException('O destinatário não pertence à empresa do relatório.');
+        }
+
         $generatedAt = now();
         $pdf = $this->createPdfDocument('Relatório Anual - Resumo', $pin, $generatedAt);
         $pdf->AddPage();
@@ -202,8 +204,6 @@ class ReportPdfService
         $html .= '</tr>';
 
         $html .= '</tbody></table>';
-        $html .= $this->buildHolidaySectionHtml($holidayData, false);
-
         $pdf->writeHTML($html, true, false, true, false, '');
 
         $path = tempnam(sys_get_temp_dir(), 'yearly-report-');
