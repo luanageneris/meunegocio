@@ -1440,9 +1440,9 @@ onUnmounted(() => {
                                         ?.available
                                 "
                             >
-                                <p class="mt-3 text-xs font-semibold text-orange-700 dark:text-orange-300">Entradas</p>
+                                <p class="mt-3 text-xs font-semibold text-emerald-700 dark:text-emerald-300">Entradas</p>
                                 <p
-                                    class="mt-1 text-2xl font-bold text-orange-700 dark:text-orange-300"
+                                    class="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300"
                                 >
                                     {{
                                         formatCurrency(
@@ -1485,7 +1485,7 @@ onUnmounted(() => {
                                 class="mt-3 rounded-lg bg-orange-50 p-3 dark:bg-orange-950/30"
                             >
                                 <p
-                                    class="text-xs text-orange-900 dark:text-orange-100"
+                                    class="text-xs text-emerald-900 dark:text-emerald-100"
                                 >
                                     Entradas registadas neste mês até ao dia
                                     {{
@@ -1494,7 +1494,7 @@ onUnmounted(() => {
                                     }}
                                 </p>
                                 <p
-                                    class="mt-1 text-xl font-bold text-orange-700 dark:text-orange-300"
+                                    class="mt-1 text-xl font-bold text-emerald-700 dark:text-emerald-300"
                                 >
                                     {{
                                         formatCurrency(
